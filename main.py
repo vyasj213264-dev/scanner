@@ -1,5 +1,5 @@
 """
-ChartsMaze API — application entry point.
+StockScans API — application entry point.
 """
 from contextlib import asynccontextmanager
 
