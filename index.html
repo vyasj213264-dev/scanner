@@ -801,7 +801,7 @@
 
             try {
                 const t0 = performance.now();
-                const res = await fetch(`${API}/scan/${scannerId}?limit=20&sort_by=${activeSortBy}&order=desc`);
+                const res = await fetch(`${API}/scan/${scannerId}?limit=100&sort_by=${activeSortBy}&order=desc`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
 
                 const data = await res.json();
