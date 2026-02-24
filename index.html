@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChartsMaze — US Stock Scanner</title>
+    <meta name="description"
+        content="Professional US equity scanner powered by ChartsMaze. Scan 3,100+ stocks for technical setups in real-time." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
+    <style>
+        /* ── Design Tokens ─────────────────────────────────────── */
+        :root {
+            --bg: #080b12;
+            --surface: #0e1320;
+            --card: #131926;
+            --card-hover: #182033;
+            --border: #1e2a40;
+            --border-light: #253350;
+            --accent: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.25);
+            --accent-hover: #3b82f6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --muted: #4b5878;
+            --text-primary: #e8edf5;
+            --text-secondary: #8fa3c0;
+            --text-muted: #4b5878;
+            --sidebar-w: 280px;
+            --header-h: 60px;
+            --radius: 10px;
+            --radius-sm: 6px;
+            --transition: all 0.18s ease;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ────────────────────────────────────────────── */
+        .app-header {
+            height: var(--header-h);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 16px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            white-space: nowrap;
+        }
+
+        .logo span {
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 6px var(--green);
+            }
+
+            50% {
+                opacity: 0.5;
+                box-shadow: 0 0 12px var(--green);
+            }
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .header-meta strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .last-updated-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Layout ─────────────────────────────────────────────── */
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ─────────────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 4px;
+        }
+
+        .sidebar-section {
+            padding: 20px 12px 8px;
+        }
+
+        .sidebar-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 8px;
+            margin-bottom: 6px;
+        }
+
+        .scanner-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 10px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.83rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: left;
+            gap: 8px;
+        }
+
+        .scanner-btn:hover {
+            background: var(--card-hover);
+            color: var(--text-primary);
+        }
+
+        .scanner-btn.active {
+            background: var(--accent-glow);
+            color: #93c5fd;
+            font-weight: 600;
+            border: 1px solid rgba(37, 99, 235, 0.35);
+        }
+
+        .scanner-btn .btn-label {
+            flex: 1;
+        }
+
+        .count-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: var(--border);
+            color: var(--text-muted);
+            border-radius: 20px;
+            padding: 1px 7px;
+            transition: var(--transition);
+            min-width: 22px;
+            text-align: center;
+        }
+
+        .scanner-btn.active .count-badge {
+            background: rgba(37, 99, 235, 0.4);
+            color: #93c5fd;
+        }
+
+        /* ── Main Content ─────────────────────────────────────── */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Results Header Bar ──────────────────────────────── */
+        .results-header {
+            height: 52px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .results-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .results-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .results-count-pill {
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            border-radius: 20px;
+            padding: 2px 8px;
+        }
+
+        .sort-controls {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sort-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .sort-btn {
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sort-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .sort-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        /* ── Chart Grid ──────────────────────────────────────── */
+        .grid-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        .grid-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .grid-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .grid-area::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 4px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            max-width: 1400px;
+        }
+
+        @media (max-width: 1024px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Chart Card ──────────────────────────────────────── */
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chart-card:hover {
+            border-color: var(--border-light);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-ticker {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .card-ticker a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .card-ticker a:hover {
+            color: #60a5fa;
+        }
+
+        .card-stage-pill {
+            font-size: 0.62rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .pill-stage2 {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .pill-gap-up {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .pill-gap-dn {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .card-metrics {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .metric-chip {
+            font-size: 0.68rem;
+            font-weight: 600;
+            background: var(--border);
+            color: var(--text-secondary);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .metric-chip.highlight {
+            color: #60a5fa;
+            background: rgba(37, 99, 235, 0.15);
+        }
+
+        .metric-chip.positive {
+            color: #4ade80;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .metric-chip.negative {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .chart-container {
+            height: 380px;
+            width: 100%;
+        }
+
+        /* ── Skeleton Loader ─────────────────────────────────── */
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            max-width: 1400px;
+        }
+
+        @media (max-width: 1024px) {
+            .skeleton-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .skeleton-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .skeleton-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .skel {
+            background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.6s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .skel-ticker {
+            width: 60px;
+            height: 18px;
+        }
+
+        .skel-pill {
+            width: 48px;
+            height: 16px;
+            border-radius: 20px;
+        }
+
+        .skel-chip {
+            height: 20px;
+        }
+
+        .skel-chart {
+            height: 380px;
+        }
+
+        /* ── Empty State ─────────────────────────────────────── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 320px;
+            color: var(--text-muted);
+            gap: 12px;
+        }
+
+        .empty-icon {
+            font-size: 2.5rem;
+            opacity: 0.4;
+        }
+
+        .empty-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .empty-sub {
+            font-size: 0.8rem;
+            text-align: center;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* ── Welcome State ───────────────────────────────────── */
+        .welcome-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-icon {
+            font-size: 3rem;
+            opacity: 0.35;
+        }
+
+        .welcome-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .welcome-sub {
+            font-size: 0.85rem;
+            max-width: 340px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Header ─────────────────────────────────────────── -->
+    <header class="app-header">
+        <div class="logo">Charts<span>Maze</span></div>
+        <div class="header-divider"></div>
+        <div class="live-dot"></div>
+        <div class="header-meta">
+            Scanning <strong id="universe-count">—</strong> US Equities
+        </div>
+        <div class="header-right">
+            <span class="last-updated-label">Data as of: <strong id="last-updated">—</strong></span>
+        </div>
+    </header>
+
+    <!-- ── App Body ───────────────────────────────────────── -->
+    <div class="app-body">
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div id="sidebar-content">
+                <!-- Populated dynamically from /api/v1/scanners -->
+                <div style="padding: 40px 20px; text-align:center; color: var(--text-muted); font-size:0.8rem;">
+                    Loading scanners…
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Area -->
+        <div class="main-content">
+
+            <!-- Results Header -->
+            <div class="results-header">
+                <div class="results-title" id="results-title">Select a scanner</div>
+                <div class="results-meta" id="results-meta"></div>
+                <div class="sort-controls" id="sort-controls" style="display:none">
+                    <span class="sort-label">Sort:</span>
+                    <button class="sort-btn active" data-sort="rs_rating">RS Rating</button>
+                    <button class="sort-btn" data-sort="rvol">RVOL</button>
+                    <button class="sort-btn" data-sort="close">Price</button>
+                    <button class="sort-btn" data-sort="pct_from_52w_high">52W%</button>
+                    <button class="sort-btn" data-sort="momentum_1m">Momentum</button>
+                </div>
+            </div>
+
+            <!-- Grid Area -->
+            <div class="grid-area" id="grid-area">
+                <div class="welcome-state">
+                    <div class="welcome-icon">📊</div>
+                    <div class="welcome-title">ChartsMaze Full Engine</div>
+                    <div class="welcome-sub">
+                        Choose a scanner from the left panel to scan 3,100+ US equities for technical setups.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ── Config ──────────────────────────────────────────────
+        const API = '/api/v1';
+
+        // ── State ───────────────────────────────────────────────
+        let activeScanner = null;
+        let activeSortBy = 'rs_rating';
+        let lastResults = [];      // cached for client-side resort
+        let tvWidgetCount = 0;
+
+        // ── Utility ─────────────────────────────────────────────
+        function fmt(val, decimals = 1, suffix = '') {
+            if (val == null || isNaN(val)) return '—';
+            return val.toFixed(decimals) + suffix;
+        }
+
+        function fmtPrice(val) {
+            if (val == null || isNaN(val)) return '—';
+            return '$' + val.toFixed(2);
+        }
+
+        // ── Boot ─────────────────────────────────────────────────
+        async function boot() {
+            try {
+                const [healthRes, scannersRes] = await Promise.all([
+                    fetch(`${API}/health`),
+                    fetch(`${API}/scanners`),
+                ]);
+                const health = await healthRes.json();
+                const scanData = await scannersRes.json();
+
+                document.getElementById('universe-count').textContent =
+                    health.universe_size.toLocaleString();
+                document.getElementById('last-updated').textContent =
+                    health.last_updated || '—';
+
+                buildSidebar(scanData.scanners);
+            } catch (err) {
+                console.error('Boot failed:', err);
+            }
+        }
+
+        // ── Sidebar Builder ──────────────────────────────────────
+        function buildSidebar(scanners) {
+            // Group by category
+            const categories = {};
+            for (const s of scanners) {
+                if (!categories[s.category]) categories[s.category] = [];
+                categories[s.category].push(s);
+            }
+
+            const container = document.getElementById('sidebar-content');
+            container.innerHTML = '';
+
+            for (const [cat, items] of Object.entries(categories)) {
+                const section = document.createElement('div');
+                section.className = 'sidebar-section';
+                section.innerHTML = `<div class="sidebar-section-label">${cat}</div>`;
+
+                for (const item of items) {
+                    const btn = document.createElement('button');
+                    btn.className = 'scanner-btn';
+                    btn.dataset.id = item.id;
+                    btn.title = item.description;
+                    btn.innerHTML = `
+            <span class="btn-label">${item.label}</span>
+            <span class="count-badge" id="badge-${item.id}">—</span>
+          `;
+                    btn.addEventListener('click', () => runScanner(item.id, item.label));
+                    section.appendChild(btn);
+                }
+
+                container.appendChild(section);
+            }
+
+            // Preload badges in background
+            prefetchBadges(scanners);
+
+            // Auto-run scanner from URL query param (handles page refresh + shared links)
+            const urlScannerId = new URLSearchParams(window.location.search).get('scanner');
+            if (urlScannerId) {
+                const btn = document.querySelector(`.scanner-btn[data-id="${urlScannerId}"]`);
+                const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
+                runScanner(urlScannerId, label);
+            }
+        }
+
+        async function prefetchBadges(scanners) {
+            for (const s of scanners) {
+                try {
+                    const res = await fetch(`${API}/scan/${s.id}?limit=100`);
+                    const data = await res.json();
+                    const badge = document.getElementById(`badge-${s.id}`);
+                    if (badge) badge.textContent = data.count;
+                } catch (_) { /* ignore */ }
+                await sleep(80); // stagger requests so we don't hammer the DB
+            }
+        }
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // ── Sort Controls ────────────────────────────────────────
+        document.getElementById('sort-controls').addEventListener('click', e => {
+            const btn = e.target.closest('.sort-btn');
+            if (!btn) return;
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeSortBy = btn.dataset.sort;
+            if (lastResults.length) renderGrid(sortResults(lastResults));
+        });
+
+        function sortResults(results) {
+            return [...results].sort((a, b) => {
+                const aVal = a[activeSortBy] ?? -Infinity;
+                const bVal = b[activeSortBy] ?? -Infinity;
+                // For pct_from_52w_high, lower is better: sort ASC
+                if (activeSortBy === 'pct_from_52w_high') return aVal - bVal;
+                return bVal - aVal;
+            });
+        }
+
+        // ── URL Routing ──────────────────────────────────────────
+        // Push scanner into the browser history so the URL reflects the active scan.
+        function pushScannerToHistory(scannerId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('scanner', scannerId);
+            history.pushState({ scanner: scannerId }, '', url.toString());
+        }
+
+        // Back/Forward: sync the UI to whichever scanner the history state points to.
+        window.addEventListener('popstate', (e) => {
+            const scannerId = e.state?.scanner || new URLSearchParams(window.location.search).get('scanner');
+            if (scannerId) {
+                const btn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
+                const label = btn?.querySelector('.btn-label')?.textContent || scannerId;
+                runScanner(scannerId, label, /* force= */ true);
+            }
+        });
+
+        // ── Run Scanner ──────────────────────────────────────────
+        async function runScanner(scannerId, scannerLabel, force = false) {
+            if (!force && activeScanner === scannerId) return;
+            activeScanner = scannerId;
+
+            // Reflect the active scanner in the URL (only on user clicks, not on popstate)
+            if (!force) pushScannerToHistory(scannerId);
+
+            // Update sidebar active state
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Update header
+            document.getElementById('results-title').textContent = scannerLabel;
+            document.getElementById('results-meta').innerHTML = '';
+            document.getElementById('sort-controls').style.display = 'none';
+
+            // Show skeleton
+            showSkeletons(6);
+
+            try {
+                const t0 = performance.now();
+                const res = await fetch(`${API}/scan/${scannerId}?limit=20&sort_by=${activeSortBy}&order=desc`);
+                if (!res.ok) throw new Error(`API ${res.status}`);
+
+                const data = await res.json();
+                const ms = Math.round(performance.now() - t0);
+                lastResults = data.data;
+
+                updateResultsMeta(data, ms);
+                document.getElementById('sort-controls').style.display = 'flex';
+
+                if (lastResults.length === 0) {
+                    showEmptyState(scannerLabel);
+                } else {
+                    renderGrid(sortResults(lastResults));
+                }
+
+                // Update badge
+                const badge = document.getElementById(`badge-${scannerId}`);
+                if (badge) badge.textContent = data.count;
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('grid-area').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <div class="empty-title">Scanner Error</div>
+            <div class="empty-sub">${err.message}</div>
+          </div>`;
+            }
+        }
+
+        function updateResultsMeta(data, ms) {
+            document.getElementById('results-meta').innerHTML = `
+        <span class="results-count-pill">${data.count} results</span>
+        <span>from ${(data.total_universe || 0).toLocaleString()} stocks</span>
+        <span style="color:var(--text-muted)">· ${ms}ms</span>
+      `;
+        }
+
+        // ── Skeleton Loader ──────────────────────────────────────
+        function showSkeletons(n) {
+            const area = document.getElementById('grid-area');
+            const grid = document.createElement('div');
+            grid.className = 'skeleton-grid';
+
+            for (let i = 0; i < n; i++) {
+                grid.innerHTML += `
+          <div class="skeleton-card">
+            <div class="skeleton-header">
+              <div class="skel skel-ticker"></div>
+              <div class="skel skel-pill"></div>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <div class="skel skel-chip" style="width:52px"></div>
+                <div class="skel skel-chip" style="width:52px"></div>
+                <div class="skel skel-chip" style="width:52px"></div>
+              </div>
+            </div>
+            <div class="skel skel-chart"></div>
+          </div>`;
+            }
+            area.innerHTML = '';
+            area.appendChild(grid);
+        }
+
+        // ── Empty State ──────────────────────────────────────────
+        function showEmptyState(label) {
+            document.getElementById('grid-area').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">No results found</div>
+          <div class="empty-sub">
+            The <strong>${label}</strong> scanner found no matching setups in today's data.
+            Try running <code>ingest.py</code> to refresh the database.
+          </div>
+        </div>`;
+        }
+
+        // ── Render Grid ──────────────────────────────────────────
+        function renderGrid(stocks) {
+            const area = document.getElementById('grid-area');
+            const grid = document.createElement('div');
+            grid.className = 'chart-grid';
+            area.innerHTML = '';
+            area.appendChild(grid);
+
+            for (const stock of stocks) {
+                createChartCard(stock, grid);
+            }
+        }
+
+        // ── Chart Card ───────────────────────────────────────────
+        function createChartCard(stock, grid) {
+            const containerId = `tv-${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
+
+            const rs = fmt(stock.rs_rating);
+            const rvol = fmt(stock.rvol, 2);
+            const w52 = fmt(stock.pct_from_52w_high, 1, '%');
+            const mom = fmt(stock.momentum_1m != null ? stock.momentum_1m * 100 : null, 1, '%');
+            const price = fmtPrice(stock.close);
+
+            const rsClass = stock.rs_rating >= 90 ? 'positive' : stock.rs_rating >= 70 ? 'highlight' : '';
+            const rvolClass = stock.rvol >= 2 ? 'positive' : '';
+            const momClass = stock.momentum_1m > 0 ? 'positive' : stock.momentum_1m < 0 ? 'negative' : '';
+            const w52Class = stock.pct_from_52w_high >= -5 ? 'positive' : '';
+
+            const stagePill = stock.in_stage_2
+                ? '<span class="card-stage-pill pill-stage2">Stage 2</span>'
+                : stock.gap_up
+                    ? '<span class="card-stage-pill pill-gap-up">Gap Up</span>'
+                    : stock.gap_down
+                        ? '<span class="card-stage-pill pill-gap-dn">Gap Dn</span>'
+                        : '';
+
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.innerHTML = `
+        <div class="card-header">
+          <div class="card-ticker">
+            <a href="https://www.tradingview.com/chart/?symbol=${stock.ticker}"
+               target="_blank" rel="noopener noreferrer" title="Open on TradingView">
+              ${stock.ticker}
+            </a>
+          </div>
+          ${stagePill}
+          <div class="card-metrics">
+            <span class="metric-chip ${rsClass}">RS&nbsp;${rs}</span>
+            <span class="metric-chip ${rvolClass}">RVOL&nbsp;${rvol}</span>
+            <span class="metric-chip ${w52Class}">52W&nbsp;${w52}</span>
+            <span class="metric-chip ${momClass}">1M&nbsp;${mom}</span>
+            <span class="metric-chip">${price}</span>
+          </div>
+        </div>
+        <div class="chart-container" id="${containerId}"></div>
+      `;
+
+            grid.appendChild(card);
+
+            // Lazy-load TradingView widget on intersection
+            const obs = new IntersectionObserver((entries, o) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    try {
+                        new TradingView.widget({
+                            autosize: true,
+                            symbol: stock.ticker,
+                            interval: 'D',
+                            timezone: 'Etc/UTC',
+                            theme: 'dark',
+                            style: '1',
+                            locale: 'en',
+                            enable_publishing: false,
+                            hide_top_toolbar: true,
+                            hide_legend: true,
+                            save_image: false,
+                            container_id: containerId,
+                            backgroundColor: '#131926',
+                            gridColor: '#1e2a40',
+                        });
+                    } catch (err) {
+                        console.error(`TradingView widget error for ${stock.ticker}:`, err);
+                        const el = document.getElementById(containerId);
+                        if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                    }
+                    o.unobserve(entry.target);
+                });
+            }, { rootMargin: '120px' });
+
+            obs.observe(card);
+        }
+
+        // ── Init ─────────────────────────────────────────────────
+        boot();
+    </script>
+
+</body>
+
+</html>
