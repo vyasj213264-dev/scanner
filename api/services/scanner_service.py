@@ -144,27 +144,28 @@ def run_scan(
     Returns:
         (results, total_universe_in_db, last_updated_date)
     """
-    specific = _FILTERS.get(scanner_id)
-    if specific is None:
+    if scanner_id not in _FILTERS:
         raise ValueError(f"Unknown scanner ID: '{scanner_id}'")
-
-    # Combine global pre-processor with the scanner-specific filter
-    where = f"{BASELINE_FILTER} AND ({specific})"
 
     sort_col = _SORT_COLUMN_MAP.get(sort_by, "RS_Rating")
     sort_dir = "DESC" if order == "desc" else "ASC"
 
+    # Pre-computation architecture: The complex WHERE clauses were evaluated nightly by ingest.py
+    # and saved into `scanner_results`. We simply INNER JOIN to fetch the matching tickers instantly.
+    # The BASELINE_FILTER is dynamically applied live to ensure sub-$5 stocks never appear.
     sql = (
-        f"SELECT * FROM screen_data "
-        f"WHERE {where} "
-        f"ORDER BY {sort_col} {sort_dir} "
+        f"SELECT d.* FROM screen_data d "
+        f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
+        f"WHERE r.scanner_id = ? AND d.{BASELINE_FILTER} "
+        f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
     )
 
-    rows = fetch_all(sql, (limit,))
+    rows = fetch_all(sql, (scanner_id, limit))
     results = [StockResult.model_validate(row) for row in rows]
 
-    universe = get_universe_count_in_db()
+    # Dynamically recount universe of ONLY stocks that are actively >$5
+    universe = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE {BASELINE_FILTER}") or 0
     last_updated = get_last_updated()
 
     return results, universe, last_updated

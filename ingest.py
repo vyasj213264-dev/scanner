@@ -184,6 +184,23 @@ def main():
         )
     ''')
     
+    # ---------------------------------------------------------
+    # Create the cache table for pre-computed scanner results
+    # ---------------------------------------------------------
+    cursor.execute('DROP TABLE IF EXISTS scanner_results')
+    cursor.execute(f'''
+        CREATE TABLE scanner_results (
+            scanner_id {sql_types["TEXT"]},
+            Ticker {sql_types["TEXT"]},
+            UNIQUE(scanner_id, Ticker)
+        )
+    ''')
+    
+    # Enable faster inserts
+    if not (DATABASE_URL and DATABASE_URL.startswith("postgres")):
+        cursor.execute("PRAGMA synchronous = OFF")
+        cursor.execute("PRAGMA journal_mode = MEMORY")
+    
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
         print(f"Processing chunk {i//chunk_size + 1}/{(len(tickers)//chunk_size)+1}...")
@@ -283,10 +300,49 @@ def main():
             cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", update_data)
         else:
             cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", update_data)
+            
+    # ---------------------------------------------------------
+    # Build the Pre-Computed Scanner Cache
+    # ---------------------------------------------------------
+    print("Pre-computing scanner logic and caching results...")
+    # These match _FILTERS from api/services/scanner_service.py exactly
+    filters = {
+        "horizontal-resistance": "Near_Horizontal_Resistance = 1 AND RVOL > 1.0",
+        "tight-setup":            "Tight_Setup = 1 AND In_Stage_2 = 1 AND RVOL < 1.0",
+        "rs-high-before-price-high": "RS_Rating > 90 AND Pct_From_52W_High < -5",
+        "momentum":               "Momentum_1M > 0.1 AND In_Stage_2 = 1",
+        "vcp":                    "VCP_Approximation = 1 AND In_Stage_2 = 1",
+        "inside-bar":             "Inside_Bar = 1 AND RVOL < 1.0",
+        "gap-up":                 "Gap_Up = 1 AND RVOL > 1.5",
+        "gap-down":               "Gap_Down = 1 AND RVOL > 1.5",
+        "golden-crossover":       "Golden_Crossover = 1",
+        "high-volume":            "RVOL > 3.0",
+        "stage-2":                "In_Stage_2 = 1",
+    }
+    
+    baseline = "Close >= 5"
+    
+    cache_records = []
+    for scanner_id, condition in filters.items():
+        # SQLite uses 1/0 for booleans, Postgres correctly parses true/false mapping natively using psycopg2
+        cursor.execute(f"SELECT Ticker FROM screen_data WHERE {baseline} AND ({condition})")
+        matching = cursor.fetchall()
+        for row in matching:
+            # handle both sqlite.Row and psycopg2.extras.DictRow
+            ticker_val = row['Ticker'] if 'Ticker' in row else row[0]
+            cache_records.append((scanner_id, ticker_val))
+            
+    if cache_records:
+        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+            cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (%s, %s)", cache_records)
+        else:
+            cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (?, ?)", cache_records)
+            
+        print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.")
         
     conn.commit()
     conn.close()
-    print("Ingestion complete. Database rebuilt securely with dual backend support.")
+    print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.")
 
 if __name__ == "__main__":
     main()
