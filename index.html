@@ -593,6 +593,141 @@
             text-align: center;
             border-top: 1px solid var(--border);
         }
+
+        /* ── Mobile Layout ──────────────────────────────────── */
+        @media (max-width: 768px) {
+            .app-body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: 60px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                align-items: center;
+                padding: 0 12px;
+                gap: 8px;
+                background: var(--bg);
+            }
+
+            .sidebar::-webkit-scrollbar {
+                height: 0px;
+                /* Hide scrollbar for clean chip look */
+            }
+
+            .sidebar-section {
+                display: contents;
+                /* Strip padding, let buttons flow inline */
+            }
+
+            .sidebar-section-label {
+                display: none;
+                /* Hide category labels on mobile to save space */
+            }
+
+            .scanner-btn {
+                width: auto;
+                white-space: nowrap;
+                padding: 8px 14px;
+                border-radius: 30px;
+                /* Pill shape for mobile */
+                background: var(--surface);
+                border: 1px solid var(--border);
+                font-size: 0.8rem;
+                justify-content: center;
+            }
+
+            .scanner-btn:hover {
+                background: var(--card-hover);
+            }
+
+            .scanner-btn.active {
+                background: var(--accent-glow);
+                border-color: rgba(37, 99, 235, 0.4);
+            }
+
+            .scanner-btn .count-badge {
+                margin-left: 6px;
+            }
+
+            .sidebar-footer {
+                display: none;
+            }
+
+            /* Main Header adjustments */
+            .app-header {
+                padding: 0 16px;
+            }
+
+            .last-updated-label {
+                display: none;
+                /* Hide date text to save space */
+            }
+
+            .logo {
+                font-size: 1.1rem;
+            }
+
+            /* Results area headers */
+            .results-header {
+                flex-direction: column;
+                height: auto;
+                padding: 12px 16px;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .sort-controls {
+                margin-left: 0;
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 4px;
+                justify-content: flex-start;
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+
+            .sort-controls::-webkit-scrollbar {
+                display: none;
+            }
+
+            .sort-btn {
+                white-space: nowrap;
+            }
+
+            /* Grid adjustments */
+            .grid-area {
+                padding: 12px;
+            }
+
+            .chart-grid {
+                gap: 12px;
+            }
+
+            .card-header {
+                padding: 10px 12px;
+            }
+
+            .card-stats {
+                padding: 8px 12px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+
+            .card-stats::-webkit-scrollbar {
+                display: none;
+            }
+
+            .skel-chart,
+            .tradingview-widget-container {
+                height: 320px !important;
+                /* Slightly shorter charts on mobile */
+            }
+        }
     </style>
 </head>
 
