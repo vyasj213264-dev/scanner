@@ -2,8 +2,13 @@
 Central configuration for StockScans API.
 """
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (if present)
+load_dotenv()
 
 # --- Database ---
+DATABASE_URL = os.getenv("DATABASE_URL")
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scanner.db")
 
 # --- Universe ---

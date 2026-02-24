@@ -5,7 +5,10 @@ import sqlite3
 import datetime
 import os
 import time
+from dotenv import load_dotenv
 
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 DB_NAME = "scanner.db"
 
 def calculate_rs_rating(stock_df, spy_df):
@@ -99,37 +102,57 @@ def main():
     
     spy_data = yf.download('SPY', period='2y', progress=False)
     
-    conn = sqlite3.connect(DB_NAME)
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        import psycopg2
+        url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
+        conn = psycopg2.connect(url)
+        placeholders = ', '.join(['%s'] * 23)
+        sql_types = {
+            "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
+            "TEXT": "VARCHAR(255)", 
+            "REAL": "DOUBLE PRECISION",
+            "BOOLEAN": "BOOLEAN"
+        }
+    else:
+        conn = sqlite3.connect(DB_NAME)
+        placeholders = ', '.join(['?'] * 23)
+        sql_types = {
+            "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
+            "TEXT": "TEXT", 
+            "REAL": "REAL",
+            "BOOLEAN": "BOOLEAN"
+        }
+    
     cursor = conn.cursor()
     
     # Drop table to start fresh with new columns
     cursor.execute('DROP TABLE IF EXISTS screen_data')
     
-    cursor.execute('''
+    cursor.execute(f'''
         CREATE TABLE screen_data (
-            Ticker TEXT PRIMARY KEY,
-            Date TEXT,
-            Close REAL,
-            Volume REAL,
-            SMA_10 REAL,
-            SMA_20 REAL,
-            SMA_50 REAL,
-            SMA_100 REAL,
-            SMA_200 REAL,
-            RVOL REAL,
-            ADR_20 REAL,
-            Pct_From_52W_High REAL,
-            In_Stage_2 BOOLEAN,
-            Tight_Setup BOOLEAN,
-            Near_Horizontal_Resistance BOOLEAN,
-            RS_Raw REAL,
-            Inside_Bar BOOLEAN,
-            Golden_Crossover BOOLEAN,
-            Gap_Up BOOLEAN,
-            Gap_Down BOOLEAN,
-            VCP_Approximation BOOLEAN,
-            Momentum_1M REAL,
-            RS_Rating REAL
+            Ticker {sql_types["TEXT PRIMARY KEY"]},
+            Date {sql_types["TEXT"]},
+            Close {sql_types["REAL"]},
+            Volume {sql_types["REAL"]},
+            SMA_10 {sql_types["REAL"]},
+            SMA_20 {sql_types["REAL"]},
+            SMA_50 {sql_types["REAL"]},
+            SMA_100 {sql_types["REAL"]},
+            SMA_200 {sql_types["REAL"]},
+            RVOL {sql_types["REAL"]},
+            ADR_20 {sql_types["REAL"]},
+            Pct_From_52W_High {sql_types["REAL"]},
+            In_Stage_2 {sql_types["BOOLEAN"]},
+            Tight_Setup {sql_types["BOOLEAN"]},
+            Near_Horizontal_Resistance {sql_types["BOOLEAN"]},
+            RS_Raw {sql_types["REAL"]},
+            Inside_Bar {sql_types["BOOLEAN"]},
+            Golden_Crossover {sql_types["BOOLEAN"]},
+            Gap_Up {sql_types["BOOLEAN"]},
+            Gap_Down {sql_types["BOOLEAN"]},
+            VCP_Approximation {sql_types["BOOLEAN"]},
+            Momentum_1M {sql_types["REAL"]},
+            RS_Rating {sql_types["REAL"]}
         )
     ''')
     
@@ -188,23 +211,29 @@ def main():
         except Exception as e:
             time.sleep(2)
 
-    cursor.executemany('''
+    cursor.executemany(f'''
         INSERT INTO screen_data (
             Ticker, Date, Close, Volume, SMA_10, SMA_20, SMA_50, SMA_100, SMA_200,
             RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
             RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, Momentum_1M, RS_Rating
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ({placeholders})
     ''', all_data)
     
-    df_db = pd.read_sql_query("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL", conn)
+    cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
+    rows = cursor.fetchall()
+    df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
+    
     if not df_db.empty:
         df_db['RS_Rating'] = df_db['RS_Raw'].rank(pct=True) * 99
         update_data = list(zip(df_db['RS_Rating'], df_db['Ticker']))
-        cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", update_data)
+        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+            cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", update_data)
+        else:
+            cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", update_data)
         
     conn.commit()
     conn.close()
-    print("Ingestion complete. Database rebuilt with all advanced capabilities.")
+    print("Ingestion complete. Database rebuilt securely with dual backend support.")
 
 if __name__ == "__main__":
     main()
