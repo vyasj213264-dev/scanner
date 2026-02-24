@@ -84,15 +84,52 @@ def calculate_indicators(df):
 
 def main():
     print("Loading ticker universe...")
+    tickers = []
+    
+    # Attempt to load custom tickers from file FIRST
     try:
         with open('master_universe.txt', 'r') as f:
-            tickers = [line.strip() for line in f if line.strip()]
+            custom_tickers = [line.strip().upper() for line in f if line.strip()]
+            tickers.extend(custom_tickers)
+            print(f"Loaded {len(custom_tickers)} custom tickers from master_universe.txt")
     except Exception as e:
-        print("Error: Could not load master_universe.txt:", e)
+        print("Note: Could not load master_universe.txt:", e)
+
+    # dynamically fetch index components
+    try:
+        import requests
+        import io
+        print("Dynamically fetching S&P 500, Nasdaq 100, and Russell 2000 tickers...")
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        
+        # S&P 500
+        r_sp = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers)
+        sp500 = pd.read_html(io.StringIO(r_sp.text))[0]['Symbol'].tolist()
+        
+        # Nasdaq 100
+        r_ndx = requests.get('https://en.wikipedia.org/wiki/Nasdaq-100', headers=headers)
+        ndx = pd.read_html(io.StringIO(r_ndx.text))[4]['Ticker'].tolist()
+        
+        # Russell 2000 (from iShares IWM ETF CSV)
+        r_iwm = requests.get('https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/1467271812596.ajax?fileType=csv&fileName=IWM_holdings&dataType=fund', headers=headers)
+        r2k_df = pd.read_csv(io.StringIO(r_iwm.text), skiprows=9)
+        r2k = r2k_df['Ticker'].dropna().tolist()
+        
+        dynamic_tickers = sp500 + ndx + r2k
+        valid_dynamic = [str(t).replace('.', '-').upper() for t in dynamic_tickers if isinstance(t, str) and t not in ('-', 'Cash', 'Other', 'USD')]
+        tickers.extend(valid_dynamic)
+        print(f"Successfully fetched {len(valid_dynamic)} index components.")
+    except Exception as e:
+        print(f"Warning: Failed to dynamically fetch indexes: {e}")
+
+    # Remove duplicates
+    tickers = list(dict.fromkeys(tickers))
+    
+    if not tickers:
+        print("Error: No tickers loaded. Exiting.")
         return
 
-    # User wanted ALL screeners end-to-end on full universe. No slicing.
-    print(f"Running on FULL UNIVERSE: {len(tickers)} stocks.")
+    print(f"Running on FULL UNIVERSE: {len(tickers)} unique stocks (Note: recently IPO'd stocks < 200 days old will be bypassed due to 200-SMA requirement).")
     
     if 'SPY' not in tickers:
         tickers.append('SPY')
