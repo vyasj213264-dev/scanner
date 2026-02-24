@@ -86,15 +86,6 @@ def main():
     print("Loading ticker universe...")
     tickers = []
     
-    # Attempt to load custom tickers from file FIRST
-    try:
-        with open('master_universe.txt', 'r') as f:
-            custom_tickers = [line.strip().upper() for line in f if line.strip()]
-            tickers.extend(custom_tickers)
-            print(f"Loaded {len(custom_tickers)} custom tickers from master_universe.txt")
-    except Exception as e:
-        print("Note: Could not load master_universe.txt:", e)
-
     # dynamically fetch index components
     try:
         import requests
@@ -204,8 +195,9 @@ def main():
         for attempt in range(max_retries):
             try:
                 # Add a baseline sleep to avoid hitting the API too fast
-                time.sleep(1.5)
-                temp_data = yf.download(chunk, period='2y', group_by='ticker', progress=False, threads=True)
+                time.sleep(5)
+                # threads=False is CRITICAL for GitHub Actions otherwise Yahoo instantly rate-limits the concurrent connections
+                temp_data = yf.download(chunk, period='2y', group_by='ticker', progress=False, threads=False)
                 
                 # yfinance sometimes returns an empty dataframe when silently rate limited
                 if temp_data.empty:
