@@ -197,56 +197,80 @@ def main():
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
         print(f"Processing chunk {i//chunk_size + 1}/{(len(tickers)//chunk_size)+1}...")
         
-        try:
-            data = yf.download(chunk, period='2y', group_by='ticker', progress=False, threads=True)
-            for ticker in chunk:
-                if len(chunk) == 1:
-                    df = data
-                else:
-                    try:
-                        df = data[ticker].copy()
-                        df.dropna(subset=['Close'], inplace=True)
-                    except KeyError:
-                        continue
+        max_retries = 3
+        retry_delay = 5
+        data = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Add a baseline sleep to avoid hitting the API too fast
+                time.sleep(1.5)
+                temp_data = yf.download(chunk, period='2y', group_by='ticker', progress=False, threads=True)
                 
-                if len(df) < 200:
+                # yfinance sometimes returns an empty dataframe when silently rate limited
+                if temp_data.empty:
+                    print(f"  Attempt {attempt+1}: Received empty data (rate limit?). Sleeping {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
                     continue
-                
-                last = calculate_indicators(df)
-                if last is not None:
-                    rs_raw = calculate_rs_rating(df, spy_data)
                     
-                    try:
-                        record = (
-                            ticker,
-                            str(last.name),
-                            float(last['Close']),
-                            float(last['Volume']),
-                            float(last['SMA_10']),
-                            float(last['SMA_20']),
-                            float(last['SMA_50']),
-                            float(last['SMA_100']),
-                            float(last['SMA_200']),
-                            float(last['RVOL']),
-                            float(last['ADR_20']),
-                            float(last['Pct_From_52W_High']),
-                            bool(last['In_Stage_2']),
-                            bool(last['Tight_Setup']),
-                            bool(last['Near_Horizontal_Resistance']),
-                            float(rs_raw),
-                            bool(last['Inside_Bar']),
-                            bool(last['Golden_Crossover']),
-                            bool(last['Gap_Up']),
-                            bool(last['Gap_Down']),
-                            bool(last['VCP_Approximation']),
-                            float(last['Momentum_1M']),
-                            0.0 # Placeholder for RS_Rating
-                        )
-                        all_data.append(record)
-                    except Exception as parse_e:
-                        continue
-        except Exception as e:
-            time.sleep(2)
+                data = temp_data
+                break
+            except Exception as e:
+                print(f"  Attempt {attempt+1} Failed: {e}. Sleeping {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                
+        if data is None or data.empty:
+            print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts.")
+            continue
+            
+        for ticker in chunk:
+            if len(chunk) == 1:
+                df = data
+            else:
+                try:
+                    df = data[ticker].copy()
+                    df.dropna(subset=['Close'], inplace=True)
+                except KeyError:
+                    continue
+            
+            if len(df) < 200:
+                continue
+            
+            last = calculate_indicators(df)
+            if last is not None:
+                rs_raw = calculate_rs_rating(df, spy_data)
+                
+                try:
+                    record = (
+                        ticker,
+                        str(last.name),
+                        float(last['Close']),
+                        float(last['Volume']),
+                        float(last['SMA_10']),
+                        float(last['SMA_20']),
+                        float(last['SMA_50']),
+                        float(last['SMA_100']),
+                        float(last['SMA_200']),
+                        float(last['RVOL']),
+                        float(last['ADR_20']),
+                        float(last['Pct_From_52W_High']),
+                        bool(last['In_Stage_2']),
+                        bool(last['Tight_Setup']),
+                        bool(last['Near_Horizontal_Resistance']),
+                        float(rs_raw),
+                        bool(last['Inside_Bar']),
+                        bool(last['Golden_Crossover']),
+                        bool(last['Gap_Up']),
+                        bool(last['Gap_Down']),
+                        bool(last['VCP_Approximation']),
+                        float(last['Momentum_1M']),
+                        0.0 # Placeholder for RS_Rating
+                    )
+                    all_data.append(record)
+                except Exception as parse_e:
+                    continue
 
     cursor.executemany(f'''
         INSERT INTO screen_data (
