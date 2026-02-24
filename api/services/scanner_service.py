@@ -98,17 +98,17 @@ def get_scanner_meta(scanner_id: str) -> Optional[ScannerMeta]:
 # ---------------------------------------------------------------------------
 
 _FILTERS: dict = {
-    "horizontal-resistance": "Near_Horizontal_Resistance = 1 AND RVOL > 1.0",
-    "tight-setup":            "Tight_Setup = 1 AND In_Stage_2 = 1 AND RVOL < 1.0",
+    "horizontal-resistance": "Near_Horizontal_Resistance AND RVOL > 1.0",
+    "tight-setup":            "Tight_Setup AND In_Stage_2 AND RVOL < 1.0",
     "rs-high-before-price-high": "RS_Rating > 90 AND Pct_From_52W_High < -5",
-    "momentum":               "Momentum_1M > 0.1 AND In_Stage_2 = 1",
-    "vcp":                    "VCP_Approximation = 1 AND In_Stage_2 = 1",
-    "inside-bar":             "Inside_Bar = 1 AND RVOL < 1.0",
-    "gap-up":                 "Gap_Up = 1 AND RVOL > 1.5",
-    "gap-down":               "Gap_Down = 1 AND RVOL > 1.5",
-    "golden-crossover":       "Golden_Crossover = 1",
+    "momentum":               "Momentum_1M > 0.1 AND In_Stage_2",
+    "vcp":                    "VCP_Approximation AND In_Stage_2",
+    "inside-bar":             "Inside_Bar AND RVOL < 1.0",
+    "gap-up":                 "Gap_Up AND RVOL > 1.5",
+    "gap-down":               "Gap_Down AND RVOL > 1.5",
+    "golden-crossover":       "Golden_Crossover",
     "high-volume":            "RVOL > 3.0",
-    "stage-2":                "In_Stage_2 = 1",
+    "stage-2":                "In_Stage_2",
 }
 
 # ---------------------------------------------------------------------------
