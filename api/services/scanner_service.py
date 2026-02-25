@@ -5,7 +5,7 @@ and returns typed StockResult lists.
 """
 from typing import List, Literal, Optional, Tuple
 
-from api.database import fetch_all, get_universe_count_in_db, get_last_updated
+from api.database import fetch_all, fetch_val, get_universe_count_in_db, get_last_updated
 from api.models.scanner import StockResult, ScannerMeta
 
 # ---------------------------------------------------------------------------

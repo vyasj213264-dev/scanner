@@ -58,6 +58,14 @@ def get_last_updated() -> Optional[str]:
     except Exception:
         return None  # Handle empty fresh database
 
+def fetch_val(sql: str, params: Tuple = ()) -> Any:
+    """Execute a SELECT query and return a single scalar value (e.g., COUNT(*))."""
+    row = fetch_one(sql, params)
+    if not row:
+        return None
+    # Extract the first column value dynamically robust against both dict and sqlite.Row
+    return list(row.values())[0] if isinstance(row, dict) else tuple(row)[0]
+
 
 def get_universe_count_in_db() -> int:
     """Returns the total number of tickers in the database."""
