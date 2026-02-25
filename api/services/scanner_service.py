@@ -169,3 +169,20 @@ def run_scan(
     last_updated = get_last_updated()
 
     return results, universe, last_updated
+
+def get_universe() -> Tuple[List[dict], int, Optional[str]]:
+    """
+    Returns the full universe of stocks > $5 with their momentum data.
+    Only fetches the specific continuous variables needed for the table
+    to minimize database I/O and JSON payload size.
+    """
+    sql = (
+        f"SELECT Ticker, Close, Momentum_1D, Momentum_1W, Momentum_1M, "
+        f"Momentum_3M, Momentum_6M, Momentum_1Y "
+        f"FROM screen_data WHERE {BASELINE_FILTER}"
+    )
+    rows = fetch_all(sql)
+    last_updated = get_last_updated()
+    
+    # We implicitly know the universe since we just fetched it identically
+    return rows, len(rows), last_updated

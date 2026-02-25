@@ -594,6 +594,87 @@
             border-top: 1px solid var(--border);
         }
 
+        /* ── Universe Table ─────────────────────────────────── */
+        .universe-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .universe-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: right;
+        }
+
+        .universe-table th,
+        .universe-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .universe-table th {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .universe-table th:hover {
+            color: var(--text-primary);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .universe-table th[data-ksort]:not([data-ksort="ticker"])::after {
+            content: "⇅";
+            margin-left: 4px;
+            opacity: 0.3;
+        }
+
+        .universe-table th[data-ksort="ticker"] {
+            text-align: left;
+        }
+
+        .universe-table td:first-child {
+            text-align: left;
+        }
+
+        .universe-table th.sort-asc::after {
+            content: "↑";
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .universe-table th.sort-desc::after {
+            content: "↓";
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .universe-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .pct-pos {
+            color: #4ade80;
+        }
+
+        .pct-neg {
+            color: #f87171;
+        }
+
+        .pct-neutral {
+            color: var(--text-muted);
+        }
+
         /* ── Mobile Menu Elements (Hidden by default) ───────── */
         .menu-toggle,
         .mobile-close-btn {
@@ -836,6 +917,11 @@
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
+            <div style="margin-bottom: 8px;">
+                <button class="scanner-btn" id="btn-universe" onclick="runUniverse()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
+                </button>
+            </div>
             <div id="sidebar-content">
                 <!-- Populated dynamically from /api/v1/scanners -->
                 <div style="padding: 40px 20px; text-align:center; color: var(--text-muted); font-size:0.8rem;">
@@ -1026,7 +1112,9 @@
         // Back/Forward: sync the UI to whichever scanner the history state points to.
         window.addEventListener('popstate', (e) => {
             const scannerId = e.state?.scanner || new URLSearchParams(window.location.search).get('scanner');
-            if (scannerId) {
+            if (scannerId === 'universe') {
+                runUniverse();
+            } else if (scannerId) {
                 const btn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
                 const label = btn?.querySelector('.btn-label')?.textContent || scannerId;
                 runScanner(scannerId, label, /* force= */ true);
@@ -1230,6 +1318,127 @@
             }, { rootMargin: '120px' });
 
             obs.observe(card);
+        }
+
+        // ── Stock Universe Page ──────────────────────────────────
+        let universeData = [];
+        let universeSortBy = 'momentum_1m';
+        let universeSortDir = -1; // -1 for desc, 1 for asc
+
+        async function runUniverse() {
+            if (activeScanner === 'universe') return;
+            activeScanner = 'universe';
+            pushScannerToHistory('universe');
+
+            // Update UI state
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btnUni = document.getElementById('btn-universe');
+            if (btnUni) btnUni.classList.add('active');
+
+            document.getElementById('results-title').textContent = "Stock Universe Explorer";
+            document.getElementById('results-meta').innerHTML = "Full market performance across all timeframes. Click headers to sort.";
+            document.getElementById('sort-controls').style.display = 'none';
+
+            // Auto-close mobile menu
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
+                    <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading all stocks...</div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API}/universe`);
+                const json = await res.json();
+                universeData = json.data;
+                renderUniverseTable();
+            } catch (err) {
+                console.error(err);
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load universe</div>`;
+            }
+        }
+
+        function renderUniverseTable() {
+            const area = document.getElementById('grid-area');
+
+            // Sort data memory-side (O(N log N) is ~1ms for 3000 rows in JS)
+            universeData.sort((a, b) => {
+                let valA = a[universeSortBy];
+                let valB = b[universeSortBy];
+                if (valA == null) valA = -Infinity;
+                if (valB == null) valB = -Infinity;
+                if (universeSortBy === 'ticker') {
+                    if (a.ticker < b.ticker) return -1 * universeSortDir;
+                    if (a.ticker > b.ticker) return 1 * universeSortDir;
+                    return 0;
+                }
+                return (valA - valB) * universeSortDir;
+            });
+
+            // Build table HTML as a string
+            let html = `
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th data-ksort="ticker">Ticker</th>
+                            <th data-ksort="close">Price</th>
+                            <th data-ksort="momentum_1d">1D</th>
+                            <th data-ksort="momentum_1w">1W</th>
+                            <th data-ksort="momentum_1m">1M</th>
+                            <th data-ksort="momentum_3m">3M</th>
+                            <th data-ksort="momentum_6m">6M</th>
+                            <th data-ksort="momentum_1y">1Y</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const fmtPct = (val) => {
+                if (val == null || isNaN(val) || val === 0) return '<span class="pct-neutral">—</span>';
+                const pct = (val * 100).toFixed(1);
+                if (val > 0) return `<span class="pct-pos">+${pct}%</span>`;
+                if (val < 0) return `<span class="pct-neg">${pct}</span>`; // already has minus sign
+                return `<span class="pct-neutral">${pct}%</span>`;
+            };
+
+            for (const row of universeData) {
+                html += `
+                <tr>
+                    <td><a href="https://www.tradingview.com/chart/?symbol=${row.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
+                    <td>${fmtPrice(row.close)}</td>
+                    <td>${fmtPct(row.momentum_1d)}</td>
+                    <td>${fmtPct(row.momentum_1w)}</td>
+                    <td>${fmtPct(row.momentum_1m)}</td>
+                    <td>${fmtPct(row.momentum_3m)}</td>
+                    <td>${fmtPct(row.momentum_6m)}</td>
+                    <td>${fmtPct(row.momentum_1y)}</td>
+                </tr>
+                `;
+            }
+            html += `</tbody></table></div>`;
+            area.innerHTML = html;
+
+            // Add click listeners to headers for column sorting
+            area.querySelectorAll('th[data-ksort]').forEach(th => {
+                const col = th.dataset.ksort;
+                if (col === universeSortBy) {
+                    th.classList.add(universeSortDir === 1 ? 'sort-asc' : 'sort-desc');
+                }
+                th.addEventListener('click', () => {
+                    if (universeSortBy === col) {
+                        universeSortDir *= -1; // flip direction
+                    } else {
+                        universeSortBy = col;
+                        universeSortDir = col === 'ticker' ? 1 : -1; // default to DESC for numbers, ASC for string
+                    }
+                    renderUniverseTable();
+                });
+            });
         }
 
         // ── Init ─────────────────────────────────────────────────

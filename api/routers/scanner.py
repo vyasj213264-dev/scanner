@@ -5,11 +5,12 @@ Scanner router — GET /api/v1/scan/{scanner_type}
 from typing import Literal
 from fastapi import APIRouter, HTTPException, Query
 
-from api.models.scanner import ScanResponse, ScannerCatalogueResponse
+from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult
 from api.services.scanner_service import (
     SCANNER_CATALOGUE,
     get_scanner_meta,
     run_scan,
+    get_universe
 )
 from api.config import DEFAULT_SCAN_LIMIT, MAX_SCAN_LIMIT
 
@@ -24,6 +25,26 @@ router = APIRouter(prefix="/api/v1", tags=["Scanner"])
 def list_scanners():
     """Returns the full catalogue of scanner IDs, labels, descriptions, and categories."""
     return ScannerCatalogueResponse(scanners=SCANNER_CATALOGUE)
+
+
+@router.get(
+    "/universe",
+    response_model=UniverseResponse,
+    summary="Get full universe performance data",
+)
+def get_full_universe():
+    """Returns the performance metrics for the entire market universe > $5."""
+    try:
+        rows, universe_count, last_updated = get_universe()
+        results = [UniverseStockResult.model_validate(row) for row in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return UniverseResponse(
+        total_universe=universe_count,
+        as_of_date=last_updated,
+        data=results,
+    )
 
 
 @router.get(

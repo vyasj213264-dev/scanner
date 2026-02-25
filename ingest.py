@@ -49,8 +49,14 @@ def calculate_indicators(df):
     df['SMA_200_Up'] = df['SMA_200'] > df['SMA_200'].shift(20)
     df['In_Stage_2'] = (df['Close'] > df['SMA_150']) & (df['SMA_150'] > df['SMA_200']) & df['SMA_200_Up']
 
-    # Momentum 1 Month
+    # Momentum Timeframes
+    # 1D = 1 day, 1W = 5 days, 1M = 21 days, 3M = 63 days, 6M = 126 days, 1Y = 252 days
+    df['Momentum_1D'] = (df['Close'] / df['Close'].shift(1)) - 1.0
+    df['Momentum_1W'] = (df['Close'] / df['Close'].shift(5)) - 1.0
     df['Momentum_1M'] = (df['Close'] / df['Close'].shift(21)) - 1.0
+    df['Momentum_3M'] = (df['Close'] / df['Close'].shift(63)) - 1.0
+    df['Momentum_6M'] = (df['Close'] / df['Close'].shift(126)) - 1.0
+    df['Momentum_1Y'] = (df['Close'] / df['Close'].shift(252)) - 1.0
 
     # Inside Bar
     df['Inside_Bar'] = (df['High'] < df['High'].shift(1)) & (df['Low'] > df['Low'].shift(1))
@@ -79,6 +85,11 @@ def calculate_indicators(df):
     last_row = df.iloc[-1].copy()
     last_row['Tight_Setup'] = bool(tight_setup)
     last_row['Near_Horizontal_Resistance'] = bool(is_at_res)
+
+    # Ensure NaN momentum values (due to recent IPOs) gracefully become None/0 in the database
+    for col in ['Momentum_1D', 'Momentum_1W', 'Momentum_1M', 'Momentum_3M', 'Momentum_6M', 'Momentum_1Y']:
+        if pd.isna(last_row[col]):
+            last_row[col] = 0.0
 
     return last_row
 
@@ -136,7 +147,7 @@ def main():
         import psycopg2
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
         conn = psycopg2.connect(url)
-        placeholders = ', '.join(['%s'] * 23)
+        placeholders = ', '.join(['%s'] * 28)
         sql_types = {
             "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
             "TEXT": "VARCHAR(255)", 
@@ -145,7 +156,7 @@ def main():
         }
     else:
         conn = sqlite3.connect(DB_NAME)
-        placeholders = ', '.join(['?'] * 23)
+        placeholders = ', '.join(['?'] * 28)
         sql_types = {
             "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
             "TEXT": "TEXT", 
@@ -181,7 +192,12 @@ def main():
             Gap_Up {sql_types["BOOLEAN"]},
             Gap_Down {sql_types["BOOLEAN"]},
             VCP_Approximation {sql_types["BOOLEAN"]},
+            Momentum_1D {sql_types["REAL"]},
+            Momentum_1W {sql_types["REAL"]},
             Momentum_1M {sql_types["REAL"]},
+            Momentum_3M {sql_types["REAL"]},
+            Momentum_6M {sql_types["REAL"]},
+            Momentum_1Y {sql_types["REAL"]},
             RS_Rating {sql_types["REAL"]}
         )
     ''')
@@ -276,7 +292,12 @@ def main():
                         bool(last['Gap_Up']),
                         bool(last['Gap_Down']),
                         bool(last['VCP_Approximation']),
+                        float(last['Momentum_1D']),
+                        float(last['Momentum_1W']),
                         float(last['Momentum_1M']),
+                        float(last['Momentum_3M']),
+                        float(last['Momentum_6M']),
+                        float(last['Momentum_1Y']),
                         0.0 # Placeholder for RS_Rating
                     )
                     all_data.append(record)
@@ -287,7 +308,8 @@ def main():
         INSERT INTO screen_data (
             Ticker, Date, Close, Volume, SMA_10, SMA_20, SMA_50, SMA_100, SMA_200,
             RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
-            RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, Momentum_1M, RS_Rating
+            RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
+            Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating
         ) VALUES ({placeholders})
     ''', all_data)
     

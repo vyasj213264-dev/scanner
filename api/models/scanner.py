@@ -24,7 +24,12 @@ class StockResult(BaseModel):
     pct_from_52w_high: Optional[float] = Field(None, validation_alias="Pct_From_52W_High")
     sma_50: Optional[float] = Field(None, validation_alias="SMA_50")
     sma_200: Optional[float] = Field(None, validation_alias="SMA_200")
+    momentum_1d: Optional[float] = Field(None, validation_alias="Momentum_1D")
+    momentum_1w: Optional[float] = Field(None, validation_alias="Momentum_1W")
     momentum_1m: Optional[float] = Field(None, validation_alias="Momentum_1M")
+    momentum_3m: Optional[float] = Field(None, validation_alias="Momentum_3M")
+    momentum_6m: Optional[float] = Field(None, validation_alias="Momentum_6M")
+    momentum_1y: Optional[float] = Field(None, validation_alias="Momentum_1Y")
     in_stage_2: Optional[bool] = Field(None, validation_alias="In_Stage_2")
     tight_setup: Optional[bool] = Field(None, validation_alias="Tight_Setup")
     near_horizontal_resistance: Optional[bool] = Field(None, validation_alias="Near_Horizontal_Resistance")
@@ -60,6 +65,30 @@ class ScannerMeta(BaseModel):
 class ScannerCatalogueResponse(BaseModel):
     """Full catalogue of available scanners, grouped by category."""
     scanners: List[ScannerMeta]
+
+
+class UniverseStockResult(BaseModel):
+    """
+    Lightweight model for the full universe table.
+    Excludes technical indicator booleans to keep the payload size under 200kb for 3000 rows.
+    """
+    ticker: str = Field(..., validation_alias="Ticker")
+    close: Optional[float] = Field(None, validation_alias="Close")
+    momentum_1d: Optional[float] = Field(None, validation_alias="Momentum_1D")
+    momentum_1w: Optional[float] = Field(None, validation_alias="Momentum_1W")
+    momentum_1m: Optional[float] = Field(None, validation_alias="Momentum_1M")
+    momentum_3m: Optional[float] = Field(None, validation_alias="Momentum_3M")
+    momentum_6m: Optional[float] = Field(None, validation_alias="Momentum_6M")
+    momentum_1y: Optional[float] = Field(None, validation_alias="Momentum_1Y")
+    
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class UniverseResponse(BaseModel):
+    """Response envelope for the full universe performance view."""
+    total_universe: int
+    as_of_date: Optional[str]
+    data: List[UniverseStockResult]
 
 
 class HealthResponse(BaseModel):
