@@ -594,51 +594,118 @@
             border-top: 1px solid var(--border);
         }
 
+        /* ── Mobile Menu Elements (Hidden by default) ───────── */
+        .menu-toggle,
+        .mobile-close-btn {
+            display: none;
+        }
+
+        .sidebar-overlay {
+            display: none;
+        }
+
         /* ── Mobile Layout ──────────────────────────────────── */
         @media (max-width: 768px) {
             .app-body {
                 flex-direction: column;
             }
 
-            .sidebar {
-                width: 100%;
-                height: 60px;
-                flex-direction: row;
-                overflow-x: auto;
-                overflow-y: hidden;
-                border-right: none;
-                border-bottom: 1px solid var(--border);
+            .menu-toggle {
+                display: flex;
                 align-items: center;
-                padding: 0 12px;
-                gap: 8px;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-primary);
+                cursor: pointer;
+                padding: 4px;
+                flex-shrink: 0;
+            }
+
+            .mobile-close-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-primary);
+                cursor: pointer;
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                padding: 8px;
+                border-radius: 50%;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .sidebar-overlay {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(2px);
+                z-index: 990;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease, visibility 0.3s ease;
+            }
+
+            .sidebar-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: -300px;
+                /* Hide off-canvas */
+                width: 280px;
+                height: 100vh;
+                z-index: 1000;
                 background: var(--bg);
+                border-right: 1px solid var(--border);
+                flex-direction: column;
+                padding: 24px;
+                gap: 32px;
+                overflow-y: auto;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .sidebar.open {
+                left: 0;
+                /* Slide in */
             }
 
             .sidebar::-webkit-scrollbar {
-                height: 0px;
-                /* Hide scrollbar for clean chip look */
+                display: none;
             }
 
             .sidebar-section {
-                display: contents;
-                /* Strip padding, let buttons flow inline */
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
             }
 
             .sidebar-section-label {
-                display: none;
-                /* Hide category labels on mobile to save space */
+                display: block;
+                /* Restore category labels for vertical layout */
             }
 
             .scanner-btn {
-                width: auto;
-                white-space: nowrap;
-                padding: 8px 14px;
-                border-radius: 30px;
-                /* Pill shape for mobile */
-                background: var(--surface);
-                border: 1px solid var(--border);
-                font-size: 0.8rem;
-                justify-content: center;
+                width: 100%;
+                white-space: normal;
+                padding: 10px 14px;
+                border-radius: 8px;
+                background: transparent;
+                border: 1px solid transparent;
+                font-size: 0.9rem;
+                justify-content: flex-start;
             }
 
             .scanner-btn:hover {
@@ -733,8 +800,19 @@
 
 <body>
 
+    <!-- Mobile Sidebar Overlay (hidden by default) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
+
     <!-- ── Header ─────────────────────────────────────────── -->
     <header class="app-header">
+        <button class="menu-toggle" onclick="toggleMobileMenu()" title="Open Filters">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
         <div class="logo">Stock<span>Scans</span></div>
         <div class="header-divider"></div>
         <div class="live-dot"></div>
@@ -751,6 +829,13 @@
 
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
+            <button class="mobile-close-btn" onclick="toggleMobileMenu()" title="Close Filters">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
             <div id="sidebar-content">
                 <!-- Populated dynamically from /api/v1/scanners -->
                 <div style="padding: 40px 20px; text-align:center; color: var(--text-muted); font-size:0.8rem;">
@@ -815,6 +900,19 @@
         function fmtPrice(val) {
             if (val == null || isNaN(val)) return '—';
             return '$' + val.toFixed(2);
+        }
+
+        // ── Mobile Menu Toggle ───────────────────────────────────
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            } else {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+            }
         }
 
         // ── Boot ─────────────────────────────────────────────────
@@ -950,6 +1048,12 @@
 
             // Update header
             document.getElementById('results-title').textContent = scannerLabel;
+
+            // Auto-close mobile menu when a scanner is selected
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) {
+                toggleMobileMenu();
+            }
             document.getElementById('results-meta').innerHTML = '';
             document.getElementById('sort-controls').style.display = 'none';
 
