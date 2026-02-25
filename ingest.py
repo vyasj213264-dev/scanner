@@ -97,27 +97,39 @@ def main():
     print("Loading ticker universe...")
     tickers = []
     
-    # dynamically fetch all US equity tickers from the SEC
+    # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
     try:
         import requests
-        print("Dynamically fetching all US equity tickers from SEC.gov...")
-        # SEC requires a descriptive user-agent for API access
-        headers = {'User-Agent': 'StockScans scanner@example.com'}
+        print("Dynamically fetching and pre-filtering all US equity tickers from Nasdaq Screener API...")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
         
-        r = requests.get('https://www.sec.gov/files/company_tickers.json', headers=headers)
+        url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true'
+        r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         data = r.json()
+        rows = data['data']['rows']
+        print(f"Successfully fetched {len(rows)} raw tickers from Nasdaq API.")
         
-        # SEC JSON format: {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}, ...}
-        dynamic_tickers = [v['ticker'] for k, v in data.items()]
-        
-        # Clean up and filter
-        valid_dynamic = [str(t).replace('.', '-').upper() for t in dynamic_tickers if isinstance(t, str)]
-        valid_dynamic = [t for t in valid_dynamic if len(t) <= 10]
+        valid_dynamic = []
+        for row in rows:
+            try:
+                # Pre-filter: only keep stocks with last sale >= $5.00
+                price_str = str(row['lastsale']).replace('$', '').replace(',', '').strip()
+                if price_str and float(price_str) >= 5.0:
+                    symbol = str(row['symbol']).replace('.', '-').upper().strip()
+                    if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
+                        valid_dynamic.append(symbol)
+            except:
+                pass
+                
         tickers.extend(valid_dynamic)
-        print(f"Successfully fetched {len(valid_dynamic)} tickers from SEC database.")
+        print(f"Successfully pre-filtered universe down to {len(valid_dynamic)} stocks trading >= $5.00.")
     except Exception as e:
-        print(f"Warning: Failed to dynamically fetch SEC index: {e}")
+        print(f"Warning: Failed to dynamically fetch Nasdaq index: {e}")
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
