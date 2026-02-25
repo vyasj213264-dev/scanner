@@ -97,34 +97,27 @@ def main():
     print("Loading ticker universe...")
     tickers = []
     
-    # dynamically fetch index components
+    # dynamically fetch all US equity tickers from the SEC
     try:
         import requests
-        import io
-        print("Dynamically fetching S&P 500, Nasdaq 100, and Russell 2000 tickers...")
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        print("Dynamically fetching all US equity tickers from SEC.gov...")
+        # SEC requires a descriptive user-agent for API access
+        headers = {'User-Agent': 'StockScans scanner@example.com'}
         
-        # S&P 500
-        r_sp = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers)
-        sp500 = pd.read_html(io.StringIO(r_sp.text))[0]['Symbol'].tolist()
+        r = requests.get('https://www.sec.gov/files/company_tickers.json', headers=headers)
+        r.raise_for_status()
+        data = r.json()
         
-        # Nasdaq 100
-        r_ndx = requests.get('https://en.wikipedia.org/wiki/Nasdaq-100', headers=headers)
-        ndx = pd.read_html(io.StringIO(r_ndx.text))[4]['Ticker'].tolist()
+        # SEC JSON format: {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}, ...}
+        dynamic_tickers = [v['ticker'] for k, v in data.items()]
         
-        # Russell 2000 (from iShares IWM ETF CSV)
-        r_iwm = requests.get('https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/1467271812596.ajax?fileType=csv&fileName=IWM_holdings&dataType=fund', headers=headers)
-        r2k_df = pd.read_csv(io.StringIO(r_iwm.text), skiprows=9)
-        r2k = r2k_df['Ticker'].dropna().tolist()
-        
-        dynamic_tickers = sp500 + ndx + r2k
-        valid_dynamic = [str(t).replace('.', '-').upper() for t in dynamic_tickers if isinstance(t, str) and t not in ('-', 'Cash', 'Other', 'USD')]
-        # Filter out unusually long strings to ensure we don't pass CSV disclaimers to Yahoo Finance
+        # Clean up and filter
+        valid_dynamic = [str(t).replace('.', '-').upper() for t in dynamic_tickers if isinstance(t, str)]
         valid_dynamic = [t for t in valid_dynamic if len(t) <= 10]
         tickers.extend(valid_dynamic)
-        print(f"Successfully fetched {len(valid_dynamic)} index components.")
+        print(f"Successfully fetched {len(valid_dynamic)} tickers from SEC database.")
     except Exception as e:
-        print(f"Warning: Failed to dynamically fetch indexes: {e}")
+        print(f"Warning: Failed to dynamically fetch SEC index: {e}")
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))

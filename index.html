@@ -1324,10 +1324,13 @@
         let universeData = [];
         let universeSortBy = 'momentum_1m';
         let universeSortDir = -1; // -1 for desc, 1 for asc
+        let universePage = 1;
+        const UNIVERSE_PAGE_SIZE = 100;
 
         async function runUniverse() {
             if (activeScanner === 'universe') return;
             activeScanner = 'universe';
+            universePage = 1; // Reset to page 1 on fresh load
             pushScannerToHistory('universe');
 
             // Update UI state
@@ -1406,7 +1409,14 @@
                 return `<span class="pct-neutral">${pct}%</span>`;
             };
 
-            for (const row of universeData) {
+            const totalPages = Math.ceil(universeData.length / UNIVERSE_PAGE_SIZE);
+            if (universePage > totalPages) universePage = totalPages || 1;
+
+            const startIdx = (universePage - 1) * UNIVERSE_PAGE_SIZE;
+            const endIdx = startIdx + UNIVERSE_PAGE_SIZE;
+            const pageData = universeData.slice(startIdx, endIdx);
+
+            for (const row of pageData) {
                 html += `
                 <tr>
                     <td><a href="https://www.tradingview.com/chart/?symbol=${row.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
@@ -1421,6 +1431,23 @@
                 `;
             }
             html += `</tbody></table></div>`;
+
+            // Pagination UI
+            if (totalPages > 1) {
+                html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding: 0 4px; flex-wrap: wrap; gap: 12px;">
+                    <div style="font-size:0.85rem; color:var(--text-muted);">
+                        Showing ${startIdx + 1}–${Math.min(endIdx, universeData.length)} of ${universeData.toLocaleString()} stocks
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="sort-btn" onclick="changeUniversePage(-1)" ${universePage === 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>&laquo; Prev</button>
+                        <span style="display:flex; align-items:center; font-size:0.85rem; padding:0 8px;">Page ${universePage} of ${totalPages}</span>
+                        <button class="sort-btn" onclick="changeUniversePage(1)" ${universePage === totalPages ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>Next &raquo;</button>
+                    </div>
+                </div>
+                `;
+            }
+
             area.innerHTML = html;
 
             // Add click listeners to headers for column sorting
@@ -1436,10 +1463,20 @@
                         universeSortBy = col;
                         universeSortDir = col === 'ticker' ? 1 : -1; // default to DESC for numbers, ASC for string
                     }
+                    universePage = 1; // Reset to page 1 on sort change
                     renderUniverseTable();
                 });
             });
         }
+
+        // Global pagination handler
+        window.changeUniversePage = function (delta) {
+            universePage += delta;
+            renderUniverseTable();
+            // Scroll back to top of main content wrapper
+            document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
 
         // ── Init ─────────────────────────────────────────────────
         boot();
