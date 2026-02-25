@@ -121,8 +121,10 @@ def main():
                 price_str = str(row['lastsale']).replace('$', '').replace(',', '').strip()
                 if price_str and float(price_str) >= 5.0:
                     symbol = str(row['symbol']).replace('.', '-').upper().strip()
-                    if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
-                        valid_dynamic.append(symbol)
+                    # Filter out preferred shares (^), warrants, and dual-class shares (/) incompatible with yfinance
+                    if '^' not in symbol and '/' not in symbol and '~' not in symbol:
+                        if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
+                            valid_dynamic.append(symbol)
             except:
                 pass
                 
