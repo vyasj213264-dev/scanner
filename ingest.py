@@ -94,13 +94,13 @@ def calculate_indicators(df):
     return last_row
 
 def main():
-    print("Loading ticker universe...")
+    print("Loading ticker universe...", flush=True)
     tickers = []
     
     # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
     try:
         import requests
-        print("Dynamically fetching and pre-filtering all US equity tickers from Nasdaq Screener API...")
+        print("Dynamically fetching and pre-filtering all US equity tickers from Nasdaq Screener API...", flush=True)
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
@@ -112,7 +112,7 @@ def main():
         r.raise_for_status()
         data = r.json()
         rows = data['data']['rows']
-        print(f"Successfully fetched {len(rows)} raw tickers from Nasdaq API.")
+        print(f"Successfully fetched {len(rows)} raw tickers from Nasdaq API.", flush=True)
         
         valid_dynamic = []
         for row in rows:
@@ -129,15 +129,15 @@ def main():
                 pass
                 
         tickers.extend(valid_dynamic)
-        print(f"Successfully pre-filtered universe down to {len(valid_dynamic)} stocks trading >= $5.00.")
+        print(f"Successfully pre-filtered universe down to {len(valid_dynamic)} stocks trading >= $5.00.", flush=True)
     except Exception as e:
-        print(f"Warning: Failed to dynamically fetch Nasdaq index: {e}")
+        print(f"Warning: Failed to dynamically fetch Nasdaq index: {e}", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
     
     if not tickers:
-        print("Error: No tickers loaded. Exiting.")
+        print("Error: No tickers loaded. Exiting.", flush=True)
         return
 
     print(f"Running on FULL UNIVERSE: {len(tickers)} unique stocks (Note: recently IPO'd stocks < 200 days old will be bypassed due to 200-SMA requirement).")
@@ -228,7 +228,7 @@ def main():
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
-        print(f"Processing chunk {i//chunk_size + 1}/{(len(tickers)//chunk_size)+1}...")
+        print(f"Processing chunk {i//chunk_size + 1}/{(len(tickers)//chunk_size)+1}...", flush=True)
         
         max_retries = 3
         retry_delay = 5
