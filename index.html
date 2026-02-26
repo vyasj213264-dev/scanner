@@ -695,6 +695,81 @@
             margin-left: 3px;
         }
 
+        /* ── Filter Bar ─────────────────────────────── */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 0;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .filter-bar .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .filter-bar label {
+            color: var(--text-muted);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .filter-bar select,
+        .filter-bar input[type="number"] {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            font-size: 0.78rem;
+            width: 80px;
+            outline: none;
+        }
+
+        .filter-bar select {
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .filter-bar select:focus,
+        .filter-bar input:focus {
+            border-color: var(--accent);
+        }
+
+        .filter-bar .filter-apply-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 4px 14px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .filter-bar .filter-apply-btn:hover {
+            background: #818cf8;
+        }
+
+        .filter-bar .filter-clear-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .filter-bar .filter-clear-btn:hover {
+            color: var(--text-primary);
+        }
+
         /* ── Drill-Down Styles ─────────────────────────── */
         .theme-section-header {
             display: flex;
@@ -1066,6 +1141,32 @@
                     <button class="sort-btn" data-sort="pct_from_52w_high">52W%</button>
                     <button class="sort-btn" data-sort="momentum_1m">Momentum</button>
                 </div>
+                <div class="filter-bar" id="filter-bar" style="display:none">
+                    <span class="sort-label">≡ Filters:</span>
+                    <div class="filter-group">
+                        <label>Mkt Cap ≥</label>
+                        <select id="f-mcap">
+                            <option value="">Any</option>
+                            <option value="300000000">$300M+</option>
+                            <option value="1000000000">$1B+</option>
+                            <option value="10000000000">$10B+</option>
+                            <option value="50000000000">$50B+</option>
+                            <option value="200000000000">$200B+</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>ADR%</label>
+                        <input type="number" id="f-adr-min" placeholder="min" step="0.5" min="0">
+                        <span style="color:var(--text-muted)">-</span>
+                        <input type="number" id="f-adr-max" placeholder="max" step="0.5" min="0">
+                    </div>
+                    <div class="filter-group">
+                        <label>Price ≥</label>
+                        <input type="number" id="f-price" placeholder="$" step="1" min="0" style="width:60px">
+                    </div>
+                    <button class="filter-apply-btn" onclick="applyFilters()">Apply</button>
+                    <button class="filter-clear-btn" onclick="clearFilters()">Clear</button>
+                </div>
             </div>
 
             <!-- Grid Area -->
@@ -1190,9 +1291,18 @@
             // Auto-run scanner from URL query param (handles page refresh + shared links)
             const urlScannerId = new URLSearchParams(window.location.search).get('scanner');
             if (urlScannerId) {
-                const btn = document.querySelector(`.scanner-btn[data-id="${urlScannerId}"]`);
-                const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
-                runScanner(urlScannerId, label);
+                // Handle special pages
+                if (urlScannerId === 'universe') {
+                    runUniverse();
+                } else if (urlScannerId === 'themes-sector') {
+                    runThemes('Sector');
+                } else if (urlScannerId === 'themes-industry') {
+                    runThemes('Industry');
+                } else {
+                    const btn = document.querySelector(`.scanner-btn[data-id="${urlScannerId}"]`);
+                    const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
+                    runScanner(urlScannerId, label);
+                }
             }
         }
 
@@ -1255,10 +1365,39 @@
             return [...results].sort((a, b) => {
                 const aVal = a[activeSortBy] ?? -Infinity;
                 const bVal = b[activeSortBy] ?? -Infinity;
-                // For pct_from_52w_high, lower is better: sort ASC
                 if (activeSortBy === 'pct_from_52w_high') return aVal - bVal;
                 return bVal - aVal;
             });
+        }
+
+        // ── Filter Controls ──────────────────────────────────────
+        function buildFilterParams() {
+            let p = '';
+            const mcap = document.getElementById('f-mcap')?.value;
+            const adrMin = document.getElementById('f-adr-min')?.value;
+            const adrMax = document.getElementById('f-adr-max')?.value;
+            const price = document.getElementById('f-price')?.value;
+            if (mcap) p += `&min_market_cap=${mcap}`;
+            if (adrMin) p += `&min_adr=${adrMin}`;
+            if (adrMax) p += `&max_adr=${adrMax}`;
+            if (price) p += `&min_price=${price}`;
+            return p;
+        }
+
+        function applyFilters() {
+            if (activeScanner) {
+                const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
+                const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
+                runScanner(activeScanner, label);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('f-mcap').value = '';
+            document.getElementById('f-adr-min').value = '';
+            document.getElementById('f-adr-max').value = '';
+            document.getElementById('f-price').value = '';
+            applyFilters();
         }
 
         // ── URL Routing ──────────────────────────────────────────
@@ -1304,13 +1443,15 @@
             }
             document.getElementById('results-meta').innerHTML = '';
             document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
 
             // Show skeleton
             showSkeletons(6);
 
             try {
                 const t0 = performance.now();
-                const res = await fetch(`${API}/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc`);
+                const filterParams = buildFilterParams();
+                const res = await fetch(`${API}/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc${filterParams}`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
 
                 const data = await res.json();
@@ -1319,6 +1460,7 @@
 
                 updateResultsMeta(data, ms);
                 document.getElementById('sort-controls').style.display = 'flex';
+                document.getElementById('filter-bar').style.display = 'flex';
 
                 if (lastResults.length === 0) {
                     showEmptyState(scannerLabel);
@@ -1507,6 +1649,7 @@
             document.getElementById('results-title').textContent = "Stock Universe Explorer";
             document.getElementById('results-meta').innerHTML = "Full market performance across all timeframes. Click headers to sort.";
             document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
 
             // Auto-close mobile menu
             const sidebar = document.getElementById('sidebar');
@@ -1660,6 +1803,7 @@
             document.getElementById('results-title').textContent = label;
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market ${themesCategory.toLowerCase()}s</span>`;
             document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();

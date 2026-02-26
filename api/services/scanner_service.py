@@ -134,12 +134,16 @@ def run_scan(
     limit: int = 20,
     sort_by: SortField = "rs_rating",
     order: SortOrder = "desc",
+    min_market_cap: Optional[float] = None,
+    min_adr: Optional[float] = None,
+    max_adr: Optional[float] = None,
+    min_price: Optional[float] = None,
 ) -> Tuple[List[StockResult], int, Optional[str]]:
     """
-    Execute a scanner query.
+    Execute a scanner query with optional sub-filters.
 
-    The BASELINE_FILTER is always applied before any scanner-specific filter
-    so sub-$5 stocks (and any future global exclusions) are skipped universally.
+    Sub-filters (Market Cap, ADR%, Price) are applied as additional WHERE clauses.
+    The pre-computed scanner_results cache is still used for the base scanner match.
 
     Returns:
         (results, total_universe_in_db, last_updated_date)
@@ -150,21 +154,36 @@ def run_scan(
     sort_col = _SORT_COLUMN_MAP.get(sort_by, "RS_Rating")
     sort_dir = "DESC" if order == "desc" else "ASC"
 
-    # Pre-computation architecture: The complex WHERE clauses were evaluated nightly by ingest.py
-    # and saved into `scanner_results`. We simply INNER JOIN to fetch the matching tickers instantly.
-    # The BASELINE_FILTER is dynamically applied live to ensure sub-$5 stocks never appear.
+    # Build dynamic sub-filter clauses
+    extra_where = ""
+    params = [scanner_id]
+    
+    if min_market_cap is not None:
+        extra_where += " AND d.Market_Cap >= ?"
+        params.append(min_market_cap)
+    if min_adr is not None:
+        extra_where += " AND d.ADR_20 >= ?"
+        params.append(min_adr)
+    if max_adr is not None:
+        extra_where += " AND d.ADR_20 <= ?"
+        params.append(max_adr)
+    if min_price is not None:
+        extra_where += " AND d.Close >= ?"
+        params.append(min_price)
+
+    params.append(limit)
+
     sql = (
         f"SELECT d.* FROM screen_data d "
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
-        f"WHERE r.scanner_id = ? AND d.{BASELINE_FILTER} "
+        f"WHERE r.scanner_id = ? AND d.{BASELINE_FILTER}{extra_where} "
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
     )
 
-    rows = fetch_all(sql, (scanner_id, limit))
+    rows = fetch_all(sql, tuple(params))
     results = [StockResult.model_validate(row) for row in rows]
 
-    # Dynamically recount universe of ONLY stocks that are actively >$5
     universe = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE {BASELINE_FILTER}") or 0
     last_updated = get_last_updated()
 

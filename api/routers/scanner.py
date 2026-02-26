@@ -59,6 +59,10 @@ def run_scanner(
         "rs_rating", description="Field to sort by"
     ),
     order: Literal["asc", "desc"] = Query("desc", description="Sort direction"),
+    min_market_cap: float = Query(None, description="Minimum market cap filter"),
+    min_adr: float = Query(None, description="Minimum ADR% filter"),
+    max_adr: float = Query(None, description="Maximum ADR% filter"),
+    min_price: float = Query(None, description="Minimum price filter"),
 ):
     """
     Execute a predefined scanner and return matching stocks with their indicator data.
@@ -78,6 +82,10 @@ def run_scanner(
             limit=limit,
             sort_by=sort_by,
             order=order,
+            min_market_cap=min_market_cap,
+            min_adr=min_adr,
+            max_adr=max_adr,
+            min_price=min_price,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

@@ -13,6 +13,16 @@ DB_NAME = "scanner.db"
 
 _rs_error_logged = False  # Only log the first RS error to avoid spamming logs
 
+def _parse_market_cap(val):
+    """Parse Nasdaq API market cap string to float. Returns None if unparseable."""
+    if val is None:
+        return None
+    try:
+        # Nasdaq API returns marketCap as a numeric string or int
+        return float(str(val).replace(',', '').strip())
+    except (ValueError, TypeError):
+        return None
+
 def _safe_float(val):
     """Safely extract a Python float from a pandas scalar, Series, or numpy type."""
     if hasattr(val, 'item'):
@@ -143,7 +153,8 @@ def main():
                             industry = str(row.get('industry', '')).strip()
                             ticker_meta[symbol] = {
                                 'sector': sector if sector else 'Unknown',
-                                'industry': industry if industry else 'Unknown'
+                                'industry': industry if industry else 'Unknown',
+                                'market_cap': row.get('marketCap', None)
                             }
             except:
                 pass
@@ -231,7 +242,8 @@ def main():
             Momentum_1Y {sql_types["REAL"]},
             RS_Rating {sql_types["REAL"]},
             Sector {sql_types["TEXT"]},
-            Industry {sql_types["TEXT"]}
+            Industry {sql_types["TEXT"]},
+            Market_Cap {sql_types["REAL"]}
         )
     ''')
     
@@ -352,7 +364,8 @@ def main():
                         float(last['Momentum_1Y']),
                         0.0, # Placeholder for RS_Rating
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
-                        ticker_meta.get(ticker, {}).get('industry', 'Unknown')
+                        ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
+                        _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap'))
                     )
                     all_data.append(record)
                 except Exception as parse_e:
@@ -360,9 +373,9 @@ def main():
 
     # Build the correct placeholders for all 30 columns (28 original + Sector + Industry)
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        full_placeholders = ', '.join(['%s'] * 30)
+        full_placeholders = ', '.join(['%s'] * 31)
     else:
-        full_placeholders = ', '.join(['?'] * 30)
+        full_placeholders = ', '.join(['?'] * 31)
     
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     cursor.executemany(f'''
@@ -371,7 +384,7 @@ def main():
             RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
             RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
             Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
-            Sector, Industry
+            Sector, Industry, Market_Cap
         ) VALUES ({full_placeholders})
     ''', all_data)
     print(f"Successfully inserted {len(all_data)} records.", flush=True)
