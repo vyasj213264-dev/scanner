@@ -1245,6 +1245,21 @@
         let selectedIndustry = null;
         let themesCategory = 'Sector'; // 'Sector' or 'Industry'
         let themeStockData = [];       // cached stock data for resort
+        let themesViewMode = 'table';  // 'table' | 'chart'
+
+        const sectorEtfMap = {
+            'Technology': 'XLK',
+            'Health Care': 'XLV',
+            'Consumer Discretionary': 'XLY',
+            'Finance': 'XLF',
+            'Industrials': 'XLI',
+            'Consumer Staples': 'XLP',
+            'Energy': 'XLE',
+            'Real Estate': 'XLRE',
+            'Materials': 'XLB',
+            'Utilities': 'XLU',
+            'Communication Services': 'XLC'
+        };
 
         // ── Utility ─────────────────────────────────────────────
         function fmt(val, decimals = 1, suffix = '') {
@@ -1801,7 +1816,7 @@
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding: 0 4px; flex-wrap: wrap; gap: 12px;">
                     <div style="font-size:0.85rem; color:var(--text-muted);">
-                        Showing ${startIdx + 1}–${Math.min(endIdx, universeData.length)} of ${universeData.toLocaleString()} stocks
+                        Showing ${startIdx + 1}–${Math.min(endIdx, universeData.length)} of ${universeData.length.toLocaleString()} stocks
                     </div>
                     <div style="display:flex; gap:8px;">
                         <button class="sort-btn" onclick="changeUniversePage(-1)" ${universePage === 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>&laquo; Prev</button>
@@ -1965,7 +1980,7 @@
             renderThemesTopLevel();
         }
 
-        // ── Level 1: Single Category Table ──
+        // ── Level 1: Single Category Table & Charts ──
         function renderThemesTopLevel() {
             const area = document.getElementById('grid-area');
             const rows = sortThemeRows(themesData.filter(r => r.category === themesCategory));
@@ -1973,23 +1988,109 @@
             const clickFn = themesCategory === 'Sector' ? 'drillIntoSector' : 'drillIntoIndustry';
 
             let html = `
-            <div class="theme-section-header">${icon} ${themesCategory}s <span class="badge">${rows.length}</span></div>
-            <div class="universe-table-wrapper">
-                <table class="universe-table">
-                    <thead><tr>
-                        <th data-tsort="name" width="35%">${themesCategory}</th>
-                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
-                        ${buildRankHeaders('')}
-                    </tr></thead>
-                    <tbody>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div class="theme-section-header" style="margin-bottom:0;">${icon} ${themesCategory}s <span class="badge">${rows.length}</span></div>
+                <div class="sort-group">
+                    <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemesTopLevel();">Table</button>
+                    <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemesTopLevel();">Chart</button>
+                </div>
+            </div>
             `;
-            for (const row of rows) {
-                html += `<tr class="clickable-row" onclick="${clickFn}('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, rows.length)}</tr>`;
-            }
-            html += `</tbody></table></div>`;
 
-            area.innerHTML = html;
-            bindThemeSort(area, renderThemesTopLevel);
+            if (themesViewMode === 'table') {
+                html += `
+                <div class="universe-table-wrapper">
+                    <table class="universe-table">
+                        <thead><tr>
+                            <th data-tsort="name" width="35%">${themesCategory}</th>
+                            <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                            ${buildRankHeaders('')}
+                        </tr></thead>
+                        <tbody>
+                `;
+                for (const row of rows) {
+                    const etf = themesCategory === 'Sector' && sectorEtfMap[row.name] ?
+                        `<a href="https://www.tradingview.com/chart/?symbol=${sectorEtfMap[row.name]}" target="_blank" onclick="event.stopPropagation()" style="margin-left:8px; font-size:0.75rem; background:var(--bg-elevated); padding:2px 6px; border-radius:4px; color:var(--text-muted); text-decoration:none; border: 1px solid var(--border);">🖥️ ${sectorEtfMap[row.name]}</a>` : '';
+                    html += `<tr class="clickable-row" onclick="${clickFn}('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} ${etf} <span style="opacity:0.4;font-size:0.75rem;margin-left:4px;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, rows.length)}</tr>`;
+                }
+                html += `</tbody></table></div>`;
+                area.innerHTML = html;
+                bindThemeSort(area, renderThemesTopLevel);
+            } else {
+                // Chart View Mode
+                html += `<div class="chart-grid">`;
+                area.innerHTML = html;
+                const grid = area.querySelector('.chart-grid');
+
+                for (const row of rows) {
+                    const ticker = themesCategory === 'Sector' ? sectorEtfMap[row.name] : null;
+                    const r1m = fmtRank(row.rank_1m, null, rows.length);
+                    const r3m = fmtRank(row.rank_3m, null, rows.length);
+                    const r6m = fmtRank(row.rank_6m, null, rows.length);
+
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => window[clickFn](row.name);
+
+                    let chartHtml = '';
+                    let containerId = `tv-theme-${row.name.replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
+
+                    if (ticker) {
+                        chartHtml = `<div class="chart-container" id="${containerId}"></div>`;
+                    } else {
+                        chartHtml = `<div class="chart-container" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No ETF mapped</div>`;
+                    }
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-ticker" style="font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name}</div>
+                            ${ticker ? `<a href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" onclick="event.stopPropagation()" style="font-size:0.8rem; background:var(--bg-elevated); padding:2px 6px; border-radius:4px; color:var(--text-muted); text-decoration:none; border: 1px solid var(--border); margin-left:8px;">${ticker}</a>` : ''}
+                            <div class="card-metrics" style="margin-left:auto;">
+                                <span class="metric-chip" title="1M Rank">1M Rnk: ${r1m}</span>
+                                <span class="metric-chip" title="3M Rank">3M Rnk: ${r3m}</span>
+                                <span class="metric-chip" title="6M Rank">6M Rnk: ${r6m}</span>
+                            </div>
+                        </div>
+                        ${chartHtml}
+                    `;
+                    grid.appendChild(card);
+
+                    if (ticker) {
+                        const obs = new IntersectionObserver((entries, o) => {
+                            entries.forEach(entry => {
+                                if (!entry.isIntersecting) return;
+                                try {
+                                    new TradingView.widget({
+                                        autosize: true,
+                                        symbol: ticker,
+                                        interval: 'D',
+                                        timezone: 'Etc/UTC',
+                                        theme: 'dark',
+                                        style: '1',
+                                        locale: 'en',
+                                        enable_publishing: false,
+                                        hide_top_toolbar: true,
+                                        hide_legend: true,
+                                        save_image: false,
+                                        container_id: containerId,
+                                        backgroundColor: '#131926',
+                                        gridColor: '#1e2a40',
+                                        studies: [
+                                            { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
+                                        ]
+                                    });
+                                } catch (err) {
+                                    const el = document.getElementById(containerId);
+                                    if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                }
+                                o.unobserve(entry.target);
+                            });
+                        }, { rootMargin: '120px' });
+                        obs.observe(card);
+                    }
+                }
+            }
         }
 
         // ── Level 2: Industries in a Sector ──
