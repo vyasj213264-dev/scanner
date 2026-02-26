@@ -1247,12 +1247,14 @@
             const rs = fmt(stock.rs_rating);
             const rvol = fmt(stock.rvol, 2);
             const w52 = fmt(stock.pct_from_52w_high, 1, '%');
-            const mom = fmt(stock.momentum_1m != null ? stock.momentum_1m * 100 : null, 1, '%');
+            const mom_1m = fmt(stock.momentum_1m != null ? stock.momentum_1m * 100 : null, 1, '%');
+            const mom_1d = fmt(stock.momentum_1d != null ? stock.momentum_1d * 100 : null, 1, '%');
             const price = fmtPrice(stock.close);
 
             const rsClass = stock.rs_rating >= 90 ? 'positive' : stock.rs_rating >= 70 ? 'highlight' : '';
             const rvolClass = stock.rvol >= 2 ? 'positive' : '';
-            const momClass = stock.momentum_1m > 0 ? 'positive' : stock.momentum_1m < 0 ? 'negative' : '';
+            const mom1mClass = stock.momentum_1m > 0 ? 'positive' : stock.momentum_1m < 0 ? 'negative' : '';
+            const mom1dClass = stock.momentum_1d > 0 ? 'positive' : stock.momentum_1d < 0 ? 'negative' : '';
             const w52Class = stock.pct_from_52w_high >= -5 ? 'positive' : '';
 
             const stagePill = stock.in_stage_2
@@ -1278,7 +1280,8 @@
             <span class="metric-chip ${rsClass}">RS&nbsp;${rs}</span>
             <span class="metric-chip ${rvolClass}">RVOL&nbsp;${rvol}</span>
             <span class="metric-chip ${w52Class}">52W&nbsp;${w52}</span>
-            <span class="metric-chip ${momClass}">1M&nbsp;${mom}</span>
+            <span class="metric-chip ${mom1mClass}">1M&nbsp;${mom_1m}</span>
+            <span class="metric-chip ${mom1dClass}">1D&nbsp;${mom_1d}</span>
             <span class="metric-chip">${price}</span>
           </div>
         </div>
