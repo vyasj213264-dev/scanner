@@ -2035,13 +2035,18 @@
 
                     let chartHtml = '';
                     let containerId = `tv-theme-${row.name.replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
-
+                    
                     if (ticker) {
                         chartHtml = `<div class="chart-container" id="${containerId}"></div>`;
                     } else {
-                        chartHtml = `<div class="chart-container" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No ETF mapped</div>`;
+                        chartHtml = `
+                        <div class="chart-container" id="${containerId}">
+                            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">
+                                Loading proxy index...
+                            </div>
+                        </div>`;
                     }
-
+                    
                     card.innerHTML = `
                         <div class="card-header">
                             <div class="card-ticker" style="font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name}</div>
@@ -2055,11 +2060,14 @@
                         ${chartHtml}
                     `;
                     grid.appendChild(card);
-
-                    if (ticker) {
-                        const obs = new IntersectionObserver((entries, o) => {
-                            entries.forEach(entry => {
-                                if (!entry.isIntersecting) return;
+                    
+                    const obs = new IntersectionObserver((entries, o) => {
+                        entries.forEach(entry => {
+                            if (!entry.isIntersecting) return;
+                            o.unobserve(entry.target);
+                            
+                            // If we have a hardcoded ETF ticker, render directly
+                            if (ticker) {
                                 try {
                                     new TradingView.widget({
                                         autosize: true,
@@ -2076,19 +2084,70 @@
                                         container_id: containerId,
                                         backgroundColor: '#131926',
                                         gridColor: '#1e2a40',
-                                        studies: [
-                                            { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
-                                        ]
+                                        studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
                                     });
                                 } catch (err) {
                                     const el = document.getElementById(containerId);
                                     if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
                                 }
-                                o.unobserve(entry.target);
-                            });
-                        }, { rootMargin: '120px' });
-                        obs.observe(card);
-                    }
+                                return;
+                            }
+                            
+                            // Otherwise, fetch proxy tickers for unmapped industry/sector
+                            fetch(`${API}/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
+                                .then(res => res.json())
+                                .then(tickers => {
+                                    const el = document.getElementById(containerId);
+                                    if (!el) return;
+                                    
+                                    if (!tickers || tickers.length === 0) {
+                                        el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No proxy tickers</div>';
+                                        return;
+                                    }
+                                    
+                                    // Calculate arithmetic expression formula up to ~120 chars
+                                    let expressionParts = [];
+                                    let currentLen = 0;
+                                    for (let t of tickers) {
+                                        if (currentLen + t.length + 1 > 120) break;
+                                        expressionParts.push(t);
+                                        currentLen += t.length + 1;
+                                    }
+                                    
+                                    const count = expressionParts.length;
+                                    const tickerFormula = `(${expressionParts.join('+')})/${count}`;
+                                    el.innerHTML = ''; // clear loading state
+                                    
+                                    try {
+                                        new TradingView.widget({
+                                            autosize: true,
+                                            symbol: tickerFormula,
+                                            interval: 'D',
+                                            timezone: 'Etc/UTC',
+                                            theme: 'dark',
+                                            style: '1',
+                                            locale: 'en',
+                                            enable_publishing: false,
+                                            hide_top_toolbar: true,
+                                            hide_legend: true,
+                                            save_image: false,
+                                            container_id: containerId,
+                                            backgroundColor: '#131926',
+                                            gridColor: '#1e2a40',
+                                            studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
+                                        });
+                                    } catch (err) {
+                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    const el = document.getElementById(containerId);
+                                    if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Failed to load proxy</div>';
+                                });
+                        });
+                    }, { rootMargin: '120px' });
+                    obs.observe(card);
                 }
             }
         }
