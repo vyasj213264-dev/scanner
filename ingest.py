@@ -224,9 +224,8 @@ def main():
     ''')
     
     # Create the new industry_ranks table to track daily theme rotation
-    cursor.execute('DROP TABLE IF EXISTS industry_ranks')
     cursor.execute(f'''
-        CREATE TABLE industry_ranks (
+        CREATE TABLE IF NOT EXISTS industry_ranks (
             Date {sql_types["TEXT"]},
             Category {sql_types["TEXT"]},
             Name {sql_types["TEXT"]},
