@@ -11,14 +11,26 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_NAME = "scanner.db"
 
+_rs_error_logged = False  # Only log the first RS error to avoid spamming logs
+
+def _safe_float(val):
+    """Safely extract a Python float from a pandas scalar, Series, or numpy type."""
+    if hasattr(val, 'item'):
+        return val.item()  # handles numpy scalars and single-element Series
+    return float(val)
+
 def calculate_rs_rating(stock_df, spy_df):
+    global _rs_error_logged
     try:
         if len(stock_df) < 252 or len(spy_df) < 252:
             return np.nan
-        stock_perf = float(stock_df['Close'].iloc[-1]) / float(stock_df['Close'].iloc[-252])
-        spy_perf = float(spy_df['Close'].iloc[-1]) / float(spy_df['Close'].iloc[-252])
+        stock_perf = _safe_float(stock_df['Close'].iloc[-1]) / _safe_float(stock_df['Close'].iloc[-252])
+        spy_perf = _safe_float(spy_df['Close'].iloc[-1]) / _safe_float(spy_df['Close'].iloc[-252])
         return stock_perf / spy_perf
-    except Exception:
+    except Exception as e:
+        if not _rs_error_logged:
+            print(f"WARNING: calculate_rs_rating failed: {type(e).__name__}: {e}", flush=True)
+            _rs_error_logged = True
         return np.nan
 
 def calculate_indicators(df):
