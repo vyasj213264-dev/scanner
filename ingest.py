@@ -326,7 +326,9 @@ def main():
     
     if not df_db.empty:
         df_db['RS_Rating'] = df_db['RS_Raw'].rank(pct=True) * 99
-        update_data = list(zip(df_db['RS_Rating'], df_db['Ticker']))
+        # IMPORTANT: psycopg2 cannot natively adapt numpy.float64 without a registration adapter.
+        # We must explicitly cast the pandas column to native Python floats to prevent silent NULLs in PostgreSQL.
+        update_data = [(float(r), t) for r, t in zip(df_db['RS_Rating'], df_db['Ticker'])]
         if DATABASE_URL and DATABASE_URL.startswith("postgres"):
             cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", update_data)
         else:

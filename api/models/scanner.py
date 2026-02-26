@@ -14,6 +14,7 @@ class StockResult(BaseModel):
     Fields use lowercase snake_case in JSON output (for the frontend JS),
     but accept uppercase column names from SQLite via validation_alias.
     """
+    model_config = ConfigDict(populate_by_name=True)
     ticker: str = Field(..., validation_alias="Ticker")
     date: Optional[str] = Field(None, validation_alias="Date")
     close: Optional[float] = Field(None, validation_alias="Close")
