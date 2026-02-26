@@ -113,3 +113,37 @@ def get_themes_stocks(category: str, name: str) -> Tuple[list, int, str]:
     last_updated = _get(last_updated_row[0], 'last_date', 'max') if last_updated_row else None
     
     return rows, universe_count, last_updated
+
+
+def get_theme_proxies(category: str, name: str, limit: int = 10) -> List[str]:
+    """
+    Fetches up to `limit` highly liquid/weighted tickers for a given Sector or Industry.
+    This is used to build arithmetic string charts (e.g. (AAPL+MSFT)/2) when no 
+    direct ETF exists.
+    """
+    col = "Sector" if category.lower() == "sector" else "Industry"
+    
+    # We ideally want the highest volume/market cap stocks. 
+    # screen_data has RVOL and Close, but we'll try to sort by (Close * Volume) if volume exists, 
+    # otherwise we'll just sort by RS_Rating + price to get leaders.
+    sql = f"""
+    SELECT Ticker 
+    FROM screen_data 
+    WHERE {col} = ? 
+    ORDER BY (Close * RVOL) DESC NULLS LAST 
+    LIMIT ?
+    """
+    rows = fetch_all(sql, (name, limit))
+    
+    # If the database structure makes (Close * RVOL) fail or yield nulls, fallback to RS_Rating
+    if not rows:
+        sql_fallback = f"""
+        SELECT Ticker 
+        FROM screen_data 
+        WHERE {col} = ? 
+        ORDER BY RS_Rating DESC NULLS LAST 
+        LIMIT ?
+        """
+        rows = fetch_all(sql_fallback, (name, limit))
+
+    return [_get(r, 'ticker', 'Ticker') for r in rows if _get(r, 'ticker', 'Ticker')]

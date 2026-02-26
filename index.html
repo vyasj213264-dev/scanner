@@ -2111,32 +2111,144 @@
             );
 
             let html = `
-            <div class="breadcrumb-bar">
+            <div class="breadcrumb-bar" style="margin-bottom:8px;">
                 <span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span>
                 <span class="bc-sep">›</span>
                 <span class="bc-current">${selectedSector}</span>
             </div>
-            <div class="theme-section-header">🏭 Industries in ${selectedSector} <span class="badge">${industries.length}</span></div>
-            <div class="universe-table-wrapper">
-                <table class="universe-table">
-                    <thead><tr>
-                        <th data-tsort="name" width="35%">Industry</th>
-                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
-                        ${buildRankHeaders('')}
-                    </tr></thead>
-                    <tbody>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div class="theme-section-header" style="margin-bottom:0;">🏭 Industries in ${selectedSector} <span class="badge">${industries.length}</span></div>
+                <div class="sort-group">
+                    <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderFilteredIndustries();">Table</button>
+                    <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderFilteredIndustries();">Chart</button>
+                </div>
+            </div>
             `;
-            for (const row of industries) {
-                html += `<tr class="clickable-row" onclick="drillIntoIndustry('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, industries.length)}</tr>`;
-            }
-            html += `</tbody></table></div>`;
 
             if (industries.length === 0) {
                 html += `<div style="padding:40px;text-align:center;color:var(--text-muted);">No industries found for ${selectedSector}</div>`;
+                area.innerHTML = html;
+                return;
             }
 
-            area.innerHTML = html;
-            bindThemeSort(area, renderFilteredIndustries);
+            if (themesViewMode === 'table') {
+                html += `
+                <div class="universe-table-wrapper">
+                    <table class="universe-table">
+                        <thead><tr>
+                            <th data-tsort="name" width="35%">Industry</th>
+                            <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                            ${buildRankHeaders('')}
+                        </tr></thead>
+                        <tbody>
+                `;
+                for (const row of industries) {
+                    html += `<tr class="clickable-row" onclick="drillIntoIndustry('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, industries.length)}</tr>`;
+                }
+                html += `</tbody></table></div>`;
+                area.innerHTML = html;
+                bindThemeSort(area, renderFilteredIndustries);
+            } else {
+                // Chart View Mode
+                html += `<div class="chart-grid"></div>`;
+                area.innerHTML = html;
+                const grid = area.querySelector('.chart-grid');
+
+                for (const row of industries) {
+                    const r1m = fmtRank(row.rank_1m, null, industries.length);
+                    const r3m = fmtRank(row.rank_3m, null, industries.length);
+                    const r6m = fmtRank(row.rank_6m, null, industries.length);
+
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => window.drillIntoIndustry(row.name);
+
+                    let containerId = `tv-theme-${row.name.replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-ticker" style="font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name}</div>
+                            <div class="card-metrics" style="margin-left:auto;">
+                                <span class="metric-chip" title="1M Rank">1M Rnk: ${r1m}</span>
+                                <span class="metric-chip" title="3M Rank">3M Rnk: ${r3m}</span>
+                                <span class="metric-chip" title="6M Rank">6M Rnk: ${r6m}</span>
+                            </div>
+                        </div>
+                        <div class="chart-container" id="${containerId}">
+                            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">
+                                Loading proxy index...
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+
+                    // Lazy load the proxy tickers and the TV widget
+                    const obs = new IntersectionObserver((entries, o) => {
+                        entries.forEach(entry => {
+                            if (!entry.isIntersecting) return;
+                            o.unobserve(entry.target);
+
+                            // Fetch proxy tickers from API
+                            fetch(`${API}/themes/proxy?category=Industry&name=${encodeURIComponent(row.name)}&limit=10`)
+                                .then(res => res.json())
+                                .then(tickers => {
+                                    const el = document.getElementById(containerId);
+                                    if (!el) return;
+
+                                    if (!tickers || tickers.length === 0) {
+                                        el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No proxy tickers</div>';
+                                        return;
+                                    }
+
+                                    // TradingView expression logic: ((A+B+C)/3)
+                                    // Symbol string length limit in TV widget is roughly 150-200 chars. We take as many as we safely can.
+                                    let expressionParts = [];
+                                    let currentLen = 0;
+                                    for (let t of tickers) {
+                                        if (currentLen + t.length + 1 > 120) break; // Leave room for math operators
+                                        expressionParts.push(t);
+                                        currentLen += t.length + 1;
+                                    }
+
+                                    const count = expressionParts.length;
+                                    const tickerFormula = `(${expressionParts.join('+')})/${count}`;
+                                    el.innerHTML = ''; // clear loading state
+
+                                    try {
+                                        new TradingView.widget({
+                                            autosize: true,
+                                            symbol: tickerFormula,
+                                            interval: 'D',
+                                            timezone: 'Etc/UTC',
+                                            theme: 'dark',
+                                            style: '1',
+                                            locale: 'en',
+                                            enable_publishing: false,
+                                            hide_top_toolbar: true,
+                                            hide_legend: true,
+                                            save_image: false,
+                                            container_id: containerId,
+                                            backgroundColor: '#131926',
+                                            gridColor: '#1e2a40',
+                                            studies: [
+                                                { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
+                                            ]
+                                        });
+                                    } catch (err) {
+                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    const el = document.getElementById(containerId);
+                                    if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Failed to load proxy</div>';
+                                });
+                        });
+                    }, { rootMargin: '120px' });
+                    obs.observe(card);
+                }
+            }
         }
 
         // ── Level 3: Stocks in an Industry or Sector ──
