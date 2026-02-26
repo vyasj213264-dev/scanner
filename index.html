@@ -1258,7 +1258,10 @@
             'Real Estate': 'XLRE',
             'Materials': 'XLB',
             'Utilities': 'XLU',
-            'Communication Services': 'XLC'
+            'Communication Services': 'XLC',
+            'Telecommunication': 'XTL',
+            'Basic Materials': 'IYM',
+            'Misc': 'SPY' // Using SPY as a broad proxy for Miscellaneous
         };
 
         // ── Utility ─────────────────────────────────────────────
@@ -2035,7 +2038,7 @@
 
                     let chartHtml = '';
                     let containerId = `tv-theme-${row.name.replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
-                    
+
                     if (ticker) {
                         chartHtml = `<div class="chart-container" id="${containerId}"></div>`;
                     } else {
@@ -2046,7 +2049,7 @@
                             </div>
                         </div>`;
                     }
-                    
+
                     card.innerHTML = `
                         <div class="card-header">
                             <div class="card-ticker" style="font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name}</div>
@@ -2060,12 +2063,12 @@
                         ${chartHtml}
                     `;
                     grid.appendChild(card);
-                    
+
                     const obs = new IntersectionObserver((entries, o) => {
                         entries.forEach(entry => {
                             if (!entry.isIntersecting) return;
                             o.unobserve(entry.target);
-                            
+
                             // If we have a hardcoded ETF ticker, render directly
                             if (ticker) {
                                 try {
@@ -2092,19 +2095,19 @@
                                 }
                                 return;
                             }
-                            
+
                             // Otherwise, fetch proxy tickers for unmapped industry/sector
                             fetch(`${API}/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
                                 .then(res => res.json())
                                 .then(tickers => {
                                     const el = document.getElementById(containerId);
                                     if (!el) return;
-                                    
+
                                     if (!tickers || tickers.length === 0) {
                                         el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No proxy tickers</div>';
                                         return;
                                     }
-                                    
+
                                     // Calculate arithmetic expression formula up to ~120 chars
                                     let expressionParts = [];
                                     let currentLen = 0;
@@ -2113,11 +2116,11 @@
                                         expressionParts.push(t);
                                         currentLen += t.length + 1;
                                     }
-                                    
+
                                     const count = expressionParts.length;
                                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
                                     el.innerHTML = ''; // clear loading state
-                                    
+
                                     try {
                                         new TradingView.widget({
                                             autosize: true,
