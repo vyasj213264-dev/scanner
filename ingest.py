@@ -157,14 +157,14 @@ def main():
     tickers = list(dict.fromkeys(tickers))
     
     if os.getenv('TEST_MODE') == '1':
-        print("TEST_MODE enabled: Truncating to 50 tickers...")
+        print("TEST_MODE enabled: Truncating to 50 tickers...", flush=True)
         tickers = tickers[:50]
 
     if not tickers:
         print("Error: No tickers loaded. Exiting.", flush=True)
         return
 
-    print(f"Running on FULL UNIVERSE: {len(tickers)} unique stocks (Note: recently IPO'd stocks < 200 days old will be bypassed due to 200-SMA requirement).")
+    print(f"Running on FULL UNIVERSE: {len(tickers)} unique stocks (Note: recently IPO'd stocks < 200 days old will be bypassed due to 200-SMA requirement).", flush=True)
     
     if 'SPY' not in tickers:
         tickers.append('SPY')
@@ -286,7 +286,7 @@ def main():
                 
                 # yfinance sometimes returns an empty dataframe when silently rate limited
                 if temp_data.empty:
-                    print(f"  Attempt {attempt+1}: Received empty data (rate limit?). Sleeping {retry_delay}s...")
+                    print(f"  Attempt {attempt+1}: Received empty data (rate limit?). Sleeping {retry_delay}s...", flush=True)
                     time.sleep(retry_delay)
                     retry_delay *= 2
                     continue
@@ -294,12 +294,12 @@ def main():
                 data = temp_data
                 break
             except Exception as e:
-                print(f"  Attempt {attempt+1} Failed: {e}. Sleeping {retry_delay}s...")
+                print(f"  Attempt {attempt+1} Failed: {e}. Sleeping {retry_delay}s...", flush=True)
                 time.sleep(retry_delay)
                 retry_delay *= 2
                 
         if data is None or data.empty:
-            print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts.")
+            print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts.", flush=True)
             continue
             
         for ticker in chunk:
@@ -401,7 +401,7 @@ def main():
     # ---------------------------------------------------------
     # Build the Pre-Computed Scanner Cache
     # ---------------------------------------------------------
-    print("Pre-computing scanner logic and caching results...")
+    print("Pre-computing scanner logic and caching results...", flush=True)
     # These match _FILTERS from api/services/scanner_service.py exactly
     filters = {
         "horizontal-resistance": "Near_Horizontal_Resistance AND RVOL > 1.0",
@@ -435,7 +435,7 @@ def main():
         else:
             cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (?, ?)", cache_records)
             
-        print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.")
+        print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.", flush=True)
         
     # ---------------------------------------------------------
     # Build the Industry/Theme Ranks
@@ -512,7 +512,7 @@ def main():
                         Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', all_theme_data)
-            print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.")
+            print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.", flush=True)
 
     # ---------------------------------------------------------
     # Database Cleanup / Retention Policy
@@ -528,11 +528,11 @@ def main():
             LIMIT 5
         )
     ''')
-    print("Database cleanup complete. Historical data pruned to 5 days.")
+    print("Database cleanup complete. Historical data pruned to 5 days.", flush=True)
 
     conn.commit()
     conn.close()
-    print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.")
+    print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.", flush=True)
 
 if __name__ == "__main__":
     main()
