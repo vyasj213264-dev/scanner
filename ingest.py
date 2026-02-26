@@ -344,6 +344,13 @@ def main():
                 except Exception as parse_e:
                     continue
 
+    # Build the correct placeholders for all 30 columns (28 original + Sector + Industry)
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        full_placeholders = ', '.join(['%s'] * 30)
+    else:
+        full_placeholders = ', '.join(['?'] * 30)
+    
+    print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     cursor.executemany(f'''
         INSERT INTO screen_data (
             Ticker, Date, Close, Volume, SMA_10, SMA_20, SMA_50, SMA_100, SMA_200,
@@ -351,23 +358,29 @@ def main():
             RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
             Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
             Sector, Industry
-        ) VALUES ({placeholders}, ?, ?)
-    '''.replace('VALUES ({placeholders}, ?, ?)', f'VALUES ({placeholders}, %s, %s)' if DATABASE_URL and DATABASE_URL.startswith("postgres") else f'VALUES ({placeholders}, ?, ?)'), all_data)
+        ) VALUES ({full_placeholders})
+    ''', all_data)
+    print(f"Successfully inserted {len(all_data)} records.", flush=True)
     
     
+    print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)
     cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
     df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
+    
+    print(f"Found {len(df_db)} tickers with valid RS_Raw values.", flush=True)
     
     if not df_db.empty:
         df_db['RS_Rating'] = df_db['RS_Raw'].rank(pct=True) * 99
         # IMPORTANT: psycopg2 cannot natively adapt numpy.float64 without a registration adapter.
         # We must explicitly cast the pandas column to native Python floats to prevent silent NULLs in PostgreSQL.
         update_data = [(float(r), t) for r, t in zip(df_db['RS_Rating'], df_db['Ticker'])]
+        print(f"Sample RS_Rating values: {update_data[:3]}", flush=True)
         if DATABASE_URL and DATABASE_URL.startswith("postgres"):
             cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", update_data)
         else:
             cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", update_data)
+        print(f"Successfully updated RS_Rating for {len(update_data)} tickers.", flush=True)
             
     # ---------------------------------------------------------
     # Build the Pre-Computed Scanner Cache
@@ -470,10 +483,15 @@ def main():
                         Date, Category, Name, Stock_Count, 
                         Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (Date, Category, Name) DO UPDATE SET
+                        Stock_Count = EXCLUDED.Stock_Count,
+                        Rank_1D = EXCLUDED.Rank_1D, Rank_1W = EXCLUDED.Rank_1W,
+                        Rank_1M = EXCLUDED.Rank_1M, Rank_3M = EXCLUDED.Rank_3M,
+                        Rank_6M = EXCLUDED.Rank_6M, Rank_1Y = EXCLUDED.Rank_1Y
                 ''', all_theme_data)
             else:
                 cursor.executemany('''
-                    INSERT INTO industry_ranks (
+                    INSERT OR REPLACE INTO industry_ranks (
                         Date, Category, Name, Stock_Count, 
                         Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
