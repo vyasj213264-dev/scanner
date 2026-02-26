@@ -306,6 +306,8 @@ def main():
             last = calculate_indicators(df)
             if last is not None:
                 rs_raw = calculate_rs_rating(df, spy_data)
+                # Convert NaN to None so PostgreSQL stores it as NULL (not NaN)
+                rs_raw_clean = None if (rs_raw is None or pd.isna(rs_raw)) else float(rs_raw)
                 
                 try:
                     record = (
@@ -324,7 +326,7 @@ def main():
                         bool(last['In_Stage_2']),
                         bool(last['Tight_Setup']),
                         bool(last['Near_Horizontal_Resistance']),
-                        float(rs_raw),
+                        rs_raw_clean,
                         bool(last['Inside_Bar']),
                         bool(last['Golden_Crossover']),
                         bool(last['Gap_Up']),
@@ -367,6 +369,8 @@ def main():
     cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
     df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
+    # Extra safety: drop any NaN values that slipped through (e.g. PostgreSQL NaN vs NULL)
+    df_db = df_db.dropna(subset=['RS_Raw'])
     
     print(f"Found {len(df_db)} tickers with valid RS_Raw values.", flush=True)
     
