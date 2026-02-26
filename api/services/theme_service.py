@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from api.database import fetch_all, fetch_val
 from api.models.themes import ThemeRankRecord
 
@@ -11,40 +11,38 @@ def _get(row, *keys):
     return None
 
 
-def get_themes() -> Tuple[List[ThemeRankRecord], str]:
+def get_themes() -> Tuple[List[ThemeRankRecord], str, Dict[str, List[str]]]:
     """
     Fetches the Sector and Industry thematic rankings from the database.
-    Calculates the 1-day rank momentum (change) dynamically comparing the most recent 
-    two ingestion dates directly in Python.
+    Also returns the sector→industry mapping for drill-down navigation.
     """
     # Find the two most recent ingestion dates
     dates_sql = "SELECT DISTINCT Date FROM industry_ranks ORDER BY Date DESC LIMIT 2"
     dates_rows = fetch_all(dates_sql)
     
     if not dates_rows:
-        return [], "No Data"
+        return [], "No Data", {}
     
     latest_date = _get(dates_rows[0], 'date', 'Date')
     
+    # Build sector → industry mapping from screen_data
+    sector_map = get_sector_industry_map()
+    
     if len(dates_rows) < 2:
-        # We only have one day of data, so rank momentum is zero/null
         today_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
         today_rows = fetch_all(today_sql, (latest_date,))
         results = [ThemeRankRecord.model_validate(row) for row in today_rows]
-        return results, latest_date
+        return results, latest_date, sector_map
 
     # We have historical data to calculate Rank Movement (+/-)
     prev_date = _get(dates_rows[1], 'date', 'Date')
     
-    # Fetch today's snapshot
     today_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
     today_rows = fetch_all(today_sql, (latest_date,))
     
-    # Fetch yesterday's snapshot to calculate 1D momentum change
     prev_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
     prev_rows = fetch_all(prev_sql, (prev_date,))
     
-    # Convert prev_rows into a lookup dict: {"Category_Name": row} 
     prev_dict = {}
     for r in prev_rows:
         cat = _get(r, 'category', 'Category')
@@ -56,7 +54,6 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
     for r in today_rows:
         record = ThemeRankRecord.model_validate(r)
         
-        # Calculate diffs
         key = f"{record.category}_{record.name}"
         if key in prev_dict:
             pr = prev_dict[key]
@@ -68,7 +65,6 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
             prev_6m = _get(pr, 'rank_6m', 'Rank_6M')
             prev_1y = _get(pr, 'rank_1y', 'Rank_1Y')
             
-            # Positive change means a HIGHER rank (smaller number) today
             if prev_1d is not None: record.change_1d = prev_1d - record.rank_1d
             if prev_1w is not None: record.change_1w = prev_1w - record.rank_1w
             if prev_1m is not None: record.change_1m = prev_1m - record.rank_1m
@@ -78,4 +74,42 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
             
         results.append(record)
         
-    return results, latest_date
+    return results, latest_date, sector_map
+
+
+def get_sector_industry_map() -> Dict[str, List[str]]:
+    """
+    Returns a mapping of Sector -> list of Industry names from screen_data.
+    Used for the drill-down navigation.
+    """
+    sql = "SELECT DISTINCT Sector, Industry FROM screen_data WHERE Sector != 'Unknown' AND Industry != 'Unknown' ORDER BY Sector, Industry"
+    rows = fetch_all(sql)
+    
+    mapping: Dict[str, List[str]] = {}
+    for r in rows:
+        sector = _get(r, 'sector', 'Sector') or 'Unknown'
+        industry = _get(r, 'industry', 'Industry') or 'Unknown'
+        if sector != 'Unknown' and industry != 'Unknown':
+            if sector not in mapping:
+                mapping[sector] = []
+            if industry not in mapping[sector]:
+                mapping[sector].append(industry)
+    
+    return mapping
+
+
+def get_themes_stocks(category: str, name: str) -> Tuple[list, int, str]:
+    """
+    Fetches all stocks in a given Sector or Industry from screen_data.
+    Returns (rows, universe_count, last_updated).
+    """
+    col = "Sector" if category.lower() == "sector" else "Industry"
+    
+    sql = f"SELECT * FROM screen_data WHERE {col} = ? ORDER BY RS_Rating DESC NULLS LAST"
+    rows = fetch_all(sql, (name,))
+    
+    universe_count = fetch_val("SELECT COUNT(*) FROM screen_data") or 0
+    last_updated_row = fetch_all("SELECT MAX(Date) as last_date FROM screen_data")
+    last_updated = _get(last_updated_row[0], 'last_date', 'max') if last_updated_row else None
+    
+    return rows, universe_count, last_updated

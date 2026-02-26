@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, ConfigDict, Field
 
 class ThemeRankRecord(BaseModel):
@@ -32,3 +32,4 @@ class ThemeResponse(BaseModel):
     """Standard envelope for the thematic groupings."""
     as_of_date: str
     data: List[ThemeRankRecord]
+    sector_industry_map: Dict[str, List[str]] = {}

@@ -695,6 +695,96 @@
             margin-left: 3px;
         }
 
+        /* ── Drill-Down Styles ─────────────────────────── */
+        .theme-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 0 8px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+        }
+
+        .theme-section-header .badge {
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .universe-table tr.clickable-row {
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .universe-table tr.clickable-row:hover {
+            background: rgba(99, 102, 241, 0.08) !important;
+        }
+
+        .universe-table tr.clickable-row:active {
+            transform: scale(0.995);
+        }
+
+        .rank-badge {
+            display: inline-block;
+            min-width: 28px;
+            text-align: center;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .rank-top {
+            background: rgba(74, 222, 128, 0.15);
+            color: #4ade80;
+        }
+
+        .rank-mid {
+            background: rgba(250, 204, 21, 0.1);
+            color: #facc15;
+        }
+
+        .rank-low {
+            background: rgba(248, 113, 113, 0.1);
+            color: #f87171;
+        }
+
+        .breadcrumb-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 0 12px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb-bar .bc-link {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .breadcrumb-bar .bc-link:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-bar .bc-sep {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        .breadcrumb-bar .bc-current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
         /* ── Mobile Menu Elements (Hidden by default) ───────── */
         .menu-toggle,
         .mobile-close-btn {
@@ -1003,8 +1093,12 @@
 
         // Themes Engine State
         let themesData = [];
-        let themesSortBy = 'rank_1m'; // default sort by 1-month rank
-        let themesSortDir = 1; // 1 = asc (rank 1 is best), -1 = desc
+        let themesSortBy = 'rank_1m';
+        let themesSortDir = 1;
+        let sectorIndustryMap = {};
+        let themesLevel = 'top';     // 'top' | 'industries' | 'stocks'
+        let selectedSector = null;
+        let selectedIndustry = null;
 
         // ── Utility ─────────────────────────────────────────────
         function fmt(val, decimals = 1, suffix = '') {
@@ -1515,16 +1609,17 @@
 
         // ── Themes Engine ─────────────────────────────────────────
         async function runThemes() {
-            // Update UI State
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-themes').classList.add('active');
-            activeScanner = null; // not a standard scan
+            activeScanner = null;
+            themesLevel = 'top';
+            selectedSector = null;
+            selectedIndustry = null;
 
             document.getElementById('results-title').textContent = "Industry & Sector Ranks";
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market categories</span>`;
             document.getElementById('sort-controls').style.display = 'none';
 
-            // Auto-close mobile menu
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();
 
@@ -1539,110 +1634,218 @@
             try {
                 const res = await fetch(`${API}/themes`);
                 const json = await res.json();
-
-                // Update header date
                 document.getElementById('last-updated').textContent = json.as_of_date || 'Live';
-
                 themesData = json.data;
-                renderThemesTable();
+                sectorIndustryMap = json.sector_industry_map || {};
+                renderThemesView();
             } catch (err) {
                 console.error(err);
                 area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load thematic data</div>`;
             }
         }
 
-        function renderThemesTable() {
-            const area = document.getElementById('grid-area');
+        // ── Shared helpers ──
+        const fmtRank = (rank, change, total) => {
+            if (rank == null || rank >= 9999) return '<span class="pct-neutral">—</span>';
+            const q = total > 0 ? rank / total : 0.5;
+            const cls = q <= 0.25 ? 'rank-top' : q <= 0.6 ? 'rank-mid' : 'rank-low';
+            let changeHtml = '';
+            if (change != null) {
+                if (change > 0) changeHtml = `<span class="theme-up"> ▲${change}</span>`;
+                else if (change < 0) changeHtml = `<span class="theme-dn"> ▼${Math.abs(change)}</span>`;
+            }
+            return `<span class="rank-badge ${cls}">${rank}</span>${changeHtml}`;
+        };
 
-            // Client-side sort
-            themesData.sort((a, b) => {
-                let valA = a[themesSortBy];
-                let valB = b[themesSortBy];
+        function buildRankHeaders(prefix) {
+            return `
+                <th data-tsort="${prefix}rank_1d" style="text-align:right;">1D</th>
+                <th data-tsort="${prefix}rank_1w" style="text-align:right;">1W</th>
+                <th data-tsort="${prefix}rank_1m" style="text-align:right;">1M</th>
+                <th data-tsort="${prefix}rank_3m" style="text-align:right;">3M</th>
+                <th data-tsort="${prefix}rank_6m" style="text-align:right;">6M</th>
+                <th data-tsort="${prefix}rank_1y" style="text-align:right;">1Y</th>
+            `;
+        }
 
-                // Empty nulls always sink to bottom
-                if (valA == null) valA = themesSortBy.startsWith('rank_') ? 99999 : -99999;
-                if (valB == null) valB = themesSortBy.startsWith('rank_') ? 99999 : -99999;
+        function buildRankCells(row, total) {
+            return `
+                <td style="text-align:right;">${fmtRank(row.rank_1d, row.change_1d, total)}</td>
+                <td style="text-align:right;">${fmtRank(row.rank_1w, row.change_1w, total)}</td>
+                <td style="text-align:right;">${fmtRank(row.rank_1m, row.change_1m, total)}</td>
+                <td style="text-align:right;">${fmtRank(row.rank_3m, row.change_3m, total)}</td>
+                <td style="text-align:right;">${fmtRank(row.rank_6m, row.change_6m, total)}</td>
+                <td style="text-align:right;">${fmtRank(row.rank_1y, row.change_1y, total)}</td>
+            `;
+        }
 
-                if (themesSortBy === 'name' || themesSortBy === 'category') {
-                    if (a[themesSortBy] < b[themesSortBy]) return -1 * themesSortDir;
-                    if (a[themesSortBy] > b[themesSortBy]) return 1 * themesSortDir;
-                    return 0;
-                }
+        function sortThemeRows(rows) {
+            return [...rows].sort((a, b) => {
+                let valA = a[themesSortBy], valB = b[themesSortBy];
+                if (valA == null) valA = 99999; if (valB == null) valB = 99999;
+                if (themesSortBy === 'name') return (a.name < b.name ? -1 : 1) * themesSortDir;
                 return (valA - valB) * themesSortDir;
             });
+        }
 
-            let html = `
-            <div class="universe-table-wrapper">
-                <table class="universe-table">
-                    <thead>
-                        <tr>
-                            <th data-tsort="name" width="30%">Name</th>
-                            <th data-tsort="category">Category</th>
-                            <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
-                            <th data-tsort="rank_1d" style="text-align:right;">1D Rank</th>
-                            <th data-tsort="rank_1w" style="text-align:right;">1W Rank</th>
-                            <th data-tsort="rank_1m" style="text-align:right;">1M Rank</th>
-                            <th data-tsort="rank_3m" style="text-align:right;">3M Rank</th>
-                            <th data-tsort="rank_6m" style="text-align:right;">6M Rank</th>
-                            <th data-tsort="rank_1y" style="text-align:right;">1Y Rank</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            const fmtRank = (rank, change) => {
-                if (rank == null || rank >= 9999) return '<span class="pct-neutral">—</span>';
-
-                let changeHtml = '';
-                if (change != null) {
-                    if (change > 0) changeHtml = `<span class="theme-up">^${change}</span>`;
-                    else if (change < 0) changeHtml = `<span class="theme-dn">v${Math.abs(change)}</span>`;
-                    else changeHtml = `<span class="theme-flat">—</span>`;
-                }
-
-                return `<span style="font-weight: 500;">${rank}</span>${changeHtml}`;
-            };
-
-            for (const row of themesData) {
-                html += `
-                <tr>
-                    <td style="font-weight:600; color:var(--text-primary);">${row.name}</td>
-                    <td><span class="card-stage-pill" style="opacity:0.8">${row.category}</span></td>
-                    <td style="text-align:right; color:var(--text-secondary);">${row.stock_count}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_1d, row.change_1d)}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_1w, row.change_1w)}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_1m, row.change_1m)}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_3m, row.change_3m)}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_6m, row.change_6m)}</td>
-                    <td style="text-align:right;">${fmtRank(row.rank_1y, row.change_1y)}</td>
-                </tr>
-                `;
-            }
-
-            html += `</tbody></table></div>`;
-            area.innerHTML = html;
-
-            // Header Sort Binding
+        function bindThemeSort(area, renderFn) {
             area.querySelectorAll('th[data-tsort]').forEach(th => {
                 const col = th.dataset.tsort;
-                if (col === themesSortBy) {
-                    th.classList.add(themesSortDir === 1 ? 'sort-asc' : 'sort-desc');
-                }
+                if (col === themesSortBy) th.classList.add(themesSortDir === 1 ? 'sort-asc' : 'sort-desc');
                 th.addEventListener('click', () => {
-                    if (themesSortBy === col) {
-                        themesSortDir *= -1;
-                    } else {
-                        themesSortBy = col;
-                        // For ranks (1 is best) we want ASC. For numeric counts, DESC.
-                        if (col === 'name' || col === 'category' || col.startsWith('rank_')) {
-                            themesSortDir = 1;
-                        } else {
-                            themesSortDir = -1;
-                        }
-                    }
-                    renderThemesTable();
+                    if (themesSortBy === col) { themesSortDir *= -1; }
+                    else { themesSortBy = col; themesSortDir = col === 'name' ? 1 : 1; }
+                    renderFn();
                 });
             });
+        }
+
+        // ── Level Router ──
+        function renderThemesView() {
+            if (themesLevel === 'stocks') return renderThemeStocks();
+            if (themesLevel === 'industries') return renderFilteredIndustries();
+            renderThemesTopLevel();
+        }
+
+        // ── Level 1: Two Tables (Sectors + Industries) ──
+        function renderThemesTopLevel() {
+            const area = document.getElementById('grid-area');
+            const sectors = sortThemeRows(themesData.filter(r => r.category === 'Sector'));
+            const industries = sortThemeRows(themesData.filter(r => r.category === 'Industry'));
+
+            let html = `
+            <div class="theme-section-header">📊 Sectors <span class="badge">${sectors.length}</span></div>
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead><tr>
+                        <th data-tsort="name" width="35%">Sector</th>
+                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                        ${buildRankHeaders('')}
+                    </tr></thead>
+                    <tbody>
+            `;
+            for (const row of sectors) {
+                html += `<tr class="clickable-row" onclick="drillIntoSector('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, sectors.length)}</tr>`;
+            }
+            html += `</tbody></table></div>`;
+
+            html += `
+            <div class="theme-section-header" style="margin-top:24px;">🏭 Industries <span class="badge">${industries.length}</span></div>
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead><tr>
+                        <th data-tsort="name" width="35%">Industry</th>
+                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                        ${buildRankHeaders('')}
+                    </tr></thead>
+                    <tbody>
+            `;
+            for (const row of industries) {
+                html += `<tr class="clickable-row" onclick="drillIntoIndustry('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, industries.length)}</tr>`;
+            }
+            html += `</tbody></table></div>`;
+
+            area.innerHTML = html;
+            bindThemeSort(area, renderThemesTopLevel);
+        }
+
+        // ── Level 2: Industries in a Sector ──
+        window.drillIntoSector = function (sectorName) {
+            selectedSector = sectorName;
+            themesLevel = 'industries';
+            themesSortBy = 'rank_1m';
+            themesSortDir = 1;
+            renderFilteredIndustries();
+            document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        function renderFilteredIndustries() {
+            const area = document.getElementById('grid-area');
+            const industryNames = sectorIndustryMap[selectedSector] || [];
+            const industries = sortThemeRows(
+                themesData.filter(r => r.category === 'Industry' && industryNames.includes(r.name))
+            );
+
+            let html = `
+            <div class="breadcrumb-bar">
+                <span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span>
+                <span class="bc-sep">›</span>
+                <span class="bc-current">${selectedSector}</span>
+            </div>
+            <div class="theme-section-header">🏭 Industries in ${selectedSector} <span class="badge">${industries.length}</span></div>
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead><tr>
+                        <th data-tsort="name" width="35%">Industry</th>
+                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                        ${buildRankHeaders('')}
+                    </tr></thead>
+                    <tbody>
+            `;
+            for (const row of industries) {
+                html += `<tr class="clickable-row" onclick="drillIntoIndustry('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, industries.length)}</tr>`;
+            }
+            html += `</tbody></table></div>`;
+
+            if (industries.length === 0) {
+                html += `<div style="padding:40px;text-align:center;color:var(--text-muted);">No industries found for ${selectedSector}</div>`;
+            }
+
+            area.innerHTML = html;
+            bindThemeSort(area, renderFilteredIndustries);
+        }
+
+        // ── Level 3: Stocks in an Industry ──
+        window.drillIntoIndustry = async function (industryName) {
+            selectedIndustry = industryName;
+            themesLevel = 'stocks';
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = `
+                <div class="breadcrumb-bar">
+                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Industries</span><span class="bc-sep">›</span>`}
+                    <span class="bc-current">${industryName}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:250px;">
+                    <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading stocks in ${industryName}...</div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API}/themes/stocks?category=Industry&name=${encodeURIComponent(industryName)}`);
+                const json = await res.json();
+                renderThemeStocksGrid(json.data, industryName);
+            } catch (err) {
+                console.error(err);
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load stocks for ${industryName}</div>`;
+            }
+        };
+
+        function renderThemeStocksGrid(stocks, industryName) {
+            const area = document.getElementById('grid-area');
+            let html = `
+                <div class="breadcrumb-bar">
+                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Industries</span><span class="bc-sep">›</span>`}
+                    <span class="bc-current">${industryName}</span>
+                    <span style="margin-left:auto;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
+                </div>
+            `;
+            area.innerHTML = html;
+
+            if (!stocks.length) {
+                area.innerHTML += `<div style="padding:40px;text-align:center;color:var(--text-muted);">No stocks found in ${industryName}</div>`;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'chart-grid';
+            area.appendChild(grid);
+
+            stocks.sort((a, b) => (b.rs_rating || 0) - (a.rs_rating || 0));
+            for (const stock of stocks) {
+                createChartCard(stock, grid);
+            }
         }
 
         // ── Init ─────────────────────────────────────────────────
