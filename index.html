@@ -770,6 +770,23 @@
             color: var(--text-primary);
         }
 
+        .sort-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .sort-select {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            font-size: 0.78rem;
+            outline: none;
+            cursor: pointer;
+        }
+
         /* ── Drill-Down Styles ─────────────────────────── */
         .theme-section-header {
             display: flex;
@@ -1017,49 +1034,59 @@
             .sort-controls {
                 margin-left: 0;
                 width: 100%;
-                overflow-x: auto;
-                padding-bottom: 4px;
                 justify-content: flex-start;
-                -ms-overflow-style: none;
-                scrollbar-width: none;
+                flex-wrap: wrap;
+                gap: 8px;
             }
 
-            .sort-controls::-webkit-scrollbar {
+            .sort-buttons {
                 display: none;
+                /* Hide buttons on mobile */
             }
 
-            .sort-btn {
-                white-space: nowrap;
+            .sort-select {
+                display: block;
+                /* Show dropdown on mobile */
             }
 
-            /* Grid adjustments */
-            .grid-area {
-                padding: 12px;
+            .filter-bar {
+                width: 100%;
+                justify-content: flex-start;
             }
+        }
 
-            .chart-grid {
-                gap: 12px;
-            }
+        .sort-btn {
+            white-space: nowrap;
+        }
 
-            .card-header {
-                padding: 10px 12px;
-            }
+        /* Grid adjustments */
+        .grid-area {
+            padding: 12px;
+        }
 
-            .card-stats {
-                padding: 8px 12px;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-            }
+        .chart-grid {
+            gap: 12px;
+        }
 
-            .card-stats::-webkit-scrollbar {
-                display: none;
-            }
+        .card-header {
+            padding: 10px 12px;
+        }
 
-            .skel-chart,
-            .tradingview-widget-container {
-                height: 320px !important;
-                /* Slightly shorter charts on mobile */
-            }
+        .card-stats {
+            padding: 8px 12px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+
+        .card-stats::-webkit-scrollbar {
+            display: none;
+        }
+
+        .skel-chart,
+        .tradingview-widget-container {
+            height: 320px !important;
+            /* Slightly shorter charts on mobile */
+        }
         }
     </style>
 </head>
@@ -1133,13 +1160,25 @@
             <div class="results-header">
                 <div class="results-title" id="results-title">Select a scanner</div>
                 <div class="results-meta" id="results-meta"></div>
+            </div>
+            <div class="control-bars-container"
+                style="padding: 0 20px 10px 20px; border-bottom: 1px solid var(--border);">
                 <div class="sort-controls" id="sort-controls" style="display:none">
                     <span class="sort-label">Sort:</span>
-                    <button class="sort-btn active" data-sort="rs_rating">RS Rating</button>
-                    <button class="sort-btn" data-sort="rvol">RVOL</button>
-                    <button class="sort-btn" data-sort="close">Price</button>
-                    <button class="sort-btn" data-sort="pct_from_52w_high">Near High</button>
-                    <button class="sort-btn" data-sort="momentum_1m">Momentum</button>
+                    <div class="sort-buttons">
+                        <button class="sort-btn active" data-sort="rs_rating">RS Rating</button>
+                        <button class="sort-btn" data-sort="rvol">RVOL</button>
+                        <button class="sort-btn" data-sort="close">Price</button>
+                        <button class="sort-btn" data-sort="pct_from_52w_high">Near High</button>
+                        <button class="sort-btn" data-sort="momentum_1m">Momentum</button>
+                    </div>
+                    <select class="sort-select" id="sort-select">
+                        <option value="rs_rating">RS Rating</option>
+                        <option value="rvol">RVOL</option>
+                        <option value="close">Price</option>
+                        <option value="pct_from_52w_high">Near High</option>
+                        <option value="momentum_1m">Momentum</option>
+                    </select>
                 </div>
                 <div class="filter-bar" id="filter-bar" style="display:none">
                     <span class="sort-label">≡ Filters:</span>
@@ -1353,13 +1392,26 @@
             document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             activeSortBy = btn.dataset.sort;
-            // If we're on a themes stock drill-down, re-render that instead
+            document.getElementById('sort-select').value = activeSortBy;
+            executeSort();
+        });
+
+        document.getElementById('sort-select')?.addEventListener('change', e => {
+            activeSortBy = e.target.value;
+            document.querySelectorAll('.sort-btn').forEach(b => {
+                if (b.dataset.sort === activeSortBy) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            executeSort();
+        });
+
+        function executeSort() {
             if (themesLevel === 'stocks' && themeStockData.length) {
                 renderThemeStocksGrid(themeStockData, selectedIndustry || selectedSector);
                 return;
             }
             if (lastResults.length) renderGrid(sortResults(lastResults));
-        });
+        }
 
         function sortResults(results) {
             return [...results].sort((a, b) => {
@@ -1388,7 +1440,7 @@
             if (activeScanner) {
                 const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
                 const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
-                runScanner(activeScanner, label);
+                runScanner(activeScanner, label, true); // force re-fetch
             }
         }
 
