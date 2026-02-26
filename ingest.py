@@ -96,6 +96,7 @@ def calculate_indicators(df):
 def main():
     print("Loading ticker universe...", flush=True)
     tickers = []
+    ticker_meta = {} # Dict to store {ticker: {'sector': '...', 'industry': '...'}}
     
     # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
     try:
@@ -125,6 +126,13 @@ def main():
                     if '^' not in symbol and '/' not in symbol and '~' not in symbol:
                         if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
                             valid_dynamic.append(symbol)
+                            # Save Sector and Industry for thematic ranking later
+                            sector = str(row.get('sector', '')).strip()
+                            industry = str(row.get('industry', '')).strip()
+                            ticker_meta[symbol] = {
+                                'sector': sector if sector else 'Unknown',
+                                'industry': industry if industry else 'Unknown'
+                            }
             except:
                 pass
                 
@@ -136,6 +144,10 @@ def main():
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
     
+    if os.getenv('TEST_MODE') == '1':
+        print("TEST_MODE enabled: Truncating to 50 tickers...")
+        tickers = tickers[:50]
+
     if not tickers:
         print("Error: No tickers loaded. Exiting.", flush=True)
         return
@@ -205,7 +217,27 @@ def main():
             Momentum_3M {sql_types["REAL"]},
             Momentum_6M {sql_types["REAL"]},
             Momentum_1Y {sql_types["REAL"]},
-            RS_Rating {sql_types["REAL"]}
+            RS_Rating {sql_types["REAL"]},
+            Sector {sql_types["TEXT"]},
+            Industry {sql_types["TEXT"]}
+        )
+    ''')
+    
+    # Create the new industry_ranks table to track daily theme rotation
+    cursor.execute('DROP TABLE IF EXISTS industry_ranks')
+    cursor.execute(f'''
+        CREATE TABLE industry_ranks (
+            Date {sql_types["TEXT"]},
+            Category {sql_types["TEXT"]},
+            Name {sql_types["TEXT"]},
+            Stock_Count INTEGER,
+            Rank_1D INTEGER,
+            Rank_1W INTEGER,
+            Rank_1M INTEGER,
+            Rank_3M INTEGER,
+            Rank_6M INTEGER,
+            Rank_1Y INTEGER,
+            PRIMARY KEY (Date, Category, Name)
         )
     ''')
     
@@ -305,7 +337,9 @@ def main():
                         float(last['Momentum_3M']),
                         float(last['Momentum_6M']),
                         float(last['Momentum_1Y']),
-                        0.0 # Placeholder for RS_Rating
+                        0.0, # Placeholder for RS_Rating
+                        ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
+                        ticker_meta.get(ticker, {}).get('industry', 'Unknown')
                     )
                     all_data.append(record)
                 except Exception as parse_e:
@@ -316,9 +350,11 @@ def main():
             Ticker, Date, Close, Volume, SMA_10, SMA_20, SMA_50, SMA_100, SMA_200,
             RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
             RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
-            Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating
-        ) VALUES ({placeholders})
-    ''', all_data)
+            Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
+            Sector, Industry
+        ) VALUES ({placeholders}, ?, ?)
+    '''.replace('VALUES ({placeholders}, ?, ?)', f'VALUES ({placeholders}, %s, %s)' if DATABASE_URL and DATABASE_URL.startswith("postgres") else f'VALUES ({placeholders}, ?, ?)'), all_data)
+    
     
     cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
@@ -373,6 +409,78 @@ def main():
             
         print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.")
         
+    # ---------------------------------------------------------
+    # Build the Industry/Theme Ranks
+    # ---------------------------------------------------------
+    print("Calculating Sector and Industry rankings...", flush=True)
+    # Fetch today's date from the just-inserted screen_data
+    cursor.execute("SELECT MAX(Date) FROM screen_data")
+    latest_date_tuple = cursor.fetchone()
+    
+    if latest_date_tuple and latest_date_tuple[0]:
+        latest_date = latest_date_tuple[0]
+        # Load all momentums with their Sector/Industry
+        cursor.execute("SELECT Ticker, Sector, Industry, Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y FROM screen_data")
+        theme_rows = cursor.fetchall()
+        
+        # Direct conversion to pandas. Handles both SQLite tuples and psycopg2 DictRows efficiently.
+        theme_df = pd.DataFrame(theme_rows, columns=['Ticker', 'Sector', 'Industry', 'm1d', 'm1w', 'm1m', 'm3m', 'm6m', 'm1y'])
+        
+        # Helper to group, calculate median, rank, and format for DB
+        def generate_ranks(df, group_col, category_name):
+            # Only rank legitimate groups (filter out 'Unknown' or empty)
+            valid_df = df[(df[group_col] != 'Unknown') & (df[group_col] != '')]
+            if valid_df.empty: return []
+            
+            # Median momentum across the group
+            grouped = valid_df.groupby(group_col).agg({
+                'Ticker': 'count',
+                'm1d': 'median', 'm1w': 'median', 'm1m': 'median',
+                'm3m': 'median', 'm6m': 'median', 'm1y': 'median'
+            }).reset_index()
+            
+            # Rank (ascending=False means highest momentum gets rank 1)
+            # method='min' ensures ties get the same top rank
+            for met in ['m1d', 'm1w', 'm1m', 'm3m', 'm6m', 'm1y']:
+                grouped[f'rank_{met}'] = grouped[met].rank(ascending=False, method='min').fillna(9999).astype(int)
+                
+            rank_data = []
+            for _, r in grouped.iterrows():
+                rank_data.append((
+                    latest_date,
+                    category_name,
+                    str(r[group_col]),
+                    int(r['Ticker']),
+                    int(r['rank_m1d']),
+                    int(r['rank_m1w']),
+                    int(r['rank_m1m']),
+                    int(r['rank_m3m']),
+                    int(r['rank_m6m']),
+                    int(r['rank_m1y'])
+                ))
+            return rank_data
+            
+        sector_ranks = generate_ranks(theme_df, 'Sector', 'Sector')
+        industry_ranks = generate_ranks(theme_df, 'Industry', 'Industry')
+        all_theme_data = sector_ranks + industry_ranks
+        
+        if all_theme_data:
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                cursor.executemany('''
+                    INSERT INTO industry_ranks (
+                        Date, Category, Name, Stock_Count, 
+                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', all_theme_data)
+            else:
+                cursor.executemany('''
+                    INSERT INTO industry_ranks (
+                        Date, Category, Name, Stock_Count, 
+                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', all_theme_data)
+            print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.")
+
     conn.commit()
     conn.close()
     print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.")

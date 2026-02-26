@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION, CORS_ORIGINS
-from api.routers import health, scanner
+from api.routers import health, scanner, themes
 
 
 @asynccontextmanager
@@ -40,6 +40,7 @@ app.add_middleware(
 # Routers
 app.include_router(health.router)
 app.include_router(scanner.router)
+app.include_router(themes.router)
 
 
 @app.get("/", include_in_schema=False)

@@ -675,6 +675,26 @@
             color: var(--text-muted);
         }
 
+        .theme-up {
+            color: #4ade80;
+            font-size: 0.75rem;
+            margin-left: 3px;
+            font-weight: 600;
+        }
+
+        .theme-dn {
+            color: #f87171;
+            font-size: 0.75rem;
+            margin-left: 3px;
+            font-weight: 600;
+        }
+
+        .theme-flat {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-left: 3px;
+        }
+
         /* ── Mobile Menu Elements (Hidden by default) ───────── */
         .menu-toggle,
         .mobile-close-btn {
@@ -921,6 +941,10 @@
                 <button class="scanner-btn" id="btn-universe" onclick="runUniverse()">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
                 </button>
+                <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-themes" onclick="runThemes()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">🎯 Industry Ranks</span>
+                </button>
             </div>
             <div id="sidebar-content">
                 <!-- Populated dynamically from /api/v1/scanners -->
@@ -976,6 +1000,11 @@
         let activeSortBy = 'rs_rating';
         let lastResults = [];      // cached for client-side resort
         let tvWidgetCount = 0;
+
+        // Themes Engine State
+        let themesData = [];
+        let themesSortBy = 'rank_1m'; // default sort by 1-month rank
+        let themesSortDir = 1; // 1 = asc (rank 1 is best), -1 = desc
 
         // ── Utility ─────────────────────────────────────────────
         function fmt(val, decimals = 1, suffix = '') {
@@ -1070,7 +1099,7 @@
         async function prefetchBadges(scanners) {
             for (const s of scanners) {
                 try {
-                    const res = await fetch(`${API}/scan/${s.id}?limit=5000`);
+                    const res = await fetch(`${API}/scan/${s.id}?limit=100`);
                     const data = await res.json();
                     const badge = document.getElementById(`badge-${s.id}`);
                     if (badge) badge.textContent = data.count;
@@ -1150,7 +1179,7 @@
 
             try {
                 const t0 = performance.now();
-                const res = await fetch(`${API}/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc`);
+                const res = await fetch(`${API}/scan/${scannerId}?limit=100&sort_by=${activeSortBy}&order=desc`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
 
                 const data = await res.json();
@@ -1483,6 +1512,138 @@
             document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
+
+        // ── Themes Engine ─────────────────────────────────────────
+        async function runThemes() {
+            // Update UI State
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-themes').classList.add('active');
+            activeScanner = null; // not a standard scan
+
+            document.getElementById('results-title').textContent = "Industry & Sector Ranks";
+            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market categories</span>`;
+            document.getElementById('sort-controls').style.display = 'none';
+
+            // Auto-close mobile menu
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
+                    <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading thematic rankings...</div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API}/themes`);
+                const json = await res.json();
+
+                // Update header date
+                document.getElementById('last-updated').textContent = json.as_of_date || 'Live';
+
+                themesData = json.data;
+                renderThemesTable();
+            } catch (err) {
+                console.error(err);
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load thematic data</div>`;
+            }
+        }
+
+        function renderThemesTable() {
+            const area = document.getElementById('grid-area');
+
+            // Client-side sort
+            themesData.sort((a, b) => {
+                let valA = a[themesSortBy];
+                let valB = b[themesSortBy];
+
+                // Empty nulls always sink to bottom
+                if (valA == null) valA = themesSortBy.startsWith('rank_') ? 99999 : -99999;
+                if (valB == null) valB = themesSortBy.startsWith('rank_') ? 99999 : -99999;
+
+                if (themesSortBy === 'name' || themesSortBy === 'category') {
+                    if (a[themesSortBy] < b[themesSortBy]) return -1 * themesSortDir;
+                    if (a[themesSortBy] > b[themesSortBy]) return 1 * themesSortDir;
+                    return 0;
+                }
+                return (valA - valB) * themesSortDir;
+            });
+
+            let html = `
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th data-tsort="name" width="30%">Name</th>
+                            <th data-tsort="category">Category</th>
+                            <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
+                            <th data-tsort="rank_1d" style="text-align:right;">1D Rank</th>
+                            <th data-tsort="rank_1w" style="text-align:right;">1W Rank</th>
+                            <th data-tsort="rank_1m" style="text-align:right;">1M Rank</th>
+                            <th data-tsort="rank_3m" style="text-align:right;">3M Rank</th>
+                            <th data-tsort="rank_6m" style="text-align:right;">6M Rank</th>
+                            <th data-tsort="rank_1y" style="text-align:right;">1Y Rank</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const fmtRank = (rank, change) => {
+                if (rank == null || rank >= 9999) return '<span class="pct-neutral">—</span>';
+
+                let changeHtml = '';
+                if (change != null) {
+                    if (change > 0) changeHtml = `<span class="theme-up">^${change}</span>`;
+                    else if (change < 0) changeHtml = `<span class="theme-dn">v${Math.abs(change)}</span>`;
+                    else changeHtml = `<span class="theme-flat">—</span>`;
+                }
+
+                return `<span style="font-weight: 500;">${rank}</span>${changeHtml}`;
+            };
+
+            for (const row of themesData) {
+                html += `
+                <tr>
+                    <td style="font-weight:600; color:var(--text-primary);">${row.name}</td>
+                    <td><span class="card-stage-pill" style="opacity:0.8">${row.category}</span></td>
+                    <td style="text-align:right; color:var(--text-secondary);">${row.stock_count}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_1d, row.change_1d)}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_1w, row.change_1w)}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_1m, row.change_1m)}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_3m, row.change_3m)}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_6m, row.change_6m)}</td>
+                    <td style="text-align:right;">${fmtRank(row.rank_1y, row.change_1y)}</td>
+                </tr>
+                `;
+            }
+
+            html += `</tbody></table></div>`;
+            area.innerHTML = html;
+
+            // Header Sort Binding
+            area.querySelectorAll('th[data-tsort]').forEach(th => {
+                const col = th.dataset.tsort;
+                if (col === themesSortBy) {
+                    th.classList.add(themesSortDir === 1 ? 'sort-asc' : 'sort-desc');
+                }
+                th.addEventListener('click', () => {
+                    if (themesSortBy === col) {
+                        themesSortDir *= -1;
+                    } else {
+                        themesSortBy = col;
+                        // For ranks (1 is best) we want ASC. For numeric counts, DESC.
+                        if (col === 'name' || col === 'category' || col.startsWith('rank_')) {
+                            themesSortDir = 1;
+                        } else {
+                            themesSortDir = -1;
+                        }
+                    }
+                    renderThemesTable();
+                });
+            });
+        }
 
         // ── Init ─────────────────────────────────────────────────
         boot();
