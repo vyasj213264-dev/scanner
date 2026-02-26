@@ -2,7 +2,7 @@
 Scanner router — GET /api/v1/scan/{scanner_type}
               — GET /api/v1/scanners
 """
-from typing import Literal
+from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult
@@ -59,10 +59,10 @@ def run_scanner(
         "rs_rating", description="Field to sort by"
     ),
     order: Literal["asc", "desc"] = Query("desc", description="Sort direction"),
-    min_market_cap: float = Query(None, description="Minimum market cap filter"),
-    min_adr: float = Query(None, description="Minimum ADR% filter"),
-    max_adr: float = Query(None, description="Maximum ADR% filter"),
-    min_price: float = Query(None, description="Minimum price filter"),
+    min_market_cap: Optional[float] = Query(None, description="Minimum market cap filter"),
+    min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
+    max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
+    min_price: Optional[float] = Query(None, description="Minimum price filter"),
 ):
     """
     Execute a predefined scanner and return matching stocks with their indicator data.
