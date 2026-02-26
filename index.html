@@ -1099,7 +1099,7 @@
         async function prefetchBadges(scanners) {
             for (const s of scanners) {
                 try {
-                    const res = await fetch(`${API}/scan/${s.id}?limit=100`);
+                    const res = await fetch(`${API}/scan/${s.id}?limit=5000`);
                     const data = await res.json();
                     const badge = document.getElementById(`badge-${s.id}`);
                     if (badge) badge.textContent = data.count;
@@ -1179,7 +1179,7 @@
 
             try {
                 const t0 = performance.now();
-                const res = await fetch(`${API}/scan/${scannerId}?limit=100&sort_by=${activeSortBy}&order=desc`);
+                const res = await fetch(`${API}/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
 
                 const data = await res.json();

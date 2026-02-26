@@ -2,6 +2,15 @@ from typing import List, Tuple
 from api.database import fetch_all, fetch_val
 from api.models.themes import ThemeRankRecord
 
+
+def _get(row, *keys):
+    """Safely extract a value from a dict trying multiple key cases."""
+    for k in keys:
+        if k in row:
+            return row[k]
+    return None
+
+
 def get_themes() -> Tuple[List[ThemeRankRecord], str]:
     """
     Fetches the Sector and Industry thematic rankings from the database.
@@ -14,8 +23,8 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
     
     if not dates_rows:
         return [], "No Data"
-        
-    latest_date = dates_rows[0]['Date'] if 'Date' in dates_rows[0] else dates_rows[0][0]
+    
+    latest_date = _get(dates_rows[0], 'date', 'Date')
     
     if len(dates_rows) < 2:
         # We only have one day of data, so rank momentum is zero/null
@@ -25,7 +34,7 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
         return results, latest_date
 
     # We have historical data to calculate Rank Movement (+/-)
-    prev_date = dates_rows[1]['Date'] if 'Date' in dates_rows[1] else dates_rows[1][0]
+    prev_date = _get(dates_rows[1], 'date', 'Date')
     
     # Fetch today's snapshot
     today_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
@@ -38,8 +47,8 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
     # Convert prev_rows into a lookup dict: {"Category_Name": row} 
     prev_dict = {}
     for r in prev_rows:
-        cat = r['Category'] if 'Category' in r else r[1]
-        name = r['Name'] if 'Name' in r else r[2]
+        cat = _get(r, 'category', 'Category')
+        name = _get(r, 'name', 'Name')
         key = f"{cat}_{name}"
         prev_dict[key] = r
 
@@ -52,19 +61,14 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str]:
         if key in prev_dict:
             pr = prev_dict[key]
             
-            # Helper to extract rank safely from generic dict or DB row
-            def g(row, field):
-                return row[field] if field in row else row.get(field.lower())
-                
-            prev_1d = g(pr, "Rank_1D")
-            prev_1w = g(pr, "Rank_1W")
-            prev_1m = g(pr, "Rank_1M")
-            prev_3m = g(pr, "Rank_3M")
-            prev_6m = g(pr, "Rank_6M")
-            prev_1y = g(pr, "Rank_1Y")
+            prev_1d = _get(pr, 'rank_1d', 'Rank_1D')
+            prev_1w = _get(pr, 'rank_1w', 'Rank_1W')
+            prev_1m = _get(pr, 'rank_1m', 'Rank_1M')
+            prev_3m = _get(pr, 'rank_3m', 'Rank_3M')
+            prev_6m = _get(pr, 'rank_6m', 'Rank_6M')
+            prev_1y = _get(pr, 'rank_1y', 'Rank_1Y')
             
             # Positive change means a HIGHER rank (smaller number) today
-            # Example: Yesterday Rank #10, Today Rank #5. Change = +5.
             if prev_1d is not None: record.change_1d = prev_1d - record.rank_1d
             if prev_1w is not None: record.change_1w = prev_1w - record.rank_1w
             if prev_1m is not None: record.change_1m = prev_1m - record.rank_1m
