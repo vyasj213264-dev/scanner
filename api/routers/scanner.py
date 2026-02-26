@@ -32,10 +32,20 @@ def list_scanners():
     response_model=UniverseResponse,
     summary="Get full universe performance data",
 )
-def get_full_universe():
-    """Returns the performance metrics for the entire market universe > $5."""
+def get_full_universe(
+    min_market_cap: Optional[float] = Query(None, description="Minimum market cap filter"),
+    min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
+    max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
+    min_price: Optional[float] = Query(None, description="Minimum price filter"),
+):
+    """Returns the performance metrics for the entire market universe > $5, with optional filters."""
     try:
-        rows, universe_count, last_updated = get_universe()
+        rows, universe_count, last_updated = get_universe(
+            min_market_cap=min_market_cap,
+            min_adr=min_adr,
+            max_adr=max_adr,
+            min_price=min_price,
+        )
         results = [UniverseStockResult.model_validate(row) for row in rows]
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

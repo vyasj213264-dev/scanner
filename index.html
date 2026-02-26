@@ -1456,9 +1456,13 @@
 
         function applyFilters() {
             if (activeScanner) {
-                const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
-                const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
-                runScanner(activeScanner, label, true); // force re-fetch
+                if (activeScanner === 'universe') {
+                    runUniverse(true); // force re-fetch
+                } else {
+                    const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
+                    const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
+                    runScanner(activeScanner, label, true); // force re-fetch
+                }
             }
         }
 
@@ -1708,11 +1712,11 @@
         let universePage = 1;
         const UNIVERSE_PAGE_SIZE = 100;
 
-        async function runUniverse() {
-            if (activeScanner === 'universe') return;
+        async function runUniverse(force = false) {
+            if (!force && activeScanner === 'universe') return;
             activeScanner = 'universe';
             universePage = 1; // Reset to page 1 on fresh load
-            pushScannerToHistory('universe');
+            if (!force) pushScannerToHistory('universe');
 
             // Update UI state
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
@@ -1722,7 +1726,7 @@
             document.getElementById('results-title').textContent = "Stock Universe Explorer";
             document.getElementById('results-meta').innerHTML = "Full market performance across all timeframes. Click headers to sort.";
             document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             // Auto-close mobile menu
             const sidebar = document.getElementById('sidebar');
@@ -1737,7 +1741,10 @@
             `;
 
             try {
-                const res = await fetch(`${API}/universe`);
+                let url = `${API}/universe?limit=99999`;
+                url += getFilterParams();
+
+                const res = await fetch(url);
                 const json = await res.json();
                 universeData = json.data;
                 renderUniverseTable();
