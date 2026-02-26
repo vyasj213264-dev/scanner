@@ -1032,8 +1032,12 @@
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
                 </button>
                 <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-themes" onclick="runThemes()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">🎯 Industry Ranks</span>
+                <button class="scanner-btn" id="btn-themes-sector" onclick="runThemes('Sector')">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">📊 Sector Ranks</span>
+                </button>
+                <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-themes-industry" onclick="runThemes('Industry')">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">🏭 Industry Ranks</span>
                 </button>
             </div>
             <div id="sidebar-content">
@@ -1099,6 +1103,8 @@
         let themesLevel = 'top';     // 'top' | 'industries' | 'stocks'
         let selectedSector = null;
         let selectedIndustry = null;
+        let themesCategory = 'Sector'; // 'Sector' or 'Industry'
+        let themeStockData = [];       // cached stock data for resort
 
         // ── Utility ─────────────────────────────────────────────
         function fmt(val, decimals = 1, suffix = '') {
@@ -1191,15 +1197,41 @@
         }
 
         async function prefetchBadges(scanners) {
+            const todayKey = new Date().toISOString().slice(0, 10);
+            const cacheKey = 'badge_cache';
+            let badgeCache = {};
+
+            // Try to load from localStorage
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed._cacheDate === todayKey) {
+                        badgeCache = parsed;
+                        // Restore badges from cache instantly
+                        for (const s of scanners) {
+                            const badge = document.getElementById(`badge-${s.id}`);
+                            if (badge && badgeCache[s.id] != null) badge.textContent = badgeCache[s.id];
+                        }
+                        return; // All badges restored from cache, no DB calls needed
+                    }
+                }
+            } catch (_) { }
+
+            // Cache miss or stale — fetch from API
             for (const s of scanners) {
                 try {
                     const res = await fetch(`${API}/scan/${s.id}?limit=5000`);
                     const data = await res.json();
                     const badge = document.getElementById(`badge-${s.id}`);
                     if (badge) badge.textContent = data.count;
+                    badgeCache[s.id] = data.count;
                 } catch (_) { /* ignore */ }
-                await sleep(80); // stagger requests so we don't hammer the DB
+                await sleep(80);
             }
+            // Save to localStorage
+            badgeCache._cacheDate = todayKey;
+            try { localStorage.setItem(cacheKey, JSON.stringify(badgeCache)); } catch (_) { }
         }
 
         function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1211,6 +1243,11 @@
             document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             activeSortBy = btn.dataset.sort;
+            // If we're on a themes stock drill-down, re-render that instead
+            if (themesLevel === 'stocks' && themeStockData.length) {
+                renderThemeStocksGrid(themeStockData, selectedIndustry || selectedSector);
+                return;
+            }
             if (lastResults.length) renderGrid(sortResults(lastResults));
         });
 
@@ -1608,16 +1645,20 @@
         };
 
         // ── Themes Engine ─────────────────────────────────────────
-        async function runThemes() {
+        async function runThemes(category) {
+            themesCategory = category || 'Sector';
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-themes').classList.add('active');
+            const btnId = themesCategory === 'Sector' ? 'btn-themes-sector' : 'btn-themes-industry';
+            document.getElementById(btnId).classList.add('active');
             activeScanner = null;
             themesLevel = 'top';
             selectedSector = null;
             selectedIndustry = null;
+            themeStockData = [];
 
-            document.getElementById('results-title').textContent = "Industry & Sector Ranks";
-            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market categories</span>`;
+            const label = themesCategory === 'Sector' ? 'Sector Ranks' : 'Industry Ranks';
+            document.getElementById('results-title').textContent = label;
+            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market ${themesCategory.toLowerCase()}s</span>`;
             document.getElementById('sort-controls').style.display = 'none';
 
             const sidebar = document.getElementById('sidebar');
@@ -1627,13 +1668,31 @@
             area.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
                     <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading thematic rankings...</div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading ${label.toLowerCase()}...</div>
                 </div>
             `;
 
             try {
-                const res = await fetch(`${API}/themes`);
-                const json = await res.json();
+                // Check localStorage cache keyed by today's date
+                const todayKey = new Date().toISOString().slice(0, 10); // "2026-02-25"
+                const cacheKey = 'themes_cache';
+                const cached = localStorage.getItem(cacheKey);
+                let json;
+
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed._cacheDate === todayKey && parsed.data && parsed.data.length > 0) {
+                        json = parsed;
+                    }
+                }
+
+                if (!json) {
+                    const res = await fetch(`${API}/themes`);
+                    json = await res.json();
+                    json._cacheDate = todayKey;
+                    try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch (_) { }
+                }
+
                 document.getElementById('last-updated').textContent = json.as_of_date || 'Live';
                 themesData = json.data;
                 sectorIndustryMap = json.sector_industry_map || {};
@@ -1707,41 +1766,26 @@
             renderThemesTopLevel();
         }
 
-        // ── Level 1: Two Tables (Sectors + Industries) ──
+        // ── Level 1: Single Category Table ──
         function renderThemesTopLevel() {
             const area = document.getElementById('grid-area');
-            const sectors = sortThemeRows(themesData.filter(r => r.category === 'Sector'));
-            const industries = sortThemeRows(themesData.filter(r => r.category === 'Industry'));
+            const rows = sortThemeRows(themesData.filter(r => r.category === themesCategory));
+            const icon = themesCategory === 'Sector' ? '📊' : '🏭';
+            const clickFn = themesCategory === 'Sector' ? 'drillIntoSector' : 'drillIntoIndustry';
 
             let html = `
-            <div class="theme-section-header">📊 Sectors <span class="badge">${sectors.length}</span></div>
+            <div class="theme-section-header">${icon} ${themesCategory}s <span class="badge">${rows.length}</span></div>
             <div class="universe-table-wrapper">
                 <table class="universe-table">
                     <thead><tr>
-                        <th data-tsort="name" width="35%">Sector</th>
+                        <th data-tsort="name" width="35%">${themesCategory}</th>
                         <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
                         ${buildRankHeaders('')}
                     </tr></thead>
                     <tbody>
             `;
-            for (const row of sectors) {
-                html += `<tr class="clickable-row" onclick="drillIntoSector('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, sectors.length)}</tr>`;
-            }
-            html += `</tbody></table></div>`;
-
-            html += `
-            <div class="theme-section-header" style="margin-top:24px;">🏭 Industries <span class="badge">${industries.length}</span></div>
-            <div class="universe-table-wrapper">
-                <table class="universe-table">
-                    <thead><tr>
-                        <th data-tsort="name" width="35%">Industry</th>
-                        <th data-tsort="stock_count" style="text-align:right;">Stocks</th>
-                        ${buildRankHeaders('')}
-                    </tr></thead>
-                    <tbody>
-            `;
-            for (const row of industries) {
-                html += `<tr class="clickable-row" onclick="drillIntoIndustry('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, industries.length)}</tr>`;
+            for (const row of rows) {
+                html += `<tr class="clickable-row" onclick="${clickFn}('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} <span style="opacity:0.4;font-size:0.75rem;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, rows.length)}</tr>`;
             }
             html += `</tbody></table></div>`;
 
@@ -1795,46 +1839,52 @@
             bindThemeSort(area, renderFilteredIndustries);
         }
 
-        // ── Level 3: Stocks in an Industry ──
-        window.drillIntoIndustry = async function (industryName) {
-            selectedIndustry = industryName;
+        // ── Level 3: Stocks in an Industry or Sector ──
+        window.drillIntoIndustry = async function (name) {
+            selectedIndustry = name;
             themesLevel = 'stocks';
+            const catType = themesCategory === 'Sector' ? 'Sector' : 'Industry';
+            const catLabel = themesCategory === 'Sector' ? selectedSector || name : name;
 
             const area = document.getElementById('grid-area');
             area.innerHTML = `
                 <div class="breadcrumb-bar">
-                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Industries</span><span class="bc-sep">›</span>`}
-                    <span class="bc-current">${industryName}</span>
+                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                    <span class="bc-current">${name}</span>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:250px;">
                     <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading stocks in ${industryName}...</div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading stocks in ${name}...</div>
                 </div>
             `;
 
             try {
-                const res = await fetch(`${API}/themes/stocks?category=Industry&name=${encodeURIComponent(industryName)}`);
+                const fetchCategory = selectedSector && themesCategory === 'Sector' ? 'Industry' : catType;
+                const res = await fetch(`${API}/themes/stocks?category=${fetchCategory}&name=${encodeURIComponent(name)}`);
                 const json = await res.json();
-                renderThemeStocksGrid(json.data, industryName);
+                themeStockData = json.data;
+                // Show sort controls
+                document.getElementById('sort-controls').style.display = 'flex';
+                renderThemeStocksGrid(themeStockData, name);
             } catch (err) {
                 console.error(err);
-                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load stocks for ${industryName}</div>`;
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load stocks for ${name}</div>`;
             }
         };
 
-        function renderThemeStocksGrid(stocks, industryName) {
+        function renderThemeStocksGrid(stocks, name) {
             const area = document.getElementById('grid-area');
             let html = `
                 <div class="breadcrumb-bar">
-                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Industries</span><span class="bc-sep">›</span>`}
-                    <span class="bc-current">${industryName}</span>
+                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                    <span class="bc-current">${name}</span>
                     <span style="margin-left:auto;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
                 </div>
             `;
             area.innerHTML = html;
 
             if (!stocks.length) {
-                area.innerHTML += `<div style="padding:40px;text-align:center;color:var(--text-muted);">No stocks found in ${industryName}</div>`;
+                area.innerHTML += `<div style="padding:40px;text-align:center;color:var(--text-muted);">No stocks found in ${name}</div>`;
                 return;
             }
 
@@ -1842,8 +1892,9 @@
             grid.className = 'chart-grid';
             area.appendChild(grid);
 
-            stocks.sort((a, b) => (b.rs_rating || 0) - (a.rs_rating || 0));
-            for (const stock of stocks) {
+            // Re-use existing sort logic from scanner engine
+            const sorted = sortResults(stocks);
+            for (const stock of sorted) {
                 createChartCard(stock, grid);
             }
         }
