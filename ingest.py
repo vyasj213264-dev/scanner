@@ -480,6 +480,22 @@ def main():
                 ''', all_theme_data)
             print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.")
 
+    # ---------------------------------------------------------
+    # Database Cleanup / Retention Policy
+    # ---------------------------------------------------------
+    print("Running database retention cleanup...", flush=True)
+    # Delete any Industry Ranks data older than the 5 most recent trading days
+    cursor.execute('''
+        DELETE FROM industry_ranks 
+        WHERE Date NOT IN (
+            SELECT DISTINCT Date 
+            FROM industry_ranks 
+            ORDER BY Date DESC 
+            LIMIT 5
+        )
+    ''')
+    print("Database cleanup complete. Historical data pruned to 5 days.")
+
     conn.commit()
     conn.close()
     print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.")
