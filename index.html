@@ -1779,6 +1779,10 @@
                         <tr>
                             <th data-ksort="ticker">Ticker</th>
                             <th data-ksort="close">Price</th>
+                            <th data-ksort="sector">Sector</th>
+                            <th data-ksort="industry">Industry</th>
+                            <th data-ksort="market_cap">Mkt Cap</th>
+                            <th data-ksort="adr_20" title="Average Daily Range %">ATR%</th>
                             <th data-ksort="momentum_1d">1D</th>
                             <th data-ksort="momentum_1w">1W</th>
                             <th data-ksort="momentum_1m">1M</th>
@@ -1798,6 +1802,14 @@
                 return `<span class="pct-neutral">${pct}%</span>`;
             };
 
+            const fmtMcap = (val) => {
+                if (val == null || isNaN(val)) return '—';
+                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
+                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+                return `$${val.toFixed(0)}`;
+            };
+
             const totalPages = Math.ceil(universeData.length / UNIVERSE_PAGE_SIZE);
             if (universePage > totalPages) universePage = totalPages || 1;
 
@@ -1810,6 +1822,10 @@
                 <tr>
                     <td><a href="https://www.tradingview.com/chart/?symbol=${row.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td>${fmtPrice(row.close)}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.industry || ''}">${row.industry || '—'}</td>
+                    <td>${fmtMcap(row.market_cap)}</td>
+                    <td>${row.adr_20 != null ? row.adr_20.toFixed(1) + '%' : '—'}</td>
                     <td>${fmtPct(row.momentum_1d)}</td>
                     <td>${fmtPct(row.momentum_1w)}</td>
                     <td>${fmtPct(row.momentum_1m)}</td>

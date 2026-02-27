@@ -76,6 +76,10 @@ class UniverseStockResult(BaseModel):
     """
     ticker: str = Field(..., validation_alias="Ticker")
     close: Optional[float] = Field(None, validation_alias="Close")
+    sector: Optional[str] = Field(None, validation_alias="Sector")
+    industry: Optional[str] = Field(None, validation_alias="Industry")
+    market_cap: Optional[float] = Field(None, validation_alias="Market_Cap")
+    adr_20: Optional[float] = Field(None, validation_alias="ADR_20")
     momentum_1d: Optional[float] = Field(None, validation_alias="Momentum_1D")
     momentum_1w: Optional[float] = Field(None, validation_alias="Momentum_1W")
     momentum_1m: Optional[float] = Field(None, validation_alias="Momentum_1M")

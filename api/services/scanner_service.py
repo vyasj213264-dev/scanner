@@ -217,7 +217,8 @@ def get_universe(
         params.append(min_price)
 
     sql = (
-        f"SELECT Ticker, Close, Momentum_1D, Momentum_1W, Momentum_1M, "
+        f"SELECT Ticker, Close, Sector, Industry, Market_Cap, ADR_20, "
+        f"Momentum_1D, Momentum_1W, Momentum_1M, "
         f"Momentum_3M, Momentum_6M, Momentum_1Y "
         f"FROM screen_data WHERE {BASELINE_FILTER}{extra_where}"
     )
