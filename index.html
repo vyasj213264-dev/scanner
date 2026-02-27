@@ -1800,7 +1800,9 @@
                 document.getElementById('last-updated').textContent =
                     health.last_updated || '—';
 
-                await fetchWatchlists();
+                // fetchWatchlists in its own try-catch so failure doesn't block the sidebar
+                try { await fetchWatchlists(); } catch (e) { console.warn('Watchlists unavailable:', e); }
+
                 buildSidebar(scanData.scanners);
             } catch (err) {
                 console.error('Boot failed:', err);
