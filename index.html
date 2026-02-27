@@ -1179,6 +1179,14 @@
                         <option value="pct_from_52w_high">Near High</option>
                         <option value="momentum_1m">Momentum</option>
                     </select>
+                    <div style="margin-left:auto; display:flex; gap:4px; align-items:center;">
+                        <span class="sort-label" style="margin-right:4px;">View:</span>
+                        <div class="sort-group" id="scanner-view-toggle">
+                            <button class="sort-btn active" id="scvw-chart"
+                                onclick="setScannerView('chart')">Chart</button>
+                            <button class="sort-btn" id="scvw-table" onclick="setScannerView('table')">Table</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="filter-bar" id="filter-bar" style="display:none">
                     <span class="sort-label">≡ Filters:</span>
@@ -1234,6 +1242,7 @@
         let activeSortBy = 'rs_rating';
         let lastResults = [];      // cached for client-side resort
         let tvWidgetCount = 0;
+        let scannerViewMode = 'chart'; // 'chart' | 'table'
 
         // Themes Engine State
         let themesData = [];
@@ -1405,9 +1414,9 @@
 
         // ── Sort Controls ────────────────────────────────────────
         document.getElementById('sort-controls').addEventListener('click', e => {
-            const btn = e.target.closest('.sort-btn');
+            const btn = e.target.closest('.sort-btn[data-sort]');
             if (!btn) return;
-            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.sort-btn[data-sort]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             activeSortBy = btn.dataset.sort;
             document.getElementById('sort-select').value = activeSortBy;
@@ -1428,7 +1437,13 @@
                 renderThemeStocksGrid(themeStockData, selectedIndustry || selectedSector);
                 return;
             }
-            if (lastResults.length) renderGrid(sortResults(lastResults));
+            if (lastResults.length) {
+                if (scannerViewMode === 'table') {
+                    renderScannerTable(sortResults(lastResults));
+                } else {
+                    renderGrid(sortResults(lastResults));
+                }
+            }
         }
 
         function sortResults(results) {
@@ -1539,7 +1554,11 @@
                 if (lastResults.length === 0) {
                     showEmptyState(scannerLabel);
                 } else {
-                    renderGrid(sortResults(lastResults));
+                    if (scannerViewMode === 'table') {
+                        renderScannerTable(sortResults(lastResults));
+                    } else {
+                        renderGrid(sortResults(lastResults));
+                    }
                 }
 
                 // Update badge
@@ -1614,6 +1633,84 @@
             for (const stock of stocks) {
                 createChartCard(stock, grid);
             }
+        }
+
+        // ── Scanner View Mode Toggle ──────────────────────────────
+        function setScannerView(mode) {
+            scannerViewMode = mode;
+            document.getElementById('scvw-chart').classList.toggle('active', mode === 'chart');
+            document.getElementById('scvw-table').classList.toggle('active', mode === 'table');
+            const sorted = sortResults(lastResults);
+            if (mode === 'table') {
+                renderScannerTable(sorted);
+            } else {
+                renderGrid(sorted);
+            }
+        }
+
+        // ── Render Scanner Table ──────────────────────────────────
+        function renderScannerTable(stocks) {
+            const area = document.getElementById('grid-area');
+            const fmtPct = (val) => {
+                if (val == null || isNaN(val)) return '—';
+                const pct = (val * 100).toFixed(1);
+                if (val > 0) return `<span class="pct-pos">+${pct}%</span>`;
+                if (val < 0) return `<span class="pct-neg">${pct}%</span>`;
+                return `<span class="pct-neutral">${pct}%</span>`;
+            };
+            const fmtMcap = (val) => {
+                if (val == null || isNaN(val)) return '—';
+                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
+                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+                return `$${val.toFixed(0)}`;
+            };
+
+            let html = `
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Price</th>
+                            <th>Sector</th>
+                            <th>Industry</th>
+                            <th>Mkt Cap</th>
+                            <th>ATR%</th>
+                            <th>RS</th>
+                            <th>RVOL</th>
+                            <th>vs Hi</th>
+                            <th>1M</th>
+                            <th>1D</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            for (const s of stocks) {
+                const stagePill = s.in_stage_2
+                    ? '<span class="card-stage-pill pill-stage2" style="font-size:0.7rem;padding:1px 5px;">S2</span>'
+                    : s.gap_up ? '<span class="card-stage-pill pill-gap-up" style="font-size:0.7rem;padding:1px 5px;">↑</span>'
+                        : s.gap_down ? '<span class="card-stage-pill pill-gap-dn" style="font-size:0.7rem;padding:1px 5px;">↓</span>'
+                            : '';
+                html += `<tr>
+                    <td><a href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
+                    <td>${fmtPrice(s.close)}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
+                    <td>${fmtMcap(s.market_cap)}</td>
+                    <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
+                    <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
+                    <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
+                    <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
+                    <td>${fmtPct(s.momentum_1m)}</td>
+                    <td>${fmtPct(s.momentum_1d)}</td>
+                </tr>`;
+            }
+            html += `</tbody></table></div>`;
+            if (stocks.length === 0) {
+                html = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No results</div></div>`;
+            }
+            area.innerHTML = html;
         }
 
         // ── Chart Card ───────────────────────────────────────────
