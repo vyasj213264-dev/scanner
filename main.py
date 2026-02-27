@@ -10,11 +10,17 @@ from fastapi.staticfiles import StaticFiles
 
 from api.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION, CORS_ORIGINS
 from api.routers import health, scanner, themes
+from api.routers import auth
+from api.routers import watchlists
+from api.routers import breadth
+from api.routers import screener
+from api.services.auth_service import init_user_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(f"🚀  {APP_TITLE} v{APP_VERSION} — starting up")
+    init_user_tables()
     yield
     print(f"🛑  {APP_TITLE} — shutting down")
 
@@ -41,6 +47,10 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(scanner.router)
 app.include_router(themes.router)
+app.include_router(auth.router)
+app.include_router(watchlists.router)
+app.include_router(breadth.router)
+app.include_router(screener.router)
 
 
 @app.get("/", include_in_schema=False)

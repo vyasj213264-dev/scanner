@@ -1,20 +1,39 @@
 """
 Scanner router — GET /api/v1/scan/{scanner_type}
               — GET /api/v1/scanners
+              — GET /api/v1/stock/{ticker}
 """
 from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException, Query
 
-from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult
+from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult, StockResult
 from api.services.scanner_service import (
     SCANNER_CATALOGUE,
     get_scanner_meta,
     run_scan,
     get_universe
 )
+from api.services import scanner_service
 from api.config import DEFAULT_SCAN_LIMIT, MAX_SCAN_LIMIT
+from api.database import fetch_all
 
 router = APIRouter(prefix="/api/v1", tags=["Scanner"])
+
+
+@router.get(
+    "/stock/{ticker}",
+    response_model=StockResult,
+    summary="Get full metrics for a single ticker",
+)
+def get_stock_detail(ticker: str):
+    """Returns all available metrics for a single stock ticker."""
+    rows = fetch_all(
+        "SELECT * FROM screen_data WHERE Ticker = ? LIMIT 1",
+        (ticker.upper(),),
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"Ticker '{ticker}' not found")
+    return StockResult.model_validate(rows[0])
 
 
 @router.get(

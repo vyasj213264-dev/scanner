@@ -9,3 +9,8 @@ psycopg2-binary
 python-dotenv
 yfinance
 lxml
+python-jose[cryptography]
+httpx
+authlib
+passlib[bcrypt]
+python-multipart
