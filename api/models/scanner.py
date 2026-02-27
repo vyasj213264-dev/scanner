@@ -40,6 +40,8 @@ class StockResult(BaseModel):
     gap_down: Optional[bool] = Field(None, validation_alias="Gap_Down")
     vcp_approximation: Optional[bool] = Field(None, validation_alias="VCP_Approximation")
     market_cap: Optional[float] = Field(None, validation_alias="Market_Cap")
+    sector: Optional[str] = Field(None, validation_alias="Sector")
+    industry: Optional[str] = Field(None, validation_alias="Industry")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)
