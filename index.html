@@ -1850,25 +1850,45 @@
             const isAuthenticated = await checkAuth();
             if (!isAuthenticated) return; // Wait for login
 
-            try {
-                const [healthRes, scannersRes] = await Promise.all([
-                    fetchApi('/health'),
-                    fetchApi('/scanners'),
-                ]);
-                const health = await healthRes.json();
-                const scanData = await scannersRes.json();
+            // Show a waking up state in the main content area
+            const area = document.getElementById('grid-area');
+            if (area) area.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px;color:var(--text-secondary);">
+                    <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div id="boot-status" style="font-size:0.9rem;">Connecting to server...</div>
+                </div>`;
 
-                document.getElementById('universe-count').textContent =
-                    health.universe_size.toLocaleString();
-                document.getElementById('last-updated').textContent =
-                    health.last_updated || '—';
+            // Retry boot up to 6 times (handles Render cold starts ~30s)
+            for (let attempt = 1; attempt <= 6; attempt++) {
+                try {
+                    const [healthRes, scannersRes] = await Promise.all([
+                        fetchApi('/health'),
+                        fetchApi('/scanners'),
+                    ]);
+                    const health = await healthRes.json();
+                    const scanData = await scannersRes.json();
 
-                // fetchWatchlists in its own try-catch so failure doesn't block the sidebar
-                try { await fetchWatchlists(); } catch (e) { console.warn('Watchlists unavailable:', e); }
+                    document.getElementById('universe-count').textContent =
+                        health.universe_size.toLocaleString();
+                    document.getElementById('last-updated').textContent =
+                        health.last_updated || '—';
 
-                buildSidebar(scanData.scanners);
-            } catch (err) {
-                console.error('Boot failed:', err);
+                    // fetchWatchlists in its own try-catch so failure doesn't block the sidebar
+                    try { await fetchWatchlists(); } catch (e) { console.warn('Watchlists unavailable:', e); }
+
+                    buildSidebar(scanData.scanners);
+                    return; // success
+                } catch (err) {
+                    console.warn(`Boot attempt ${attempt} failed:`, err);
+                    if (attempt < 6) {
+                        const el = document.getElementById('boot-status');
+                        if (el) el.textContent = `Server waking up… (${attempt * 10}s)`;
+                        await new Promise(r => setTimeout(r, 10000)); // wait 10s
+                    } else {
+                        const el = document.getElementById('boot-status');
+                        if (el) el.innerHTML = `<span style="color:var(--red)">⚠️ Server unavailable. <a href="javascript:location.reload()" style="color:var(--accent)">Retry</a></span>`;
+                    }
+                }
             }
         }
 
