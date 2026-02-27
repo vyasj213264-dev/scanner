@@ -1996,7 +1996,7 @@
             try {
                 panelWidget = new TradingView.widget({
                     autosize: true,
-                    symbol: ticker,
+                    symbol: "US:" + ticker,
                     interval: 'D',
                     timezone: 'Etc/UTC',
                     theme: currentTheme,
@@ -2767,7 +2767,7 @@
                     try {
                         new TradingView.widget({
                             autosize: true,
-                            symbol: stock.ticker,
+                            symbol: `US:${stock.ticker}`,
                             interval: 'D',
                             timezone: 'Etc/UTC',
                             theme: currentTheme,
@@ -3312,7 +3312,7 @@
                         try {
                             new TradingView.widget({
                                 autosize: true,
-                                symbol: stock.ticker,
+                                symbol: `US:${stock.ticker}`,
                                 interval: 'D',
                                 timezone: 'Etc/UTC',
                                 theme: currentTheme,
@@ -3600,7 +3600,7 @@
                                 try {
                                     new TradingView.widget({
                                         autosize: true,
-                                        symbol: ticker,
+                                        symbol: `US:${ticker}`,
                                         interval: 'D',
                                         timezone: 'Etc/UTC',
                                         theme: currentTheme,
@@ -3638,9 +3638,10 @@
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
-                                        if (currentLen + t.length + 1 > 120) break;
-                                        expressionParts.push(t);
-                                        currentLen += t.length + 1;
+                                        const symbol = `US:${t}`;
+                                        if (currentLen + symbol.length + 1 > 120) break;
+                                        expressionParts.push(symbol);
+                                        currentLen += symbol.length + 1;
                                     }
 
                                     const count = expressionParts.length;
