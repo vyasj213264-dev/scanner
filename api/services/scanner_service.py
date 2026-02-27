@@ -171,8 +171,6 @@ def run_scan(
         extra_where += " AND d.Close >= ?"
         params.append(min_price)
 
-    params.append(limit)
-
     sql = (
         f"SELECT d.* FROM screen_data d "
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
@@ -180,6 +178,7 @@ def run_scan(
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
     )
+    params.append(limit)
 
     rows = fetch_all(sql, tuple(params))
     results = [StockResult.model_validate(row) for row in rows]
