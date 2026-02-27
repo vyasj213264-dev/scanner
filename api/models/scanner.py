@@ -1,5 +1,5 @@
 """
-Pydantic response models for the StockScans API.
+Pydantic response models for the TradersChart API.
 """
 from typing import List, Optional
 from pydantic import BaseModel, Field

@@ -1,5 +1,5 @@
 """
-StockScans API — application entry point.
+TradersChart API — application entry point.
 """
 from contextlib import asynccontextmanager
 
@@ -56,3 +56,7 @@ app.include_router(screener.router)
 @app.get("/", include_in_schema=False)
 def serve_ui():
     return FileResponse("index.html")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

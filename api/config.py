@@ -1,5 +1,5 @@
 """
-Central configuration for StockScans API.
+Central configuration for TradersChart API.
 """
 import os
 from dotenv import load_dotenv
@@ -22,6 +22,6 @@ DEFAULT_SCAN_LIMIT = 5000
 MAX_SCAN_LIMIT = 5000
 
 # --- App metadata ---
-APP_TITLE = "StockScans API"
+APP_TITLE = "TradersChart API"
 APP_DESCRIPTION = "Production-grade stock scanner API for 3,100+ US equities."
 APP_VERSION = "1.0.0"

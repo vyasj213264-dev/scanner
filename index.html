@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StockScans — US Stock Scanner</title>
+    <title>TradersChart — US Stock Scanner</title>
     <meta name="description"
-        content="Professional US equity scanner powered by StockScans. Scan 3,100+ stocks for technical setups in real-time." />
+        content="Professional US equity scanner powered by TradersChart. Scan 3,100+ stocks for technical setups in real-time." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -133,12 +133,123 @@
             margin-left: auto;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .last-updated-label {
             font-size: 0.72rem;
             color: var(--text-muted);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: background 0.2s;
+        }
+
+        .user-profile:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--border-light);
+            object-fit: cover;
+        }
+
+        .user-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--red);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        /* ── Auth Overlay ──────────────────────────────────────── */
+        .auth-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .auth-logo {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff 0%, #9ca3af 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-sub {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: white;
+            color: #333;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+
+        .google-btn:hover {
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .google-btn img {
+            width: 20px;
+            height: 20px;
         }
 
         /* ── Layout ─────────────────────────────────────────────── */
@@ -452,6 +563,197 @@
         .chart-container {
             height: 380px;
             width: 100%;
+        }
+
+        /* ── Watchlist Dropdown ─────────────────────────────────── */
+        .wl-dropdown-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .wl-add-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .wl-add-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .wl-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            min-width: 140px;
+            z-index: 100;
+            display: none;
+            padding: 4px;
+            text-align: left;
+        }
+
+        .wl-dropdown-menu.show {
+            display: block;
+        }
+
+        .wl-item-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 6px 10px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+
+        .wl-item-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        /* ── Stock Detail Panel ─────────────────────────────────── */
+        .stock-panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 8000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .stock-panel-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .stock-panel {
+            position: fixed;
+            top: 0;
+            right: -600px;
+            width: 600px;
+            max-width: 100vw;
+            bottom: 0;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            z-index: 8001;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stock-panel.open {
+            right: 0;
+        }
+
+        .stock-panel-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .sp-ticker {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .sp-company {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .sp-price-wrap {
+            text-align: right;
+        }
+
+        .sp-price {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .sp-change {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .sp-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .sp-close-btn:hover {
+            color: #fff;
+        }
+
+        .stock-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .sp-chart {
+            width: 100%;
+            height: 350px;
+            background: var(--bg);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .sp-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .sp-stat-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+        }
+
+        .sp-stat-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .sp-stat-val {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
         }
 
         /* ── Skeleton Loader ─────────────────────────────────── */
@@ -1096,6 +1398,70 @@
     <!-- Mobile Sidebar Overlay (hidden by default) -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
 
+    <!-- Auth Overlay -->
+    <div id="auth-overlay" class="auth-overlay" style="display: none;">
+        <div class="auth-card">
+            <div class="auth-logo">TradersChart</div>
+            <div class="auth-sub">Sign in to access professional scanners, custom screeners, and watchlists.</div>
+            <button class="google-btn" onclick="window.location.href='/auth/google'">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="G">
+                Continue with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Stock Panel Overlay -->
+    <div class="stock-panel-overlay" id="stock-panel-overlay" onclick="closeStockPanel()"></div>
+
+    <!-- Stock Panel Drawer -->
+    <div class="stock-panel" id="stock-panel">
+        <div class="stock-panel-header">
+            <div>
+                <div class="sp-ticker" id="sp-ticker">AAPL</div>
+                <div class="sp-company" id="sp-company">Apple Inc.</div>
+            </div>
+            <div class="sp-price-wrap">
+                <button class="sp-close-btn" onclick="closeStockPanel()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="sp-price" id="sp-price">$0.00</div>
+                <div class="sp-change" id="sp-change">0.00%</div>
+            </div>
+        </div>
+        <div class="stock-panel-content">
+            <div class="sp-chart" id="sp-tv-widget"></div>
+            <div class="sp-grid">
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">RS Rating</div>
+                    <div class="sp-stat-val" id="sp-stat-rs">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">Market Cap</div>
+                    <div class="sp-stat-val" id="sp-stat-mcap">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">ADR%</div>
+                    <div class="sp-stat-val" id="sp-stat-adr">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">Volume Breakout</div>
+                    <div class="sp-stat-val" id="sp-stat-rvol">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">Stage 2</div>
+                    <div class="sp-stat-val" id="sp-stat-stage">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">1M Momentum</div>
+                    <div class="sp-stat-val" id="sp-stat-mom">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Header ─────────────────────────────────────────── -->
     <header class="app-header">
         <button class="menu-toggle" onclick="toggleMobileMenu()" title="Open Filters">
@@ -1106,14 +1472,25 @@
                 <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
         </button>
-        <div class="logo">Stock<span>Scans</span></div>
+        <div class="logo">Traders<span>Chart</span></div>
         <div class="header-divider"></div>
         <div class="live-dot"></div>
         <div class="header-meta">
             Scanning <strong id="universe-count">—</strong> US Equities
         </div>
         <div class="header-right">
-            <span class="last-updated-label">Data as of: <strong id="last-updated">—</strong></span>
+            <span class="last-updated-label" style="margin-right: 12px;">Data as of: <strong
+                    id="last-updated">—</strong></span>
+
+            <div class="user-profile" id="user-profile" style="display: none;">
+                <img src="" alt="avatar" class="user-avatar" id="user-avatar">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; margin-right: 8px;">
+                    <div class="user-name" id="user-name"></div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;"
+                        id="user-plan">Free Plan</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Log out</button>
+            </div>
         </div>
     </header>
 
@@ -1134,12 +1511,20 @@
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
                 </button>
                 <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-breadth" onclick="runBreadth()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">📈 Market Breadth</span>
+                </button>
+                <div style="height: 4px;"></div>
                 <button class="scanner-btn" id="btn-themes-sector" onclick="runThemes('Sector')">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">📊 Sector Ranks</span>
                 </button>
                 <div style="height: 4px;"></div>
                 <button class="scanner-btn" id="btn-themes-industry" onclick="runThemes('Industry')">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🏭 Industry Ranks</span>
+                </button>
+                <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">⚙️ Custom Screener</span>
                 </button>
             </div>
             <div id="sidebar-content">
@@ -1220,7 +1605,7 @@
             <div class="grid-area" id="grid-area">
                 <div class="welcome-state">
                     <div class="welcome-icon">📊</div>
-                    <div class="welcome-title">StockScans Full Engine</div>
+                    <div class="welcome-title">TradersChart Full Engine</div>
                     <div class="welcome-sub">
                         Choose a scanner from the left panel to scan 3,100+ US equities for technical setups.
                     </div>
@@ -1243,6 +1628,10 @@
         let lastResults = [];      // cached for client-side resort
         let tvWidgetCount = 0;
         let scannerViewMode = 'chart'; // 'chart' | 'table'
+
+        // Watchlist State
+        let watchlists = [];
+        let activeWatchlist = null; // ID of currently viewed watchlist
 
         // Themes Engine State
         let themesData = [];
@@ -1297,12 +1686,83 @@
             }
         }
 
+        // ── Auth ─────────────────────────────────────────────────
+        let currentUser = null;
+        let authToken = localStorage.getItem('cm_token');
+
+        async function checkAuth() {
+            // Check URL for token (redirect from Google callback)
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
+            if (tokenFromUrl) {
+                authToken = tokenFromUrl;
+                localStorage.setItem('cm_token', authToken);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            if (!authToken) {
+                showLogin();
+                return false;
+            }
+
+            try {
+                const res = await fetch(`/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) throw new Error('Invalid token');
+
+                currentUser = await res.json();
+
+                // Update UI
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('user-profile').style.display = 'flex';
+                document.getElementById('user-name').textContent = currentUser.name || currentUser.email.split('@')[0];
+                document.getElementById('user-avatar').src = currentUser.picture || 'https://www.w3schools.com/howto/img_avatar.png';
+                document.getElementById('user-plan').textContent = currentUser.plan + ' plan';
+
+                return true;
+            } catch (err) {
+                console.error("Auth failed:", err);
+                logout();
+                return false;
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('auth-overlay').style.display = 'flex';
+            document.getElementById('user-profile').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.removeItem('cm_token');
+            currentUser = null;
+            authToken = null;
+            showLogin();
+        }
+
+        // Helper for authenticated fetches
+        async function fetchApi(endpoint, options = {}) {
+            if (!options.headers) options.headers = {};
+            if (authToken) {
+                options.headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            const res = await fetch(`${API}${endpoint}`, options);
+            if (res.status === 401) {
+                logout();
+                throw new Error("Unauthorized");
+            }
+            return res;
+        }
+
         // ── Boot ─────────────────────────────────────────────────
         async function boot() {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) return; // Wait for login
+
             try {
                 const [healthRes, scannersRes] = await Promise.all([
-                    fetch(`${API}/health`),
-                    fetch(`${API}/scanners`),
+                    fetchApi('/health'),
+                    fetchApi('/scanners'),
                 ]);
                 const health = await healthRes.json();
                 const scanData = await scannersRes.json();
@@ -1312,9 +1772,212 @@
                 document.getElementById('last-updated').textContent =
                     health.last_updated || '—';
 
+                await fetchWatchlists();
                 buildSidebar(scanData.scanners);
             } catch (err) {
                 console.error('Boot failed:', err);
+            }
+        }
+
+        // ── Stock Detail Panel ──────────────────────────────────
+        let panelWidget = null;
+        async function fetchStockDetail(ticker) {
+            document.getElementById('stock-panel-overlay').classList.add('active');
+            document.getElementById('stock-panel').classList.add('open');
+
+            // Set Loading state
+            document.getElementById('sp-ticker').textContent = ticker;
+            document.getElementById('sp-company').textContent = "Loading...";
+            ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'].forEach(id => {
+                document.getElementById(id).textContent = "--";
+            });
+
+            // Mount TV widget
+            document.getElementById('sp-tv-widget').innerHTML = '';
+            try {
+                panelWidget = new TradingView.widget({
+                    autosize: true,
+                    symbol: ticker,
+                    interval: 'D',
+                    timezone: 'Etc/UTC',
+                    theme: 'dark',
+                    style: '1',
+                    locale: 'en',
+                    enable_publishing: false,
+                    hide_top_toolbar: true,
+                    hide_legend: false,
+                    save_image: false,
+                    container_id: 'sp-tv-widget',
+                    backgroundColor: '#080b12',
+                    gridColor: '#1e2a40',
+                    studies: [
+                        { id: "MAExp@tv-basicstudies", inputs: { length: 10 } },
+                        { id: "MAExp@tv-basicstudies", inputs: { length: 21 } }
+                    ]
+                });
+            } catch (e) { }
+
+            try {
+                const res = await fetchApi(`/stock/${ticker}`);
+                const json = await res.json();
+                const d = json.data;
+
+                document.getElementById('sp-company').textContent = d.industry ? `${d.sector} • ${d.industry}` : 'US Equity';
+                document.getElementById('sp-price').textContent = fmtPrice(d.close);
+
+                const chg = d.momentum_1d;
+                const chgEl = document.getElementById('sp-change');
+                if (chg != null) {
+                    const pct = (chg * 100).toFixed(2);
+                    chgEl.textContent = chg > 0 ? `+${pct}%` : `${pct}%`;
+                    chgEl.style.color = chg > 0 ? '#4ade80' : '#f87171';
+                }
+
+                document.getElementById('sp-stat-rs').textContent = fmt(d.rs_rating, 0);
+                document.getElementById('sp-stat-mcap').textContent = d.market_cap ? (d.market_cap >= 1e9 ? `$${(d.market_cap / 1e9).toFixed(1)}B` : `$${(d.market_cap / 1e6).toFixed(1)}M`) : '--';
+                document.getElementById('sp-stat-adr').textContent = fmt(d.adr_20, 1, '%');
+                document.getElementById('sp-stat-rvol').textContent = d.rvol ? d.rvol.toFixed(1) + 'x' : '--';
+                document.getElementById('sp-stat-stage').textContent = d.is_stage2 ? 'Yes' : 'No';
+                document.getElementById('sp-stat-mom').textContent = fmt(d.momentum_1m ? d.momentum_1m * 100 : null, 1, '%');
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('sp-company').textContent = "Failed to load details.";
+            }
+        }
+
+        function closeStockPanel() {
+            document.getElementById('stock-panel-overlay').classList.remove('active');
+            document.getElementById('stock-panel').classList.remove('open');
+            if (panelWidget) {
+                document.getElementById('sp-tv-widget').innerHTML = ''; // Destroy to save memory
+                panelWidget = null;
+            }
+        }
+
+        // ── Watchlists ───────────────────────────────────────────
+        async function fetchWatchlists() {
+            try {
+                const res = await fetchApi('/watchlists');
+                if (!res.ok) throw new Error('Failed to fetch watchlists');
+                watchlists = await res.json();
+                buildWatchlistsSidebar();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function createWatchlist() {
+            const name = prompt("Enter watchlist name:");
+            if (!name) return;
+            try {
+                const res = await fetchApi('/watchlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                if (!res.ok) throw new Error('Failed to create watchlist');
+                const newWl = await res.json();
+                watchlists.unshift(newWl);
+                buildWatchlistsSidebar();
+                runWatchlist(newWl.id);
+            } catch (err) {
+                alert("Error creating watchlist: " + err.message);
+            }
+        }
+
+        function buildWatchlistsSidebar() {
+            let container = document.getElementById('sidebar-watchlists');
+            if (!container) {
+                // Create container if it doesn't exist (put it before the scanners)
+                const sidebarContent = document.getElementById('sidebar-content');
+                container = document.createElement('div');
+                container.id = 'sidebar-watchlists';
+                sidebarContent.parentNode.insertBefore(container, sidebarContent);
+            }
+
+            let html = `
+                <div class="sidebar-category">
+                    <div class="category-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>⭐ My Watchlists</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button onclick="event.stopPropagation(); createWatchlist()" style="background:transparent;border:none;color:var(--text-secondary);cursor:pointer;font-size:1.1rem" title="Create Watchlist">+</button>
+                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="category-items">
+            `;
+
+            if (watchlists.length === 0) {
+                html += `<div style="padding: 12px 20px; color: var(--text-muted); font-size: 0.8rem; text-align: center;">No watchlists yet.<br>Click + to create one.</div>`;
+            } else {
+                for (const wl of watchlists) {
+                    html += `
+                        <button class="scanner-btn" id="btn-wl-${wl.id}" onclick="runWatchlist(${wl.id})">
+                            <span class="btn-label">${wl.name}</span>
+                        </button>
+                    `;
+                }
+            }
+
+            html += `</div></div><div class="sidebar-divider"></div>`;
+            container.innerHTML = html;
+        }
+
+        async function runWatchlist(id) {
+            // UI State
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`btn-wl-${id}`);
+            if (btn) btn.classList.add('active');
+
+            const wl = watchlists.find(w => w.id === id);
+            const title = wl ? wl.name : 'Watchlist';
+
+            document.getElementById('results-title').textContent = title;
+            document.getElementById('grid-area').innerHTML = `
+                <div style="padding:40px; text-align:center; color:var(--text-muted);">
+                    Loading watchlist...
+                </div>
+            `;
+
+            // Hide filter bar for watchlists
+            document.getElementById('filter-bar').style.display = 'none';
+
+            try {
+                const res = await fetchApi(`/watchlists/${id}/stocks`);
+                if (!res.ok) throw new Error('API Error');
+                const json = await res.json();
+
+                lastResults = json.data;
+                document.getElementById('results-meta').textContent = `${json.count} stocks`;
+
+                // Show sort controls
+                document.getElementById('sort-controls').style.display = 'flex';
+
+                // Set as active query context
+                activeScanner = `wl-${id}`;
+                activeWatchlist = id;
+                themesCategory = null; // Clear themes context
+
+                if (scannerViewMode === 'table') {
+                    renderScannerTable();
+                } else {
+                    renderGrid();
+                }
+
+                if (window.innerWidth <= 1024) {
+                    document.getElementById('sidebar').classList.remove('open');
+                    document.getElementById('sidebarOverlay').classList.remove('active');
+                }
+            } catch (err) {
+                document.getElementById('grid-area').innerHTML = `
+                    <div style="padding:40px; text-align:center; color:var(--red);">
+                        Error loading watchlist: ${err.message}
+                    </div>
+                `;
             }
         }
 
@@ -1397,7 +2060,7 @@
             // Cache miss or stale — fetch from API
             for (const s of scanners) {
                 try {
-                    const res = await fetch(`${API}/scan/${s.id}?limit=5000`);
+                    const res = await fetchApi(`/scan/${s.id}?limit=5000`);
                     const data = await res.json();
                     const badge = document.getElementById(`badge-${s.id}`);
                     if (badge) badge.textContent = data.count;
@@ -1540,7 +2203,7 @@
             try {
                 const t0 = performance.now();
                 const filterParams = buildFilterParams();
-                const res = await fetch(`${API}/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc${filterParams}`);
+                const res = await fetchApi(`/scan/${scannerId}?limit=5000&sort_by=${activeSortBy}&order=desc${filterParams}`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
 
                 const data = await res.json();
@@ -1584,6 +2247,125 @@
       `;
         }
 
+        // ── Watchlist Dropdown Helper ────────────────────────────
+        function getWatchlistDropdownHtml(ticker) {
+            if (!authToken) return ''; // Hide if not logged in
+
+            let itemsHtml = '';
+            for (const wl of watchlists) {
+                itemsHtml += `
+                    <button class="wl-item-btn" onclick="addToWatchlist('${ticker}', ${wl.id}, event)">
+                        + ${wl.name}
+                    </button>
+                `;
+            }
+            if (watchlists.length === 0) {
+                itemsHtml = `<div style="padding: 6px 10px; font-size: 0.8rem; color: var(--text-muted);">No watchlists</div>`;
+            }
+
+            return `
+                <div class="wl-dropdown-wrapper" onclick="event.stopPropagation()">
+                    <button class="wl-add-btn" onclick="toggleWlDropdown(this, event)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                        Save
+                    </button>
+                    <div class="wl-dropdown-menu">
+                        ${itemsHtml}
+                        <div style="border-top: 1px solid var(--border-light); margin-top: 4px; padding-top: 4px;">
+                            <button class="wl-item-btn" onclick="createWatchlistAndAdd('${ticker}', event)" style="color: var(--accent);">
+                                + New Watchlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleWlDropdown(btn, event) {
+            event.stopPropagation();
+            // Close all others
+            document.querySelectorAll('.wl-dropdown-menu').forEach(m => {
+                if (m !== btn.nextElementSibling) m.classList.remove('show');
+            });
+            btn.nextElementSibling.classList.toggle('show');
+        }
+
+        // Close dropdowns on click outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.wl-dropdown-menu').forEach(m => m.classList.remove('show'));
+        });
+
+        async function addToWatchlist(ticker, watchlistId, event) {
+            event.stopPropagation();
+            try {
+                const res = await fetchApi(`/watchlists/${watchlistId}/stocks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker })
+                });
+                if (!res.ok) {
+                    if (res.status === 400) {
+                        alert(`${ticker} is already in this watchlist`);
+                    } else {
+                        throw new Error('Failed to add stock');
+                    }
+                } else {
+                    // Visual feedback
+                    const btn = event.target;
+                    const origText = btn.innerHTML;
+                    btn.innerHTML = '✓ Added';
+                    btn.style.color = 'var(--pos)';
+                    setTimeout(() => {
+                        btn.innerHTML = origText;
+                        btn.style.color = '';
+                        btn.closest('.wl-dropdown-menu').classList.remove('show');
+                    }, 1000);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function createWatchlistAndAdd(ticker, event) {
+            event.stopPropagation();
+            const name = prompt("Enter new watchlist name:");
+            if (!name) return;
+            try {
+                // 1. Create WL
+                const resWl = await fetchApi('/watchlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                if (!resWl.ok) throw new Error('Failed to create watchlist');
+                const newWl = await resWl.json();
+                watchlists.unshift(newWl);
+                buildWatchlistsSidebar();
+
+                // 2. Add Stock
+                const resAdd = await fetchApi(`/watchlists/${newWl.id}/stocks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker })
+                });
+                if (!resAdd.ok) throw new Error('Failed to add stock');
+
+                // Close menu
+                event.target.closest('.wl-dropdown-menu').classList.remove('show');
+
+                // Re-render UI to update dropdowns
+                if (scannerViewMode === 'table') {
+                    renderScannerTable(sortResults(lastResults));
+                } else {
+                    renderGrid(sortResults(lastResults));
+                }
+                alert(`Created ${name} and added ${ticker}`);
+
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+
         // ── Skeleton Loader ──────────────────────────────────────
         function showSkeletons(n) {
             const area = document.getElementById('grid-area');
@@ -1592,7 +2374,7 @@
 
             for (let i = 0; i < n; i++) {
                 grid.innerHTML += `
-          <div class="skeleton-card">
+                    < div class= "skeleton-card" >
             <div class="skeleton-header">
               <div class="skel skel-ticker"></div>
               <div class="skel skel-pill"></div>
@@ -1603,7 +2385,7 @@
               </div>
             </div>
             <div class="skel skel-chart"></div>
-          </div>`;
+          </div > `;
             }
             area.innerHTML = '';
             area.appendChild(grid);
@@ -1612,14 +2394,14 @@
         // ── Empty State ──────────────────────────────────────────
         function showEmptyState(label) {
             document.getElementById('grid-area').innerHTML = `
-        <div class="empty-state">
+                    < div class="empty-state" >
           <div class="empty-icon">🔍</div>
           <div class="empty-title">No results found</div>
           <div class="empty-sub">
             The <strong>${label}</strong> scanner found no matching setups in today's data.
             Try running <code>ingest.py</code> to refresh the database.
           </div>
-        </div>`;
+        </div > `;
         }
 
         // ── Render Grid ──────────────────────────────────────────
@@ -1654,38 +2436,39 @@
             const fmtPct = (val) => {
                 if (val == null || isNaN(val)) return '—';
                 const pct = (val * 100).toFixed(1);
-                if (val > 0) return `<span class="pct-pos">+${pct}%</span>`;
-                if (val < 0) return `<span class="pct-neg">${pct}%</span>`;
-                return `<span class="pct-neutral">${pct}%</span>`;
+                if (val > 0) return `< span class="pct-pos" > +${pct}%</span > `;
+                if (val < 0) return `< span class="pct-neg" > ${pct}%</span > `;
+                return `< span class="pct-neutral" > ${pct}%</span > `;
             };
             const fmtMcap = (val) => {
                 if (val == null || isNaN(val)) return '—';
-                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
-                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
-                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-                return `$${val.toFixed(0)}`;
+                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)} T`;
+                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)} B`;
+                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)} M`;
+                return `$${val.toFixed(0)} `;
             };
 
             let html = `
-            <div class="universe-table-wrapper">
-                <table class="universe-table">
-                    <thead>
-                        <tr>
-                            <th>Ticker</th>
-                            <th>Price</th>
-                            <th>Sector</th>
-                            <th>Industry</th>
-                            <th>Mkt Cap</th>
-                            <th>ATR%</th>
-                            <th>RS</th>
-                            <th>RVOL</th>
-                            <th>vs Hi</th>
-                            <th>1M</th>
-                            <th>1D</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+                    < div class="universe-table-wrapper" >
+                        <table class="universe-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Ticker</th>
+                                    <th>Price</th>
+                                    <th>Sector</th>
+                                    <th>Industry</th>
+                                    <th>Mkt Cap</th>
+                                    <th>ATR%</th>
+                                    <th>RS</th>
+                                    <th>RVOL</th>
+                                    <th>vs Hi</th>
+                                    <th>1M</th>
+                                    <th>1D</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                `;
             for (const s of stocks) {
                 const stagePill = s.in_stage_2
                     ? '<span class="card-stage-pill pill-stage2" style="font-size:0.7rem;padding:1px 5px;">S2</span>'
@@ -1693,29 +2476,30 @@
                         : s.gap_down ? '<span class="card-stage-pill pill-gap-dn" style="font-size:0.7rem;padding:1px 5px;">↓</span>'
                             : '';
                 html += `<tr>
-                    <td><a href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
-                    <td>${fmtPrice(s.close)}</td>
-                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
-                    <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
-                    <td>${fmtMcap(s.market_cap)}</td>
-                    <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
-                    <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
-                    <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
-                    <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
-                    <td>${fmtPct(s.momentum_1m)}</td>
-                    <td>${fmtPct(s.momentum_1d)}</td>
-                </tr>`;
+                                    <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
+                                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
+                                    <td>${fmtPrice(s.close)}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
+                                    <td>${fmtMcap(s.market_cap)}</td>
+                                    <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
+                                    <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
+                                    <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
+                                    <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
+                                    <td>${fmtPct(s.momentum_1m)}</td>
+                                    <td>${fmtPct(s.momentum_1d)}</td>
+                                </tr>`;
             }
-            html += `</tbody></table></div>`;
+            html += `</tbody></table></div > `;
             if (stocks.length === 0) {
-                html = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No results</div></div>`;
+                html = `< div class="empty-state" ><div class="empty-icon">🔍</div><div class="empty-title">No results</div></div > `;
             }
             area.innerHTML = html;
         }
 
         // ── Chart Card ───────────────────────────────────────────
         function createChartCard(stock, grid) {
-            const containerId = `tv-${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
+            const containerId = `tv - ${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')} -${++tvWidgetCount} `;
 
             const rs = fmt(stock.rs_rating);
             const rvol = fmt(stock.rvol, 2);
@@ -1743,14 +2527,21 @@
             const card = document.createElement('div');
             card.className = 'chart-card';
             card.innerHTML = `
-        <div class="card-header">
-          <div class="card-ticker">
-            <a href="https://www.tradingview.com/chart/?symbol=${stock.ticker}"
-               target="_blank" rel="noopener noreferrer" title="Open on TradingView">
-              ${stock.ticker}
-            </a>
+                    < div class="card-header" >
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="card-ticker">
+                    <a href="#" onclick="event.preventDefault(); fetchStockDetail('${stock.ticker}')"
+                       style="color:var(--text-primary);text-decoration:none;">
+                      ${stock.ticker}
+                    </a>
+                  </div>
+                  ${stagePill}
+              </div>
+              <div style="display: flex; align-items: center;">
+                 ${getWatchlistDropdownHtml(stock.ticker)}
+              </div>
           </div>
-          ${stagePill}
           <div class="card-metrics">
             <span class="metric-chip ${rsClass}">RS&nbsp;${rs}</span>
             <span class="metric-chip ${rvolClass}">RVOL&nbsp;${rvol}</span>
@@ -1760,9 +2551,9 @@
             <span class="metric-chip ${mom1dClass}">1D&nbsp;${mom_1d}</span>
             <span class="metric-chip">${price}</span>
           </div>
-        </div>
-        <div class="chart-container" id="${containerId}"></div>
-      `;
+        </div >
+                    <div class="chart-container" id="${containerId}"></div>
+                `;
 
             grid.appendChild(card);
 
@@ -1791,7 +2582,7 @@
                             ]
                         });
                     } catch (err) {
-                        console.error(`TradingView widget error for ${stock.ticker}:`, err);
+                        console.error(`TradingView widget error for ${stock.ticker}: `, err);
                         const el = document.getElementById(containerId);
                         if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
                     }
@@ -1831,17 +2622,17 @@
 
             const area = document.getElementById('grid-area');
             area.innerHTML = `
-                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
+                    < div style = "display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;" >
                     <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
                     <div style="color:var(--text-secondary);font-size:0.9rem;">Loading all stocks...</div>
-                </div>
-            `;
+                </div >
+                    `;
 
             try {
                 let url = `${API}/universe?limit=99999`;
                 url += buildFilterParams();
 
-                const res = await fetch(url);
+                const res = await fetchApi(url.replace(API, ''));
                 const json = await res.json();
                 universeData = json.data;
                 renderUniverseTable();
@@ -1874,6 +2665,7 @@
                 <table class="universe-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;"></th>
                             <th data-ksort="ticker">Ticker</th>
                             <th data-ksort="close">Price</th>
                             <th data-ksort="sector">Sector</th>
@@ -1917,7 +2709,8 @@
             for (const row of pageData) {
                 html += `
                 <tr>
-                    <td><a href="https://www.tradingview.com/chart/?symbol=${row.ticker}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
+                    <td style="padding-left: 8px;">${getWatchlistDropdownHtml(row.ticker)}</td>
+                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td>${fmtPrice(row.close)}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.industry || ''}">${row.industry || '—'}</td>
@@ -1980,6 +2773,343 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
+        // ── Market Breadth ────────────────────────────────────────
+        async function runBreadth() {
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-breadth').classList.add('active');
+            activeScanner = null;
+
+            document.getElementById('results-title').textContent = 'Market Breadth Dashboard';
+            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of US Equities health</span>`;
+            document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
+                    <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading breadth data...</div>
+                </div>
+            `;
+
+            try {
+                const res = await fetchApi('/breadth');
+                const data = await res.json();
+
+                let html = `
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Top KPIs -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div class="sp-stat-box" style="text-align: center;">
+                            <div class="sp-stat-label">Total Stocks &ge; $5</div>
+                            <div class="sp-stat-val" style="font-size:1.8rem; color:var(--text-primary);">${data.total_stocks}</div>
+                        </div>
+                        <div class="sp-stat-box" style="text-align: center;">
+                            <div class="sp-stat-label">% in Stage 2 Uptrend</div>
+                            <div class="sp-stat-val" style="font-size:1.8rem; color:${data.pct_stage2 > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_stage2}%</div>
+                        </div>
+                        <div class="sp-stat-box" style="text-align: center;">
+                            <div class="sp-stat-label">% &gt; 50 SMA</div>
+                            <div class="sp-stat-val" style="font-size:1.8rem; color:${data.pct_above_50sma > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_above_50sma}%</div>
+                        </div>
+                        <div class="sp-stat-box" style="text-align: center;">
+                            <div class="sp-stat-label">% &gt; 200 SMA</div>
+                            <div class="sp-stat-val" style="font-size:1.8rem; color:${data.pct_above_200sma > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_above_200sma}%</div>
+                        </div>
+                    </div>
+
+                    <!-- Momentum -->
+                    <div class="sp-stat-box">
+                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Momentum Overview (% Positive)</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                            <div><div class="sp-stat-label">1 Month</div><div class="sp-stat-val" style="color:${data.pct_pos_1m > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_pos_1m}%</div></div>
+                            <div><div class="sp-stat-label">3 Month</div><div class="sp-stat-val" style="color:${data.pct_pos_3m > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_pos_3m}%</div></div>
+                            <div><div class="sp-stat-label">6 Month</div><div class="sp-stat-val" style="color:${data.pct_pos_6m > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_pos_6m}%</div></div>
+                        </div>
+                    </div>
+
+                    <!-- Sector Breakdown -->
+                    <div class="sp-stat-box">
+                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Breakdown (Stocks &ge; $5)</div>
+                        <div class="universe-table-wrapper" style="max-height: 500px;">
+                            <table class="universe-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Sector</th>
+                                        <th style="text-align:right;">Count</th>
+                                        <th style="text-align:right;">Avg RS</th>
+                                        <th style="text-align:right;">% &gt; 50SMA</th>
+                                        <th style="text-align:right;">% &gt; 200SMA</th>
+                                        <th style="text-align:right;">% Stage 2</th>
+                                        <th style="text-align:right;">% Pos 1M</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                for (const row of data.sectors) {
+                    html += `
+                        <tr>
+                            <td style="font-weight:600; color:var(--text-primary); cursor:pointer;" onclick="runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\'")}'), 300)">${row.sector}</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.total}</td>
+                            <td style="text-align:right; color:var(--text-primary); font-weight:600;">${row.avg_rs}</td>
+                            <td style="text-align:right; color:${row.pct_above_50sma > 50 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_above_50sma}%</td>
+                            <td style="text-align:right; color:${row.pct_above_200sma > 50 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_above_200sma}%</td>
+                            <td style="text-align:right; color:${row.pct_stage2 > 30 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_stage2}%</td>
+                            <td style="text-align:right; color:${row.pct_pos_1m > 50 ? 'var(--green)' : 'var(--red)'};">${row.pct_pos_1m}%</td>
+                        </tr>
+                    `;
+                }
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                `;
+
+                area.innerHTML = html;
+
+                if (window.innerWidth <= 768) toggleMobileMenu();
+
+            } catch (e) {
+                console.error(e);
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load breadth data</div>`;
+            }
+        }
+
+        // ── Custom Screener ───────────────────────────────────────
+        let screenerConditions = [];
+        const screenerFields = {
+            'rs_rating': 'RS Rating', 'close': 'Price', 'market_cap': 'Market Cap',
+            'adr_20': 'ADR %', 'rvol': 'RVOL', 'pct_from_52w_high': '% From 52W High',
+            'momentum_1m': '1M Momentum', 'in_stage_2': 'In Stage 2 (1=Yes, 0=No)',
+            'sector': 'Sector', 'industry': 'Industry'
+        };
+
+        async function runScreener() {
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-screener').classList.add('active');
+            activeScanner = null;
+
+            document.getElementById('results-title').textContent = 'Custom Screener Builder';
+            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Build your own dynamic scans</span>`;
+            document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
+
+            if (window.innerWidth <= 768) toggleMobileMenu();
+            renderScreenerBuilder();
+        }
+
+        function renderScreenerBuilder() {
+            const area = document.getElementById('grid-area');
+            let fieldsOpts = Object.keys(screenerFields).map(k => `<option value="${k}">${screenerFields[k]}</option>`).join('');
+
+            let html = `
+            <div style="max-width: 1000px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
+                <div class="sp-stat-box" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:600; font-size:1.1rem;">Filter Criteria</div>
+                    ${authToken ? `
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="loadSavedScreens()" class="sort-btn">Load Saved</button>
+                            <button onclick="saveCurrentScreen()" class="sort-btn" style="color:var(--accent);border-color:var(--accent);">Save Screen</button>
+                        </div>
+                    ` : `<span style="font-size:0.8rem;color:var(--text-muted);">Sign in to save screens</span>`}
+                </div>
+                
+                <div class="sp-stat-box" id="screener-conditions-list">
+                    <!-- Conditions rendered here -->
+                </div>
+
+                <div class="sp-stat-box" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <select id="sc-field" class="sort-select" style="padding:6px;flex:1;">
+                        ${fieldsOpts}
+                    </select>
+                    <select id="sc-op" class="sort-select" style="padding:6px;width:120px;">
+                        <option value=">">&gt; Greater</option>
+                        <option value=">=">&ge; Gt/Eq</option>
+                        <option value="<">&lt; Less</option>
+                        <option value="<=">&le; Ls/Eq</option>
+                        <option value="=">= Equal</option>
+                        <option value="contains">Contains</option>
+                    </select>
+                    <input type="text" id="sc-val" placeholder="Value..." style="padding:6px; background:var(--bg); border:1px solid var(--border); color:var(--text-primary); border-radius:4px; flex:1;" />
+                    <button class="sort-btn active" onclick="addScreenerCondition()">+ Add Rule</button>
+                </div>
+
+                <div style="text-align:right;">
+                    <button class="sort-btn" style="padding:10px 24px; font-size:1rem; background:var(--green); border-color:var(--green); color:#fff;" onclick="executeScreener()">
+                        ▶ Run Screen
+                    </button>
+                </div>
+
+                <div id="screener-results" style="margin-top: 20px;"></div>
+            </div>
+            `;
+            area.innerHTML = html;
+            renderScreenerConditionsList();
+        }
+
+        function addScreenerCondition() {
+            const field = document.getElementById('sc-field').value;
+            const op = document.getElementById('sc-op').value;
+            const valStr = document.getElementById('sc-val').value.trim();
+            if (!valStr) return;
+
+            let value = valStr;
+            if (!isNaN(parseFloat(valStr)) && op !== 'contains' && field !== 'sector' && field !== 'industry') {
+                value = parseFloat(valStr);
+            }
+
+            screenerConditions.push({ field, operator: op, value });
+            document.getElementById('sc-val').value = '';
+            renderScreenerConditionsList();
+        }
+
+        function removeScreenerCondition(idx) {
+            screenerConditions.splice(idx, 1);
+            renderScreenerConditionsList();
+        }
+
+        function renderScreenerConditionsList() {
+            const list = document.getElementById('screener-conditions-list');
+            if (!list) return;
+
+            if (screenerConditions.length === 0) {
+                list.innerHTML = `<div style="color:var(--text-muted); font-size:0.9rem; text-align:center;">No rules added. Will return top stocks by RS Rating.</div>`;
+                return;
+            }
+
+            let html = `<div style="display:flex; flex-direction:column; gap:8px;">`;
+            screenerConditions.forEach((c, i) => {
+                html += `
+                    <div style="display:flex; justify-content:space-between; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:4px; font-size:0.9rem;">
+                        <div>
+                            <strong style="color:var(--accent);">${screenerFields[c.field] || c.field}</strong> 
+                            <span style="color:var(--text-secondary); margin:0 8px;">${c.operator}</span> 
+                            <span style="font-weight:600;">${c.value}</span>
+                        </div>
+                        <button onclick="removeScreenerCondition(${i})" style="background:transparent;border:none;color:var(--red);cursor:pointer;">&times; Remove</button>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            list.innerHTML = html;
+        }
+
+        async function executeScreener() {
+            const resArea = document.getElementById('screener-results');
+            resArea.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">Executing scan...</div>`;
+
+            const payload = {
+                conditions: screenerConditions,
+                sort_by: "rs_rating",
+                order: "desc",
+                limit: 100
+            };
+
+            try {
+                const res = await fetchApi('/screener/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("Screen failed");
+                const json = await res.json();
+
+                document.getElementById('results-meta').innerHTML = `<span class="results-count-pill">${json.count} Matches</span>`;
+
+                if (json.count === 0) {
+                    resArea.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);">No stocks matched your criteria.</div>`;
+                    return;
+                }
+
+                // Reuse the grid layout for results
+                resArea.innerHTML = `<div class="chart-grid" id="screener-grid"></div>`;
+                const grid = document.getElementById('screener-grid');
+
+                for (const stock of json.data) {
+                    // Reuse chart card factory logic
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => window.fetchStockDetail(stock.ticker);
+
+                    let metricHtml = `<span class="metric-chip">Vol: ${stock.rvol ? stock.rvol.toFixed(1) : '-'}x</span>`;
+
+                    let stagePill = '';
+                    if (stock.is_stage2) stagePill = '<span class="card-stage-pill pill-stage2">Stage 2</span>';
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-ticker">
+                                <a href="#" onclick="event.preventDefault(); fetchStockDetail('${stock.ticker}')" style="color:var(--text-primary);text-decoration:none;">${stock.ticker}</a>
+                                ${stagePill}
+                            </div>
+                            <div class="card-metrics">${metricHtml}</div>
+                        </div>
+                        <div class="chart-container" id="tv-screener-${stock.ticker}">
+                           <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">Click to view chart</div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            } catch (err) {
+                console.error(err);
+                resArea.innerHTML = `<div style="text-align:center; color:var(--red);">Error running screen.</div>`;
+            }
+        }
+
+        async function saveCurrentScreen() {
+            if (!authToken) return alert("Please log in first");
+            const name = prompt("Enter a name for this custom screen:");
+            if (!name) return;
+
+            const payload = {
+                conditions: screenerConditions,
+                sort_by: "rs_rating",
+                order: "desc",
+                limit: 100
+            };
+
+            try {
+                const res = await fetchApi('/screener/saved', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, payload: payload })
+                });
+                if (!res.ok) throw new Error("Failed to save screen");
+                alert("Screen saved successfully!");
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function loadSavedScreens() {
+            try {
+                const res = await fetchApi('/screener/saved');
+                if (!res.ok) throw new Error();
+                const screens = await res.json();
+
+                if (screens.length === 0) return alert("No saved screens found.");
+
+                const names = screens.map((s, i) => `${i + 1}. ${s.name}`).join('\\n');
+                const choice = prompt(`Select a screen to load (enter number):\\n\\n${names}`);
+                if (!choice) return;
+
+                const idx = parseInt(choice) - 1;
+                if (idx >= 0 && idx < screens.length) {
+                    screenerConditions = screens[idx].payload.conditions;
+                    renderScreenerConditionsList();
+                    executeScreener();
+                }
+            } catch (err) {
+                alert("Could not load saved screens.");
+            }
+        }
+
         // ── Themes Engine ─────────────────────────────────────────
         async function runThemes(category) {
             themesCategory = category || 'Sector';
@@ -2024,7 +3154,7 @@
                 }
 
                 if (!json) {
-                    const res = await fetch(`${API}/themes`);
+                    const res = await fetchApi('/themes');
                     json = await res.json();
                     json._cacheDate = todayKey;
                     try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch (_) { }
@@ -2217,7 +3347,7 @@
                             }
 
                             // Otherwise, fetch proxy tickers for unmapped industry/sector
-                            fetch(`${API}/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
+                            fetchApi(`/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
                                 .then(res => res.json())
                                 .then(tickers => {
                                     const el = document.getElementById(containerId);
@@ -2372,7 +3502,7 @@
                             o.unobserve(entry.target);
 
                             // Fetch proxy tickers from API
-                            fetch(`${API}/themes/proxy?category=Industry&name=${encodeURIComponent(row.name)}&limit=10`)
+                            fetchApi(`/themes/proxy?category=Industry&name=${encodeURIComponent(row.name)}&limit=10`)
                                 .then(res => res.json())
                                 .then(tickers => {
                                     const el = document.getElementById(containerId);
@@ -2454,7 +3584,7 @@
 
             try {
                 const fetchCategory = selectedSector && themesCategory === 'Sector' ? 'Industry' : catType;
-                const res = await fetch(`${API}/themes/stocks?category=${fetchCategory}&name=${encodeURIComponent(name)}`);
+                const res = await fetchApi(`/themes/stocks?category=${fetchCategory}&name=${encodeURIComponent(name)}`);
                 const json = await res.json();
                 themeStockData = json.data;
                 // Show sort controls
