@@ -2702,7 +2702,7 @@
 
         // ── Chart Card ───────────────────────────────────────────
         function createChartCard(stock, grid) {
-            const containerId = `tv - ${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')} -${++tvWidgetCount} `;
+            const containerId = `tv-${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
 
             const rs = fmt(stock.rs_rating);
             const rvol = fmt(stock.rvol, 2);
