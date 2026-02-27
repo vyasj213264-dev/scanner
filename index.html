@@ -1742,7 +1742,7 @@
 
             try {
                 let url = `${API}/universe?limit=99999`;
-                url += getFilterParams();
+                url += buildFilterParams();
 
                 const res = await fetch(url);
                 const json = await res.json();
