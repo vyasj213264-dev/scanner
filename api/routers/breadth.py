@@ -25,7 +25,7 @@ def get_breadth():
         "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND SMA_200 IS NOT NULL AND Close > SMA_200"
     ) or 0
     stage2 = fetch_val(
-        "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND In_Stage_2 = 1"
+        "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND In_Stage_2"
     ) or 0
     pos_1m = fetch_val(
         "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Momentum_1M > 0"
@@ -52,7 +52,7 @@ def get_breadth():
             COUNT(*) as total,
             SUM(CASE WHEN Close > SMA_50 THEN 1 ELSE 0 END) as above_50sma,
             SUM(CASE WHEN Close > SMA_200 THEN 1 ELSE 0 END) as above_200sma,
-            SUM(CASE WHEN In_Stage_2 = 1 THEN 1 ELSE 0 END) as stage2_count,
+            SUM(CASE WHEN In_Stage_2 THEN 1 ELSE 0 END) as stage2_count,
             SUM(CASE WHEN Momentum_1M > 0 THEN 1 ELSE 0 END) as pos_1m,
             AVG(RS_Rating) as avg_rs
         FROM screen_data
