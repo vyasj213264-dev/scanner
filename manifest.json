@@ -1,0 +1,16 @@
+{
+  "name": "TradersChart",
+  "short_name": "TradersChart",
+  "description": "Professional US equity scanner powered by TradersChart.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "icons": [
+    {
+      "src": "https://www.svgrepo.com/show/511019/chart-bar.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

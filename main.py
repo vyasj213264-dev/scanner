@@ -57,6 +57,14 @@ app.include_router(screener.router)
 def serve_ui():
     return FileResponse("index.html")
 
+@app.get("/manifest.json", include_in_schema=False)
+def serve_manifest():
+    return FileResponse("manifest.json", media_type="application/json")
+
+@app.get("/sw.js", include_in_schema=False)
+def serve_sw():
+    return FileResponse("sw.js", media_type="application/javascript")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

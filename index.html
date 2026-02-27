@@ -11,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#080b12" />
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 
     <style>
@@ -37,6 +39,18 @@
             --radius: 10px;
             --radius-sm: 6px;
             --transition: all 0.18s ease;
+        }
+
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --card: #f1f5f9;
+            --card-hover: #e2e8f0;
+            --border: #cbd5e1;
+            --border-light: #94a3b8;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
         }
 
         *,
@@ -1479,6 +1493,21 @@
             Scanning <strong id="universe-count">—</strong> US Equities
         </div>
         <div class="header-right">
+            <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode"
+                style="background:transparent; border:none; color:var(--text-primary); cursor:pointer; padding:8px; border-radius:50%; margin-right:8px; display:flex; align-items:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
             <span class="last-updated-label" style="margin-right: 12px;">Data as of: <strong
                     id="last-updated">—</strong></span>
 
@@ -1622,7 +1651,7 @@
         // ── Config ──────────────────────────────────────────────
         const API = '/api/v1';
 
-        // ── State ───────────────────────────────────────────────
+        // ── State & Config ──────────────────────────────────────
         let activeScanner = null;
         let activeSortBy = 'rs_rating';
         let lastResults = [];      // cached for client-side resort
@@ -1641,7 +1670,6 @@
         let themesLevel = 'top';     // 'top' | 'industries' | 'stocks'
         let selectedSector = null;
         let selectedIndustry = null;
-        let themesCategory = 'Sector'; // 'Sector' or 'Industry'
         let themeStockData = [];       // cached stock data for resort
         let themesViewMode = 'table';  // 'table' | 'chart'
 
@@ -1779,6 +1807,27 @@
             }
         }
 
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            if (currentTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            localStorage.setItem('theme', currentTheme);
+
+            // Re-render current view to update TradingView widgets
+            if (themesCategory && (document.getElementById('results-title').textContent.includes('Sector') || document.getElementById('results-title').textContent.includes('Industry'))) {
+                runThemes(themesCategory);
+            } else if (activeScanner) {
+                runScanner(activeScanner, document.getElementById('results-title').textContent, true);
+            } else if (document.getElementById('results-title').textContent === 'Custom Screener Builder') {
+                executeScreener();
+            } else {
+                runBreadth();
+            }
+        }
+
         // ── Stock Detail Panel ──────────────────────────────────
         let panelWidget = null;
         async function fetchStockDetail(ticker) {
@@ -1800,7 +1849,7 @@
                     symbol: ticker,
                     interval: 'D',
                     timezone: 'Etc/UTC',
-                    theme: 'dark',
+                    theme: currentTheme,
                     style: '1',
                     locale: 'en',
                     enable_publishing: false,
@@ -1808,8 +1857,8 @@
                     hide_legend: false,
                     save_image: false,
                     container_id: 'sp-tv-widget',
-                    backgroundColor: '#080b12',
-                    gridColor: '#1e2a40',
+                    backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
+                    gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
                     studies: [
                         { id: "MAExp@tv-basicstudies", inputs: { length: 10 } },
                         { id: "MAExp@tv-basicstudies", inputs: { length: 21 } }
@@ -2032,6 +2081,9 @@
                     const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
                     runScanner(urlScannerId, label);
                 }
+            } else {
+                // Default to Market Breadth overview
+                runBreadth();
             }
         }
 
@@ -2169,6 +2221,8 @@
                 const btn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
                 const label = btn?.querySelector('.btn-label')?.textContent || scannerId;
                 runScanner(scannerId, label, /* force= */ true);
+            } else {
+                runBreadth();
             }
         });
 
@@ -2567,7 +2621,7 @@
                             symbol: stock.ticker,
                             interval: 'D',
                             timezone: 'Etc/UTC',
-                            theme: 'dark',
+                            theme: currentTheme,
                             style: '1',
                             locale: 'en',
                             enable_publishing: false,
@@ -2575,8 +2629,8 @@
                             hide_legend: true,
                             save_image: false,
                             container_id: containerId,
-                            backgroundColor: '#131926',
-                            gridColor: '#1e2a40',
+                            backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
+                            gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
                             studies: [
                                 { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
                             ]
@@ -2828,9 +2882,45 @@
                         </div>
                     </div>
 
-                    <!-- Sector Breakdown -->
+                    <!-- Sector Heatmap -->
                     <div class="sp-stat-box">
-                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Breakdown (Stocks &ge; $5)</div>
+                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Heatmap (% Stage 2)</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                `;
+
+                // Calculate heatmap colors based on % stage 2
+                const getHeatmapColor = (pct) => {
+                    if (pct >= 60) return '#166534'; // Dk Green
+                    if (pct >= 45) return '#22c55e'; // Green
+                    if (pct >= 35) return '#eab308'; // Yellow
+                    if (pct >= 25) return '#f97316'; // Orange
+                    return '#dc2626'; // Red
+                };
+
+                // Sort by total size for visual order
+                const sortedSectors = [...data.sectors].sort((a, b) => b.total - a.total);
+
+                for (const row of sortedSectors) {
+                    // Flex grow proportional to sector size, min 100px width
+                    const color = getHeatmapColor(row.pct_stage2);
+                    html += `
+                        <div style="flex: ${row.total} 1 100px; background: ${color}; color: #fff; padding: 16px; border-radius: 6px; text-align: center; cursor: pointer; transition: transform 0.2s;" 
+                             onclick="runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\'")}'), 300)"
+                             onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                             <div style="font-weight: 700; font-size: 1.1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${row.sector}</div>
+                             <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">${row.pct_stage2}% in Stage 2</div>
+                             <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 2px;">${row.total} stocks</div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                    </div>
+
+                    <!-- Sector Breakdown Table -->
+                    <div class="sp-stat-box">
+                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Statistics</div>
                         <div class="universe-table-wrapper" style="max-height: 500px;">
                             <table class="universe-table">
                                 <thead>
@@ -3055,6 +3145,33 @@
                         </div>
                     `;
                     grid.appendChild(card);
+
+                    const containerId = `tv-screener-${stock.ticker}`;
+                    const el = document.getElementById(containerId);
+                    if (el) {
+                        el.innerHTML = ''; // Clear "Click to view chart"
+                        try {
+                            new TradingView.widget({
+                                autosize: true,
+                                symbol: stock.ticker,
+                                interval: 'D',
+                                timezone: 'Etc/UTC',
+                                theme: currentTheme,
+                                style: '1',
+                                locale: 'en',
+                                enable_publishing: false,
+                                hide_top_toolbar: true,
+                                hide_legend: false,
+                                save_image: false,
+                                container_id: containerId,
+                                backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
+                                gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
+                                studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
+                            });
+                        } catch (err) {
+                            el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                        }
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -3327,7 +3444,7 @@
                                         symbol: ticker,
                                         interval: 'D',
                                         timezone: 'Etc/UTC',
-                                        theme: 'dark',
+                                        theme: currentTheme,
                                         style: '1',
                                         locale: 'en',
                                         enable_publishing: false,
@@ -3335,8 +3452,8 @@
                                         hide_legend: true,
                                         save_image: false,
                                         container_id: containerId,
-                                        backgroundColor: '#131926',
-                                        gridColor: '#1e2a40',
+                                        backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
+                                        gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
                                         studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
                                     });
                                 } catch (err) {
@@ -3625,6 +3742,14 @@
 
         // ── Init ─────────────────────────────────────────────────
         boot();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => {
+                    console.error('ServiceWorker registration failed:', err);
+                });
+            });
+        }
     </script>
 
 </body>
