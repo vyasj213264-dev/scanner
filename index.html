@@ -2304,7 +2304,7 @@
 
         function executeSort() {
             if (themesLevel === 'stocks' && themeStockData.length) {
-                renderThemeStocksGrid(themeStockData, selectedIndustry || selectedSector);
+                renderThemeStocks();
                 return;
             }
             if (lastResults.length) {
@@ -2370,7 +2370,11 @@
         // Back/Forward: sync the UI to whichever scanner the history state points to.
         window.addEventListener('popstate', (e) => {
             const scannerId = e.state?.scanner || new URLSearchParams(window.location.search).get('scanner');
-            if (scannerId === 'universe') {
+            const themeId = e.state?.theme || new URLSearchParams(window.location.search).get('theme');
+
+            if (themeId) {
+                runThemes(themeId);
+            } else if (scannerId === 'universe') {
                 runUniverse();
             } else if (scannerId) {
                 const btn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
@@ -3386,6 +3390,11 @@
         // ── Themes Engine ─────────────────────────────────────────
         async function runThemes(category) {
             themesCategory = category || 'Sector';
+            const url = new URL(window.location.href);
+            url.searchParams.set('theme', themesCategory);
+            url.searchParams.delete('scanner');
+            history.pushState({ theme: themesCategory }, '', url.toString());
+
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             const btnId = themesCategory === 'Sector' ? 'btn-themes-sector' : 'btn-themes-industry';
             document.getElementById(btnId).classList.add('active');
@@ -3862,20 +3871,117 @@
                 themeStockData = json.data;
                 // Show sort controls
                 document.getElementById('sort-controls').style.display = 'flex';
-                renderThemeStocksGrid(themeStockData, name);
+                renderThemeStocks();
             } catch (err) {
                 console.error(err);
                 area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load stocks for ${name}</div>`;
             }
         };
 
+        function renderThemeStocks() {
+            const name = selectedIndustry || selectedSector;
+            if (themesViewMode === 'table') {
+                renderThemeStocksTable(themeStockData, name);
+            } else {
+                renderThemeStocksGrid(themeStockData, name);
+            }
+        }
+
+        function renderThemeStocksTable(stocks, name) {
+            const area = document.getElementById('grid-area');
+            const fmtPct = (val) => {
+                if (val == null || isNaN(val)) return '—';
+                const pct = (val * 100).toFixed(1);
+                if (val > 0) return `<span class="pct-pos">+${pct}%</span>`;
+                if (val < 0) return `<span class="pct-neg">${pct}%</span>`;
+                return `<span class="pct-neutral">${pct}%</span>`;
+            };
+            const fmtMcap = (val) => {
+                if (val == null || isNaN(val)) return '—';
+                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
+                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+                return `$${val.toFixed(0)}`;
+            };
+
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div class="breadcrumb-bar" style="margin-bottom:0; flex-grow:1;">
+                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                        <span class="bc-current">${name}</span>
+                        <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
+                    </div>
+                    <div class="sort-group" style="margin-top:0;">
+                        <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemeStocks();">Table</button>
+                        <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemeStocks();">Chart</button>
+                    </div>
+                </div>
+            `;
+
+            if (!stocks.length) {
+                area.innerHTML = html + `<div style="padding:40px;text-align:center;color:var(--text-muted);">No stocks found in ${name}</div>`;
+                return;
+            }
+
+            html += `<div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Ticker</th>
+                            <th>Price</th>
+                            <th>Sector</th>
+                            <th>Industry</th>
+                            <th>Mkt Cap</th>
+                            <th>ATR%</th>
+                            <th>RS</th>
+                            <th>RVOL</th>
+                            <th>vs Hi</th>
+                            <th>1M</th>
+                            <th>1D</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            const sorted = sortResults(stocks);
+            for (const s of sorted) {
+                const stagePill = s.in_stage_2
+                    ? '<span class="card-stage-pill pill-stage2" style="font-size:0.7rem;padding:1px 5px;">S2</span>'
+                    : s.gap_up ? '<span class="card-stage-pill pill-gap-up" style="font-size:0.7rem;padding:1px 5px;">↑</span>'
+                        : s.gap_down ? '<span class="card-stage-pill pill-gap-dn" style="font-size:0.7rem;padding:1px 5px;">↓</span>'
+                            : '';
+                html += `<tr>
+                            <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
+                            <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
+                            <td>${fmtPrice(s.close)}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
+                            <td>${fmtMcap(s.market_cap)}</td>
+                            <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
+                            <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
+                            <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
+                            <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
+                            <td>${fmtPct(s.momentum_1m)}</td>
+                            <td>${fmtPct(s.momentum_1d)}</td>
+                        </tr>`;
+            }
+            html += `</tbody></table></div>`;
+            area.innerHTML = html;
+        }
+
         function renderThemeStocksGrid(stocks, name) {
             const area = document.getElementById('grid-area');
             let html = `
-                <div class="breadcrumb-bar">
-                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
-                    <span class="bc-current">${name}</span>
-                    <span style="margin-left:auto;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div class="breadcrumb-bar" style="margin-bottom:0; flex-grow:1;">
+                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                        <span class="bc-current">${name}</span>
+                        <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
+                    </div>
+                    <div class="sort-group" style="margin-top:0;">
+                        <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemeStocks();">Table</button>
+                        <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemeStocks();">Chart</button>
+                    </div>
                 </div>
             `;
             area.innerHTML = html;
