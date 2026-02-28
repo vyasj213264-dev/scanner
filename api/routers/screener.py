@@ -5,16 +5,14 @@ from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 import json
-import sqlite3
 import os
 
 from api.models.user import User
 from api.routers.auth import require_user
-from api.database import fetch_all
+from api.database import fetch_all, fetch_one, get_db
 from api.models.scanner import StockResult
 from api.services.scanner_service import BASELINE_FILTER
-
-DB_PATH = os.environ.get("DB_PATH", "scanner.db")
+from api.config import DATABASE_URL
 
 router = APIRouter(prefix="/api/v1/screener", tags=["Custom Screener"])
 
@@ -45,14 +43,19 @@ class SavedScreenOut(BaseModel):
 # ── Services ──────────────────────────────────────────────────────────────────
 
 def init_screener_tables():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.executescript("""
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    now_func = "DEFAULT CURRENT_TIMESTAMP" if is_postgres else "DEFAULT (datetime('now'))"
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS saved_screens (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                id         {id_type},
                 user_id    INTEGER NOT NULL,
                 name       TEXT NOT NULL,
                 payload    TEXT NOT NULL,
-                created_at TEXT DEFAULT (datetime('now')),
+                created_at TIMESTAMP {now_func},
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
@@ -143,47 +146,62 @@ def run_custom_screen(payload: ScreenPayload): # Open endpoint, free to run unle
 
 @router.get("/saved", response_model=List[SavedScreenOut], summary="List saved screens")
 def list_saved_screens(user: User = Depends(require_user)):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT id, name, payload, created_at FROM saved_screens WHERE user_id = ? ORDER BY created_at DESC",
-            (user.id,)
-        ).fetchall()
+    sql = "SELECT id, name, payload, created_at FROM saved_screens WHERE user_id = ? ORDER BY created_at DESC"
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        sql = sql.replace('?', '%s')
         
-        screens = []
-        for r in rows:
-            screens.append({
-                "id": r["id"],
-                "name": r["name"],
-                "payload": json.loads(r["payload"]),
-                "created_at": r["created_at"]
-            })
-        return screens
+    rows = fetch_all(sql, (user.id,))
+    
+    screens = []
+    for r in rows:
+        screens.append({
+            "id": r["id"],
+            "name": r["name"],
+            "payload": json.loads(r["payload"]),
+            "created_at": str(r["created_at"])
+        })
+    return screens
 
 @router.post("/saved", response_model=SavedScreenOut, summary="Save a custom screen")
 def save_screen(body: SavedScreenCreate, user: User = Depends(require_user)):
     payload_str = body.payload.model_dump_json()
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute(
-            "INSERT INTO saved_screens (user_id, name, payload) VALUES (?, ?, ?)",
-            (user.id, body.name.strip(), payload_str)
-        )
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        sql = "INSERT INTO saved_screens (user_id, name, payload) VALUES (?, ?, ?) RETURNING id, name, payload, created_at"
+        if is_postgres:
+            sql = sql.replace('?', '%s')
+            
+        cursor.execute(sql, (user.id, body.name.strip(), payload_str))
+        inserted_row = cursor.fetchone()
         conn.commit()
         
-        row = conn.execute("SELECT * FROM saved_screens WHERE id = ?", (cur.lastrowid,)).fetchone()
-        
+        if inserted_row is None:
+            # Fallback for old SQLite
+            last_id = cursor.lastrowid
+            sql_fetch = "SELECT id, name, payload, created_at FROM saved_screens WHERE id = ?"
+            if is_postgres: sql_fetch = sql_fetch.replace('?', '%s')
+            cursor.execute(sql_fetch, (last_id,))
+            inserted_row = cursor.fetchone()
+            
     return {
-        "id": row[0],
-        "name": row[2],
-        "payload": json.loads(row[3]),
-        "created_at": row[4]
+        "id": inserted_row[0] if isinstance(inserted_row, tuple) else inserted_row["id"],
+        "name": inserted_row[1] if isinstance(inserted_row, tuple) else inserted_row["name"],
+        "payload": json.loads(inserted_row[2] if isinstance(inserted_row, tuple) else inserted_row["payload"]),
+        "created_at": str(inserted_row[3] if isinstance(inserted_row, tuple) else inserted_row["created_at"])
     }
 
 @router.delete("/saved/{screen_id}", summary="Delete saved screen")
 def delete_saved_screen(screen_id: int, user: User = Depends(require_user)):
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("DELETE FROM saved_screens WHERE id = ? AND user_id = ?", (screen_id, user.id))
+    with get_db() as conn:
+        cursor = conn.cursor()
+        sql = "DELETE FROM saved_screens WHERE id = ? AND user_id = ?"
+        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+            sql = sql.replace('?', '%s')
+        
+        cursor.execute(sql, (screen_id, user.id))
         conn.commit()
-        if cur.rowcount == 0:
+        if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Screen not found")
         return {"deleted": screen_id}
