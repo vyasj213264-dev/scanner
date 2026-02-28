@@ -2221,21 +2221,32 @@
             // Preload badges in background
             prefetchBadges(scanners);
 
-            // Auto-run scanner from URL query param (handles page refresh + shared links)
-            const urlScannerId = new URLSearchParams(window.location.search).get('scanner');
-            if (urlScannerId) {
-                // Handle special pages
-                if (urlScannerId === 'universe') {
-                    runUniverse();
-                } else if (urlScannerId === 'themes-sector') {
-                    runThemes('Sector');
-                } else if (urlScannerId === 'themes-industry') {
-                    runThemes('Industry');
-                } else {
-                    const btn = document.querySelector(`.scanner-btn[data-id="${urlScannerId}"]`);
-                    const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
-                    runScanner(urlScannerId, label);
-                }
+            // Auto-run from URL query param (handles page refresh + shared links)
+            const params = new URLSearchParams(window.location.search);
+            const urlScannerId = params.get('scanner');
+            const themeId = params.get('theme');
+            const sectorId = params.get('sector');
+            const industryId = params.get('industry');
+
+            if (industryId) {
+                themesCategory = themeId || 'Sector';
+                selectedSector = sectorId;
+                drillIntoIndustry(industryId);
+            } else if (sectorId) {
+                themesCategory = themeId || 'Sector';
+                drillIntoSector(sectorId);
+            } else if (themeId) {
+                runThemes(themeId);
+            } else if (urlScannerId === 'universe') {
+                runUniverse();
+            } else if (urlScannerId === 'themes-sector') {
+                runThemes('Sector');
+            } else if (urlScannerId === 'themes-industry') {
+                runThemes('Industry');
+            } else if (urlScannerId) {
+                const btn = document.querySelector(`.scanner-btn[data-id="${urlScannerId}"]`);
+                const label = btn?.querySelector('.btn-label')?.textContent || urlScannerId;
+                runScanner(urlScannerId, label);
             } else {
                 // Default to Market Breadth overview
                 runBreadth();
