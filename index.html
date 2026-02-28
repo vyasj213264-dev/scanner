@@ -1771,6 +1771,11 @@
         let tvWidgetCount = 0;
         let scannerViewMode = 'chart'; // 'chart' | 'table'
 
+        // Theme
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        if (currentTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else document.documentElement.removeAttribute('data-theme');
+
         // Watchlist State
         let watchlists = [];
         let activeWatchlist = null; // ID of currently viewed watchlist
