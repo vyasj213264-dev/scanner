@@ -2369,10 +2369,20 @@
 
         // Back/Forward: sync the UI to whichever scanner the history state points to.
         window.addEventListener('popstate', (e) => {
-            const scannerId = e.state?.scanner || new URLSearchParams(window.location.search).get('scanner');
-            const themeId = e.state?.theme || new URLSearchParams(window.location.search).get('theme');
+            const params = new URLSearchParams(window.location.search);
+            const scannerId = e.state?.scanner || params.get('scanner');
+            const themeId = e.state?.theme || params.get('theme');
+            const sectorId = e.state?.sector || params.get('sector');
+            const industryId = e.state?.industry || params.get('industry');
 
-            if (themeId) {
+            if (industryId) {
+                themesCategory = themeId || 'Sector';
+                selectedSector = sectorId;
+                drillIntoIndustry(industryId);
+            } else if (sectorId) {
+                themesCategory = themeId || 'Sector';
+                drillIntoSector(sectorId);
+            } else if (themeId) {
                 runThemes(themeId);
             } else if (scannerId === 'universe') {
                 runUniverse();
@@ -2632,8 +2642,15 @@
         // ── Scanner View Mode Toggle ──────────────────────────────
         function setScannerView(mode) {
             scannerViewMode = mode;
+            themesViewMode = mode;
             document.getElementById('scvw-chart').classList.toggle('active', mode === 'chart');
             document.getElementById('scvw-table').classList.toggle('active', mode === 'table');
+
+            if (themesLevel === 'stocks' && themeStockData.length) {
+                renderThemeStocks();
+                return;
+            }
+
             const sorted = sortResults(lastResults);
             if (mode === 'table') {
                 renderScannerTable(sorted);
@@ -3691,6 +3708,13 @@
         window.drillIntoSector = function (sectorName) {
             selectedSector = sectorName;
             themesLevel = 'industries';
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('theme', themesCategory);
+            url.searchParams.set('sector', sectorName);
+            url.searchParams.delete('industry');
+            history.pushState({ theme: themesCategory, sector: sectorName }, '', url.toString());
+
             themesSortBy = 'rank_1m';
             themesSortDir = 1;
             renderFilteredIndustries();
@@ -3849,6 +3873,13 @@
         window.drillIntoIndustry = async function (name) {
             selectedIndustry = name;
             themesLevel = 'stocks';
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('theme', themesCategory);
+            url.searchParams.set('industry', name);
+            if (selectedSector) url.searchParams.set('sector', selectedSector);
+            history.pushState({ theme: themesCategory, industry: name, sector: selectedSector }, '', url.toString());
+
             const catType = themesCategory === 'Sector' ? 'Sector' : 'Industry';
             const catLabel = themesCategory === 'Sector' ? selectedSector || name : name;
 
@@ -3910,10 +3941,6 @@
                         ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
                         <span class="bc-current">${name}</span>
                         <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
-                    </div>
-                    <div class="sort-group" style="margin-top:0;">
-                        <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemeStocks();">Table</button>
-                        <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemeStocks();">Chart</button>
                     </div>
                 </div>
             `;
@@ -3977,10 +4004,6 @@
                         ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
                         <span class="bc-current">${name}</span>
                         <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
-                    </div>
-                    <div class="sort-group" style="margin-top:0;">
-                        <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemeStocks();">Table</button>
-                        <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemeStocks();">Chart</button>
                     </div>
                 </div>
             `;
