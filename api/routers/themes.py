@@ -37,13 +37,24 @@ def fetch_themes():
 def fetch_theme_stocks(
     category: str = Query(..., description="'Sector' or 'Industry'"),
     name: str = Query(..., description="Name of the sector or industry"),
+    min_market_cap: Optional[float] = Query(None, description="Minimum market cap filter"),
+    min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
+    max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
+    min_price: Optional[float] = Query(None, description="Minimum price filter"),
 ):
     """
     Returns all stocks belonging to a given Sector or Industry,
     with full indicator data for chart rendering.
     """
     try:
-        rows, universe, last_updated = get_themes_stocks(category, name)
+        rows, universe, last_updated = get_themes_stocks(
+            category,
+            name,
+            min_market_cap=min_market_cap,
+            min_adr=min_adr,
+            max_adr=max_adr,
+            min_price=min_price,
+        )
         results = [StockResult.model_validate(row) for row in rows]
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

@@ -72,7 +72,18 @@ def rename_watchlist(watchlist_id: int, user_id: int, new_name: str) -> bool:
 # Watchlist Stock CRUD
 # ---------------------------------------------------------------------------
 
-def get_watchlist_stocks(watchlist_id: int, user_id: int) -> Optional[List[dict]]:
+def get_watchlist_stocks(
+    watchlist_id: int,
+    user_id: int,
+    min_market_cap: Optional[float] = None,
+    min_adr: Optional[float] = None,
+    max_adr: Optional[float] = None,
+    min_price: Optional[float] = None,
+    include_sectors: Optional[List[str]] = None,
+    exclude_sectors: Optional[List[str]] = None,
+    include_industries: Optional[List[str]] = None,
+    exclude_industries: Optional[List[str]] = None,
+) -> Optional[List[dict]]:
     """Returns tickers with live screen_data. Returns None if watchlist not owned."""
     # Verify ownership
     wl = fetch_one(
@@ -82,17 +93,48 @@ def get_watchlist_stocks(watchlist_id: int, user_id: int) -> Optional[List[dict]
     if wl is None:
         return None
 
+    extra_where = ""
+    params = [watchlist_id]
+
+    if min_market_cap is not None:
+        extra_where += " AND s.Market_Cap >= ?"
+        params.append(min_market_cap)
+    if min_adr is not None:
+        extra_where += " AND s.ADR_20 >= ?"
+        params.append(min_adr)
+    if max_adr is not None:
+        extra_where += " AND s.ADR_20 <= ?"
+        params.append(max_adr)
+    if min_price is not None:
+        extra_where += " AND s.Close >= ?"
+        params.append(min_price)
+
+    if include_sectors:
+        placeholders = ', '.join(['?' for _ in include_sectors])
+        extra_where += f" AND s.Sector IN ({placeholders})"
+        params.extend(include_sectors)
+    if exclude_sectors:
+        placeholders = ', '.join(['?' for _ in exclude_sectors])
+        extra_where += f" AND s.Sector NOT IN ({placeholders})"
+        params.extend(exclude_sectors)
+    if include_industries:
+        placeholders = ', '.join(['?' for _ in include_industries])
+        extra_where += f" AND s.Industry IN ({placeholders})"
+        params.extend(include_industries)
+    if exclude_industries:
+        placeholders = ', '.join(['?' for _ in exclude_industries])
+        extra_where += f" AND s.Industry NOT IN ({placeholders})"
+        params.extend(exclude_industries)
+
     # Join with screen_data for live metrics using fetch_all so it hits the live database
-    return fetch_all(
-        """
+    sql = f"""
         SELECT ws.ticker AS "Ticker", s.*
         FROM watchlist_stocks ws
         LEFT JOIN screen_data s ON s.Ticker = ws.ticker
-        WHERE ws.watchlist_id = ?
+        WHERE ws.watchlist_id = ?{extra_where}
         ORDER BY ws.added_at DESC
-        """,
-        (watchlist_id,)
-    )
+    """
+    return fetch_all(sql, tuple(params))
 
 
 def add_stock_to_watchlist(watchlist_id: int, user_id: int, ticker: str) -> bool:

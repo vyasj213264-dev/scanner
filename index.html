@@ -2483,11 +2483,12 @@
                 </div>
             `;
 
-            // Hide filter bar for watchlists
-            document.getElementById('filter-bar').style.display = 'none';
+            // Show filter bar for watchlists
+            document.getElementById('filter-bar').style.display = 'flex';
 
             try {
-                const res = await fetchApi(`/watchlists/${id}/stocks`);
+                const filterParams = buildFilterParams();
+                const res = await fetchApi(`/watchlists/${id}/stocks?${filterParams.substring(1)}`);
                 if (!res.ok) throw new Error('API Error');
                 const json = await res.json();
 
@@ -2759,6 +2760,25 @@
             return p;
         }
 
+        function applyFilters() {
+            if (activeScanner) {
+                if (activeScanner === 'universe') {
+                    runUniverse(true);
+                } else if (activeScanner.startsWith('wl-')) {
+                    const wlId = activeScanner.replace('wl-', '');
+                    runWatchlist(wlId, true);
+                } else {
+                    const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
+                    const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
+                    runScanner(activeScanner, label, true);
+                }
+            } else if (themesLevel === 'stocks') {
+                const name = selectedIndustry || selectedSector;
+                if (name) window.drillIntoIndustry(name);
+            }
+        }
+        window.applyFilters = applyFilters;
+
         function clearFilters() {
             document.getElementById('f-mcap').value = '';
             document.getElementById('f-adr-min').value = '';
@@ -2901,6 +2921,9 @@
         async function runScanner(scannerId, scannerLabel, force = false) {
             if (!force && activeScanner === scannerId) return;
             activeScanner = scannerId;
+            activeWatchlist = null; // Clear watchlist context
+            themesCategory = null;
+            themesLevel = 'top';
 
             // Reflect the active scanner in the URL (only on user clicks, not on popstate)
             if (!force) pushScannerToHistory(scannerId);
@@ -4426,11 +4449,13 @@
 
             try {
                 const fetchCategory = selectedSector && themesCategory === 'Sector' ? 'Industry' : catType;
-                const res = await fetchApi(`/themes/stocks?category=${fetchCategory}&name=${encodeURIComponent(name)}`);
+                const filterParams = buildFilterParams();
+                const res = await fetchApi(`/themes/stocks?category=${fetchCategory}&name=${encodeURIComponent(name)}${filterParams}`);
                 const json = await res.json();
                 themeStockData = json.data;
-                // Show sort controls
+                // Show controls
                 document.getElementById('sort-controls').style.display = 'flex';
+                document.getElementById('filter-bar').style.display = 'flex';
                 renderThemeStocks();
             } catch (err) {
                 console.error(err);

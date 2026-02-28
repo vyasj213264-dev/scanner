@@ -70,8 +70,30 @@ def delete_watchlist(watchlist_id: int, user: User = Depends(require_user)):
 
 
 @router.get("/{watchlist_id}/stocks", summary="Get all stocks in a watchlist with live metrics")
-def get_watchlist_stocks(watchlist_id: int, user: User = Depends(require_user)):
-    rows = watchlist_service.get_watchlist_stocks(watchlist_id, user.id)
+def get_watchlist_stocks(
+    watchlist_id: int,
+    min_market_cap: Optional[float] = None,
+    min_adr: Optional[float] = None,
+    max_adr: Optional[float] = None,
+    min_price: Optional[float] = None,
+    include_sectors: Optional[List[str]] = Query(None),
+    exclude_sectors: Optional[List[str]] = Query(None),
+    include_industries: Optional[List[str]] = Query(None),
+    exclude_industries: Optional[List[str]] = Query(None),
+    user: User = Depends(require_user)
+):
+    rows = watchlist_service.get_watchlist_stocks(
+        watchlist_id, 
+        user.id,
+        min_market_cap=min_market_cap,
+        min_adr=min_adr,
+        max_adr=max_adr,
+        min_price=min_price,
+        include_sectors=include_sectors,
+        exclude_sectors=exclude_sectors,
+        include_industries=include_industries,
+        exclude_industries=exclude_industries,
+    )
     if rows is None:
         raise HTTPException(status_code=404, detail="Watchlist not found")
     results = [StockResult.model_validate(r) for r in rows if r.get("Ticker")]

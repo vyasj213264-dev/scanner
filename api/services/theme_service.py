@@ -98,15 +98,38 @@ def get_sector_industry_map() -> Dict[str, List[str]]:
     return mapping
 
 
-def get_themes_stocks(category: str, name: str) -> Tuple[list, int, str]:
+def get_themes_stocks(
+    category: str,
+    name: str,
+    min_market_cap: Optional[float] = None,
+    min_adr: Optional[float] = None,
+    max_adr: Optional[float] = None,
+    min_price: Optional[float] = None,
+) -> Tuple[list, int, str]:
     """
-    Fetches all stocks in a given Sector or Industry from screen_data.
-    Returns (rows, universe_count, last_updated).
+    Fetches all stocks in a given Sector or Industry from screen_data with optional sub-filters.
+    Returns (rows, total_universe_count, last_updated).
     """
     col = "Sector" if category.lower() == "sector" else "Industry"
     
-    sql = f"SELECT * FROM screen_data WHERE {col} = ? ORDER BY RS_Rating DESC NULLS LAST"
-    rows = fetch_all(sql, (name,))
+    extra_where = ""
+    params = [name]
+    
+    if min_market_cap is not None:
+        extra_where += " AND Market_Cap >= ?"
+        params.append(min_market_cap)
+    if min_adr is not None:
+        extra_where += " AND ADR_20 >= ?"
+        params.append(min_adr)
+    if max_adr is not None:
+        extra_where += " AND ADR_20 <= ?"
+        params.append(max_adr)
+    if min_price is not None:
+        extra_where += " AND Close >= ?"
+        params.append(min_price)
+
+    sql = f"SELECT * FROM screen_data WHERE {col} = ?{extra_where} ORDER BY RS_Rating DESC NULLS LAST"
+    rows = fetch_all(sql, tuple(params))
     
     universe_count = fetch_val("SELECT COUNT(*) FROM screen_data") or 0
     last_updated_row = fetch_all("SELECT MAX(Date) as last_date FROM screen_data")
