@@ -5,7 +5,7 @@ All routes require authentication.
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from api.models.user import User
 from api.routers.auth import require_user
@@ -33,6 +33,7 @@ class WatchlistOut(BaseModel):
     created_at: Optional[str] = None
 
 class WatchlistStocksResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     watchlist_id: int
     watchlist_name: str
     data: List[StockResult]
