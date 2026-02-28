@@ -167,11 +167,15 @@ def run_scan(
     min_adr: Optional[float] = None,
     max_adr: Optional[float] = None,
     min_price: Optional[float] = None,
+    include_sectors: Optional[List[str]] = None,
+    exclude_sectors: Optional[List[str]] = None,
+    include_industries: Optional[List[str]] = None,
+    exclude_industries: Optional[List[str]] = None,
 ) -> Tuple[List[StockResult], int, Optional[str]]:
     """
     Execute a scanner query with optional sub-filters.
 
-    Sub-filters (Market Cap, ADR%, Price) are applied as additional WHERE clauses.
+    Sub-filters (Market Cap, ADR%, Price, Sector, Industry) are applied as additional WHERE clauses.
     The pre-computed scanner_results cache is still used for the base scanner match.
 
     Returns:
@@ -200,6 +204,25 @@ def run_scan(
         extra_where += " AND d.Close >= ?"
         params.append(min_price)
 
+    # Sector/Industry filtering
+    if include_sectors:
+        placeholders = ",".join(["?" for _ in include_sectors])
+        extra_where += f" AND d.Sector IN ({placeholders})"
+        params.extend(include_sectors)
+    if exclude_sectors:
+        placeholders = ",".join(["?" for _ in exclude_sectors])
+        extra_where += f" AND d.Sector NOT IN ({placeholders})"
+        params.extend(exclude_sectors)
+        
+    if include_industries:
+        placeholders = ",".join(["?" for _ in include_industries])
+        extra_where += f" AND d.Industry IN ({placeholders})"
+        params.extend(include_industries)
+    if exclude_industries:
+        placeholders = ",".join(["?" for _ in exclude_industries])
+        extra_where += f" AND d.Industry NOT IN ({placeholders})"
+        params.extend(exclude_industries)
+
     sql = (
         f"SELECT d.* FROM screen_data d "
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
@@ -222,6 +245,10 @@ def get_universe(
     min_adr: Optional[float] = None,
     max_adr: Optional[float] = None,
     min_price: Optional[float] = None,
+    include_sectors: Optional[List[str]] = None,
+    exclude_sectors: Optional[List[str]] = None,
+    include_industries: Optional[List[str]] = None,
+    exclude_industries: Optional[List[str]] = None,
 ) -> Tuple[List[dict], int, Optional[str]]:
     """
     Returns the full universe of stocks > $5 with their momentum data.
@@ -243,6 +270,25 @@ def get_universe(
     if min_price is not None:
         extra_where += " AND Close >= ?"
         params.append(min_price)
+
+    # Sector/Industry filtering
+    if include_sectors:
+        placeholders = ",".join(["?" for _ in include_sectors])
+        extra_where += f" AND Sector IN ({placeholders})"
+        params.extend(include_sectors)
+    if exclude_sectors:
+        placeholders = ",".join(["?" for _ in exclude_sectors])
+        extra_where += f" AND Sector NOT IN ({placeholders})"
+        params.extend(exclude_sectors)
+        
+    if include_industries:
+        placeholders = ",".join(["?" for _ in include_industries])
+        extra_where += f" AND Industry IN ({placeholders})"
+        params.extend(include_industries)
+    if exclude_industries:
+        placeholders = ",".join(["?" for _ in exclude_industries])
+        extra_where += f" AND Industry NOT IN ({placeholders})"
+        params.extend(exclude_industries)
 
     sql = (
         f"SELECT Ticker, Close, Sector, Industry, Market_Cap, ADR_20, "

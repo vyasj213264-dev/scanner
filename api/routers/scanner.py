@@ -56,6 +56,10 @@ def get_full_universe(
     min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
     max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
     min_price: Optional[float] = Query(None, description="Minimum price filter"),
+    include_sectors: Optional[List[str]] = Query(None, description="Sectors to include"),
+    exclude_sectors: Optional[List[str]] = Query(None, description="Sectors to exclude"),
+    include_industries: Optional[List[str]] = Query(None, description="Industries to include"),
+    exclude_industries: Optional[List[str]] = Query(None, description="Industries to exclude"),
 ):
     """Returns the performance metrics for the entire market universe > $5, with optional filters."""
     try:
@@ -64,6 +68,10 @@ def get_full_universe(
             min_adr=min_adr,
             max_adr=max_adr,
             min_price=min_price,
+            include_sectors=include_sectors,
+            exclude_sectors=exclude_sectors,
+            include_industries=include_industries,
+            exclude_industries=exclude_industries,
         )
         results = [UniverseStockResult.model_validate(row) for row in rows]
     except Exception as exc:
@@ -92,6 +100,10 @@ def run_scanner(
     min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
     max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
     min_price: Optional[float] = Query(None, description="Minimum price filter"),
+    include_sectors: Optional[List[str]] = Query(None, description="Sectors to include"),
+    exclude_sectors: Optional[List[str]] = Query(None, description="Sectors to exclude"),
+    include_industries: Optional[List[str]] = Query(None, description="Industries to include"),
+    exclude_industries: Optional[List[str]] = Query(None, description="Industries to exclude"),
 ):
     """
     Execute a predefined scanner and return matching stocks with their indicator data.
@@ -115,6 +127,10 @@ def run_scanner(
             min_adr=min_adr,
             max_adr=max_adr,
             min_price=min_price,
+            include_sectors=include_sectors,
+            exclude_sectors=exclude_sectors,
+            include_industries=include_industries,
+            exclude_industries=exclude_industries,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

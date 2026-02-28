@@ -139,6 +139,110 @@
             }
         }
 
+        /* ── Filter Modal ─────────────────────────────────────── */
+        .filter-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-modal-overlay.active {
+            display: flex;
+        }
+
+        .filter-modal {
+            background: var(--surface);
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .filter-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-modal-search {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .filter-modal-search input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .filter-modal-content {
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+
+        .filter-item {
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+
+        .filter-item:hover {
+            background: var(--card-hover);
+        }
+
+        .filter-item.mode-include {
+            background: var(--green-glow);
+            border: 1px solid var(--green);
+        }
+
+        .filter-item.mode-exclude {
+            background: var(--red-glow);
+            border: 1px solid var(--red);
+        }
+
+        .filter-item-status {
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .filter-modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
         .logo span {
             font-weight: 400;
             opacity: 0.7;
@@ -1149,6 +1253,39 @@
             color: var(--text-primary);
         }
 
+        .universe-table th.sortable {
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: background 0.1s;
+        }
+
+        .universe-table th.sortable:hover {
+            background: var(--card-hover);
+        }
+
+        .universe-table th.sortable::after {
+            content: '';
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.2;
+            font-size: 0.7rem;
+        }
+
+        .universe-table th.sortable[data-dir="1"]::after {
+            content: '▲';
+            opacity: 0.8;
+            color: var(--accent);
+        }
+
+        .universe-table th.sortable[data-dir="-1"]::after {
+            content: '▼';
+            opacity: 0.8;
+            color: var(--accent);
+        }
+
         .sort-buttons {
             display: flex;
             gap: 6px;
@@ -1784,6 +1921,26 @@
         </nav>
 
         <!-- Main Area -->
+        <!-- Filter Selection Modal -->
+        <div class="filter-modal-overlay" id="filter-modal-overlay">
+            <div class="filter-modal">
+                <div class="filter-modal-header">
+                    <h3 style="font-size:1.1rem" id="filter-modal-title">Select Items</h3>
+                    <button class="sort-btn" onclick="closeFilterModal()" style="padding:4px">&times;</button>
+                </div>
+                <div class="filter-modal-search">
+                    <input type="text" id="filter-modal-input" placeholder="Search..." oninput="filterModalItems()">
+                </div>
+                <div class="filter-modal-content" id="filter-modal-list">
+                    <!-- Items injected here -->
+                </div>
+                <div class="filter-modal-footer">
+                    <button class="filter-clear-btn" onclick="resetModalFilters()">Reset All</button>
+                    <button class="filter-apply-btn" onclick="saveFilterModal()">OK</button>
+                </div>
+            </div>
+        </div>
+
         <div class="main-content">
 
             <!-- Results Header -->
@@ -1803,11 +1960,17 @@
                         <button class="sort-btn" data-sort="momentum_1m">Momentum</button>
                     </div>
                     <select class="sort-select" id="sort-select">
+                        <option value="ticker">Ticker</option>
                         <option value="rs_rating">RS Rating</option>
                         <option value="rvol">RVOL</option>
                         <option value="close">Price</option>
+                        <option value="market_cap">Market Cap</option>
+                        <option value="adr_20">ATR%</option>
                         <option value="pct_from_52w_high">Near High</option>
-                        <option value="momentum_1m">Momentum</option>
+                        <option value="momentum_1m">1M Momentum</option>
+                        <option value="momentum_1d">1D Momentum</option>
+                        <option value="sector">Sector</option>
+                        <option value="industry">Industry</option>
                     </select>
                     <div style="margin-left:auto; display:flex; gap:4px; align-items:center;">
                         <span class="sort-label" style="margin-right:4px;">View:</span>
@@ -1840,6 +2003,14 @@
                     <div class="filter-group">
                         <label>Price ≥</label>
                         <input type="number" id="f-price" placeholder="$" step="1" min="0" style="width:60px">
+                    </div>
+                    <div class="filter-group">
+                        <button class="sort-btn" onclick="openFilterModal('Sector')" id="btn-f-sector"
+                            style="padding: 4px 10px; font-size: 0.8rem;">Sector: Any</button>
+                    </div>
+                    <div class="filter-group">
+                        <button class="sort-btn" onclick="openFilterModal('Industry')" id="btn-f-industry"
+                            style="padding: 4px 10px; font-size: 0.8rem;">Industry: Any</button>
                     </div>
                     <button class="filter-apply-btn" onclick="applyFilters()">Apply</button>
                     <button class="filter-clear-btn" onclick="clearFilters()">Clear</button>
@@ -1882,7 +2053,16 @@
         // ── State & Config ──────────────────────────────────────
         let activeScanner = null;
         let activeSortBy = 'rs_rating';
-        let lastResults = [];      // cached for client-side resort
+        let activeSortDir = -1; // -1 for desc, 1 for asc
+        let lastResults = [];
+
+        // Filter state for Sector/Industry
+        let filterSectors = {}; // { "Tech": "include", "Finance": "exclude" }
+        let filterIndustries = {};
+        let masterSectors = [];
+        let masterIndustries = [];
+        let currentModalType = ''; // 'Sector' or 'Industry'
+        // cached for client-side resort
         let tvWidgetCount = 0;
         let scannerViewMode = 'chart'; // 'chart' | 'table'
 
@@ -2462,10 +2642,21 @@
         document.getElementById('sort-controls').addEventListener('click', e => {
             const btn = e.target.closest('.sort-btn[data-sort]');
             if (!btn) return;
-            document.querySelectorAll('.sort-btn[data-sort]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeSortBy = btn.dataset.sort;
-            document.getElementById('sort-select').value = activeSortBy;
+
+            const col = btn.dataset.sort;
+            if (activeSortBy === col) {
+                activeSortDir *= -1; // toggle
+            } else {
+                activeSortBy = col;
+                activeSortDir = (col === 'ticker' || col === 'sector' || col === 'industry') ? 1 : -1;
+            }
+
+            document.querySelectorAll('.sort-btn[data-sort]').forEach(b => {
+                b.classList.toggle('active', b.dataset.sort === activeSortBy);
+            });
+            const sel = document.getElementById('sort-select');
+            if (sel) sel.value = activeSortBy;
+
             executeSort();
         });
 
@@ -2479,25 +2670,67 @@
         });
 
         function executeSort() {
+            if (activeScanner === 'universe') {
+                renderUniverseTable();
+                return;
+            }
             if (themesLevel === 'stocks' && themeStockData.length) {
                 renderThemeStocks();
                 return;
             }
             if (lastResults.length) {
+                const sorted = sortResults(lastResults);
                 if (scannerViewMode === 'table') {
-                    renderScannerTable(sortResults(lastResults));
+                    renderScannerTable(sorted);
                 } else {
-                    renderGrid(sortResults(lastResults));
+                    renderGrid(sorted);
                 }
             }
         }
 
+        // Handle table header clicks (Delegation)
+        document.getElementById('grid-area').addEventListener('click', e => {
+            const th = e.target.closest('th[data-ksort]');
+            if (!th) return;
+
+            const col = th.dataset.ksort;
+            if (activeSortBy === col) {
+                activeSortDir *= -1; // toggle direction
+            } else {
+                activeSortBy = col;
+                activeSortDir = (col === 'ticker' || col === 'sector' || col === 'industry') ? 1 : -1;
+            }
+
+            // Sync dropdown
+            const sel = document.getElementById('sort-select');
+            if (sel) sel.value = activeSortBy;
+
+            // Sync buttons
+            document.querySelectorAll('.sort-btn[data-sort]').forEach(b => {
+                b.classList.toggle('active', b.dataset.sort === activeSortBy);
+            });
+
+            executeSort();
+        });
+
         function sortResults(results) {
             return [...results].sort((a, b) => {
-                const aVal = a[activeSortBy] ?? -Infinity;
-                const bVal = b[activeSortBy] ?? -Infinity;
-                if (activeSortBy === 'pct_from_52w_high') return aVal - bVal;
-                return bVal - aVal;
+                let aVal = a[activeSortBy];
+                let bVal = b[activeSortBy];
+
+                // Handle missing values
+                if (aVal == null) aVal = (typeof bVal === 'string') ? '' : -Infinity;
+                if (bVal == null) bVal = (typeof aVal === 'string') ? '' : -Infinity;
+
+                if (typeof aVal === 'string') {
+                    return aVal.localeCompare(bVal) * (activeSortBy === 'ticker' ? 1 : activeSortDir);
+                }
+
+                // Default sort: Ticker is ASC, others are DIR (DESC usually)
+                let dir = (activeSortBy === 'ticker') ? 1 : activeSortDir;
+                if (activeSortBy === 'pct_from_52w_high') dir = -dir; // Near high is naturally ASC (closer to 0)
+
+                return (aVal - bVal) * dir;
             });
         }
 
@@ -2512,19 +2745,18 @@
             if (adrMin) p += `&min_adr=${adrMin}`;
             if (adrMax) p += `&max_adr=${adrMax}`;
             if (price) p += `&min_price=${price}`;
-            return p;
-        }
 
-        function applyFilters() {
-            if (activeScanner) {
-                if (activeScanner === 'universe') {
-                    runUniverse(true); // force re-fetch
-                } else {
-                    const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
-                    const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
-                    runScanner(activeScanner, label, true); // force re-fetch
-                }
-            }
+            // Sector/Industry
+            Object.entries(filterSectors).forEach(([name, mode]) => {
+                const key = mode === 'include' ? 'include_sectors' : 'exclude_sectors';
+                p += `&${key}=${encodeURIComponent(name)}`;
+            });
+            Object.entries(filterIndustries).forEach(([name, mode]) => {
+                const key = mode === 'include' ? 'include_industries' : 'exclude_industries';
+                p += `&${key}=${encodeURIComponent(name)}`;
+            });
+
+            return p;
         }
 
         function clearFilters() {
@@ -2532,8 +2764,90 @@
             document.getElementById('f-adr-min').value = '';
             document.getElementById('f-adr-max').value = '';
             document.getElementById('f-price').value = '';
+            filterSectors = {};
+            filterIndustries = {};
+            updateFilterButtons();
             applyFilters();
         }
+
+        function updateFilterButtons() {
+            const sCount = Object.keys(filterSectors).length;
+            const iCount = Object.keys(filterIndustries).length;
+            document.getElementById('btn-f-sector').textContent = sCount > 0 ? `Sector: ${sCount} Selected` : 'Sector: Any';
+            document.getElementById('btn-f-sector').classList.toggle('active', sCount > 0);
+            document.getElementById('btn-f-industry').textContent = iCount > 0 ? `Industry: ${iCount} Selected` : 'Industry: Any';
+            document.getElementById('btn-f-industry').classList.toggle('active', iCount > 0);
+        }
+
+        async function openFilterModal(type) {
+            currentModalType = type;
+            document.getElementById('filter-modal-overlay').classList.add('active');
+            document.getElementById('filter-modal-title').textContent = `Select ${type}s`;
+            document.getElementById('filter-modal-input').value = '';
+
+            // Ensure master lists are loaded
+            if (masterSectors.length === 0) {
+                try {
+                    const res = await fetchApi('/themes');
+                    const themes = await res.json();
+                    masterSectors = themes.data.sectors.map(s => s.sector).sort();
+                    masterIndustries = themes.data.industries.map(i => i.industry).sort();
+                } catch (e) {
+                    console.error("Failed to load sectors/industries", e);
+                }
+            }
+
+            renderModalItems();
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filter-modal-overlay').classList.remove('active');
+        }
+
+        function renderModalItems() {
+            const list = document.getElementById('filter-modal-list');
+            const search = document.getElementById('filter-modal-input').value.toLowerCase();
+            const items = currentModalType === 'Sector' ? masterSectors : masterIndustries;
+            const state = currentModalType === 'Sector' ? filterSectors : filterIndustries;
+
+            let html = '';
+            items.filter(it => it.toLowerCase().includes(search)).forEach(it => {
+                const mode = state[it] || 'off';
+                const cls = mode === 'include' ? 'mode-include' : (mode === 'exclude' ? 'mode-exclude' : '');
+                const label = mode === 'include' ? 'INC' : (mode === 'exclude' ? 'EXC' : 'OFF');
+                html += `
+                    <div class="filter-item ${cls}" onclick="toggleModalItem('${it.replace(/'/g, "\\'")}')">
+                        <span>${it}</span>
+                        <span class="filter-item-status">${label}</span>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        window.filterModalItems = renderModalItems;
+
+        window.toggleModalItem = function (name) {
+            const state = currentModalType === 'Sector' ? filterSectors : filterIndustries;
+            const current = state[name] || 'off';
+            if (current === 'off') state[name] = 'include';
+            else if (current === 'include') state[name] = 'exclude';
+            else delete state[name];
+            renderModalItems();
+        };
+
+        window.resetModalFilters = function () {
+            if (currentModalType === 'Sector') filterSectors = {};
+            else filterIndustries = {};
+            renderModalItems();
+        };
+
+        window.saveFilterModal = function () {
+            updateFilterButtons();
+            closeFilterModal();
+            applyFilters();
+        };
+
 
         // ── URL Routing ──────────────────────────────────────────
         // Push scanner into the browser history so the URL reflects the active scan.
@@ -2884,9 +3198,9 @@
             const fmtPct = (val) => {
                 if (val == null || isNaN(val)) return '—';
                 const pct = (val * 100).toFixed(1);
-                if (val > 0) return `< span class="pct-pos" > +${pct}%</span > `;
-                if (val < 0) return `< span class="pct-neg" > ${pct}%</span > `;
-                return `< span class="pct-neutral" > ${pct}%</span > `;
+                if (val > 0) return `<span class="pct-pos">+${pct}%</span>`;
+                if (val < 0) return `<span class="pct-neg">${pct}%</span>`;
+                return `<span class="pct-neutral">${pct}%</span>`;
             };
             const fmtMcap = (val) => {
                 if (val == null || isNaN(val)) return '—';
@@ -2897,22 +3211,22 @@
             };
 
             let html = `
-                    < div class="universe-table-wrapper" >
+                    <div class="universe-table-wrapper">
                         <table class="universe-table">
                             <thead>
                                 <tr>
                                     <th style="width: 40px;"></th>
-                                    <th>Ticker</th>
-                                    <th>Price</th>
-                                    <th>Sector</th>
-                                    <th>Industry</th>
-                                    <th>Mkt Cap</th>
-                                    <th>ATR%</th>
-                                    <th>RS</th>
-                                    <th>RVOL</th>
-                                    <th>vs Hi</th>
-                                    <th>1M</th>
-                                    <th>1D</th>
+                                    <th data-ksort="ticker" class="sortable">Ticker</th>
+                                    <th data-ksort="close" class="sortable">Price</th>
+                                    <th data-ksort="sector" class="sortable">Sector</th>
+                                    <th data-ksort="industry" class="sortable">Industry</th>
+                                    <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
+                                    <th data-ksort="adr_20" class="sortable">ATR%</th>
+                                    <th data-ksort="rs_rating" class="sortable">RS</th>
+                                    <th data-ksort="rvol" class="sortable">RVOL</th>
+                                    <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
+                                    <th data-ksort="momentum_1m" class="sortable">1M</th>
+                                    <th data-ksort="momentum_1d" class="sortable">1D</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2938,11 +3252,18 @@
                                     <td>${fmtPct(s.momentum_1d)}</td>
                                 </tr>`;
             }
-            html += `</tbody></table></div > `;
+            html += `</tbody></table></div>`;
             if (stocks.length === 0) {
                 html = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No results</div></div>`;
             }
             area.innerHTML = html;
+
+            // Update UI indicators on headers
+            const currentTh = area.querySelector(`th[data-ksort="${activeSortBy}"]`);
+            if (currentTh) {
+                currentTh.dataset.dir = activeSortDir;
+                currentTh.classList.add('active-sort');
+            }
         }
 
         // ── Chart Card ───────────────────────────────────────────
@@ -3040,9 +3361,8 @@
         }
 
         // ── Stock Universe Page ──────────────────────────────────
+        // universeData sorted by activeSortBy and activeSortDir
         let universeData = [];
-        let universeSortBy = 'momentum_1m';
-        let universeSortDir = -1; // -1 for desc, 1 for asc
         let universePage = 1;
         const UNIVERSE_PAGE_SIZE = 100;
 
@@ -3091,19 +3411,8 @@
         function renderUniverseTable() {
             const area = document.getElementById('grid-area');
 
-            // Sort data memory-side (O(N log N) is ~1ms for 3000 rows in JS)
-            universeData.sort((a, b) => {
-                let valA = a[universeSortBy];
-                let valB = b[universeSortBy];
-                if (valA == null) valA = -Infinity;
-                if (valB == null) valB = -Infinity;
-                if (universeSortBy === 'ticker') {
-                    if (a.ticker < b.ticker) return -1 * universeSortDir;
-                    if (a.ticker > b.ticker) return 1 * universeSortDir;
-                    return 0;
-                }
-                return (valA - valB) * universeSortDir;
-            });
+            // Sort data using the global sort logic (adapted for universeData)
+            const sorted = sortResults(universeData);
 
             // Build table HTML as a string
             let html = `
@@ -3112,18 +3421,18 @@
                     <thead>
                         <tr>
                             <th style="width: 40px;"></th>
-                            <th data-ksort="ticker">Ticker</th>
-                            <th data-ksort="close">Price</th>
-                            <th data-ksort="sector">Sector</th>
-                            <th data-ksort="industry">Industry</th>
-                            <th data-ksort="market_cap">Mkt Cap</th>
-                            <th data-ksort="adr_20" title="Average Daily Range %">ATR%</th>
-                            <th data-ksort="momentum_1d">1D</th>
-                            <th data-ksort="momentum_1w">1W</th>
-                            <th data-ksort="momentum_1m">1M</th>
-                            <th data-ksort="momentum_3m">3M</th>
-                            <th data-ksort="momentum_6m">6M</th>
-                            <th data-ksort="momentum_1y">1Y</th>
+                            <th data-ksort="ticker" class="sortable">Ticker</th>
+                            <th data-ksort="close" class="sortable">Price</th>
+                            <th data-ksort="sector" class="sortable">Sector</th>
+                            <th data-ksort="industry" class="sortable">Industry</th>
+                            <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
+                            <th data-ksort="adr_20" class="sortable" title="Average Daily Range %">ATR%</th>
+                            <th data-ksort="momentum_1d" class="sortable">1D</th>
+                            <th data-ksort="momentum_1w" class="sortable">1W</th>
+                            <th data-ksort="momentum_1m" class="sortable">1M</th>
+                            <th data-ksort="momentum_3m" class="sortable">3M</th>
+                            <th data-ksort="momentum_6m" class="sortable">6M</th>
+                            <th data-ksort="momentum_1y" class="sortable">1Y</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -3150,7 +3459,7 @@
 
             const startIdx = (universePage - 1) * UNIVERSE_PAGE_SIZE;
             const endIdx = startIdx + UNIVERSE_PAGE_SIZE;
-            const pageData = universeData.slice(startIdx, endIdx);
+            const pageData = sorted.slice(startIdx, endIdx);
 
             for (const row of pageData) {
                 html += `
@@ -3191,23 +3500,12 @@
 
             area.innerHTML = html;
 
-            // Add click listeners to headers for column sorting
-            area.querySelectorAll('th[data-ksort]').forEach(th => {
-                const col = th.dataset.ksort;
-                if (col === universeSortBy) {
-                    th.classList.add(universeSortDir === 1 ? 'sort-asc' : 'sort-desc');
-                }
-                th.addEventListener('click', () => {
-                    if (universeSortBy === col) {
-                        universeSortDir *= -1; // flip direction
-                    } else {
-                        universeSortBy = col;
-                        universeSortDir = col === 'ticker' ? 1 : -1; // default to DESC for numbers, ASC for string
-                    }
-                    universePage = 1; // Reset to page 1 on sort change
-                    renderUniverseTable();
-                });
-            });
+            // Update UI indicators on headers
+            const currentTh = area.querySelector(`th[data-ksort="${activeSortBy}"]`);
+            if (currentTh) {
+                currentTh.dataset.dir = activeSortDir;
+                currentTh.classList.add('active-sort');
+            }
         }
 
         // Global pagination handler
@@ -4174,17 +4472,17 @@
                     <thead>
                         <tr>
                             <th style="width: 40px;"></th>
-                            <th>Ticker</th>
-                            <th>Price</th>
-                            <th>Sector</th>
-                            <th>Industry</th>
-                            <th>Mkt Cap</th>
-                            <th>ATR%</th>
-                            <th>RS</th>
-                            <th>RVOL</th>
-                            <th>vs Hi</th>
-                            <th>1M</th>
-                            <th>1D</th>
+                            <th data-ksort="ticker" class="sortable">Ticker</th>
+                            <th data-ksort="close" class="sortable">Price</th>
+                            <th data-ksort="sector" class="sortable">Sector</th>
+                            <th data-ksort="industry" class="sortable">Industry</th>
+                            <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
+                            <th data-ksort="adr_20" class="sortable">ATR%</th>
+                            <th data-ksort="rs_rating" class="sortable">RS</th>
+                            <th data-ksort="rvol" class="sortable">RVOL</th>
+                            <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
+                            <th data-ksort="momentum_1m" class="sortable">1M</th>
+                            <th data-ksort="momentum_1d" class="sortable">1D</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -4213,6 +4511,12 @@
             }
             html += `</tbody></table></div>`;
             area.innerHTML = html;
+
+            const currentTh = area.querySelector(`th[data-ksort="${activeSortBy}"]`);
+            if (currentTh) {
+                currentTh.dataset.dir = activeSortDir;
+                currentTh.classList.add('active-sort');
+            }
         }
 
         function renderThemeStocksGrid(stocks, name) {
