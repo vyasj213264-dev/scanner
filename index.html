@@ -2790,8 +2790,20 @@
                 try {
                     const res = await fetchApi('/themes');
                     const themes = await res.json();
-                    masterSectors = themes.data.sectors.map(s => s.sector).sort();
-                    masterIndustries = themes.data.industries.map(i => i.industry).sort();
+
+                    // Use the sector_industry_map for the most comprehensive list
+                    if (themes.sector_industry_map) {
+                        masterSectors = Object.keys(themes.sector_industry_map).sort();
+                        const indSet = new Set();
+                        Object.values(themes.sector_industry_map).forEach(list => {
+                            list.forEach(i => indSet.add(i));
+                        });
+                        masterIndustries = Array.from(indSet).sort();
+                    } else if (themes.data) {
+                        // Fallback to extraction from rank data
+                        masterSectors = [...new Set(themes.data.filter(t => t.category === 'Sector').map(t => t.name))].sort();
+                        masterIndustries = [...new Set(themes.data.filter(t => t.category === 'Industry').map(t => t.name))].sort();
+                    }
                 } catch (e) {
                     console.error("Failed to load sectors/industries", e);
                 }
