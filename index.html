@@ -1996,7 +1996,7 @@
             try {
                 panelWidget = new TradingView.widget({
                     autosize: true,
-                    symbol: "US:" + ticker,
+                    symbol: ticker,
                     interval: 'D',
                     timezone: 'Etc/UTC',
                     theme: currentTheme,
@@ -2767,7 +2767,7 @@
                     try {
                         new TradingView.widget({
                             autosize: true,
-                            symbol: `US:${stock.ticker}`,
+                            symbol: stock.ticker,
                             interval: 'D',
                             timezone: 'Etc/UTC',
                             theme: currentTheme,
@@ -2786,14 +2786,6 @@
                         });
                     } catch (err) {
                         console.error(`TradingView widget error for ${stock.ticker}: `, err);
-                        const el = document.getElementById(containerId);
-                        if (el) el.innerHTML = `
-                            <div style="height:320px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--surface); border-radius:var(--radius-sm); border:1px solid var(--border); color:var(--text-muted);">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:8px;opacity:0.6;"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><polyline points="21 3 21 8 16 8"></polyline></svg>
-                                <div>Chart unavailable</div>
-                                <div style="font-size:0.8rem; margin-top:4px;">Cannot load data for ${stock.ticker}</div>
-                            </div>
-                        `;
                     }
                     o.unobserve(entry.target);
                 });
@@ -3312,7 +3304,7 @@
                         try {
                             new TradingView.widget({
                                 autosize: true,
-                                symbol: `US:${stock.ticker}`,
+                                symbol: stock.ticker,
                                 interval: 'D',
                                 timezone: 'Etc/UTC',
                                 theme: currentTheme,
@@ -3600,7 +3592,7 @@
                                 try {
                                     new TradingView.widget({
                                         autosize: true,
-                                        symbol: `US:${ticker}`,
+                                        symbol: ticker,
                                         interval: 'D',
                                         timezone: 'Etc/UTC',
                                         theme: currentTheme,
@@ -3638,10 +3630,9 @@
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
-                                        const symbol = `US:${t}`;
-                                        if (currentLen + symbol.length + 1 > 120) break;
-                                        expressionParts.push(symbol);
-                                        currentLen += symbol.length + 1;
+                                        if (currentLen + t.length + 1 > 120) break;
+                                        expressionParts.push(t);
+                                        currentLen += t.length + 1;
                                     }
 
                                     const count = expressionParts.length;
