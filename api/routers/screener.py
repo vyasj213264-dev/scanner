@@ -61,8 +61,6 @@ def init_screener_tables():
         """)
         conn.commit()
 
-init_screener_tables()
-
 # ── Dynamic SQL Builder ────────────────────────────────────────────────────────
 
 ALLOWED_FIELDS = {

@@ -15,12 +15,14 @@ from api.routers import watchlists
 from api.routers import breadth
 from api.routers import screener
 from api.services.auth_service import init_user_tables
+from api.routers.screener import init_screener_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(f"🚀  {APP_TITLE} v{APP_VERSION} — starting up")
     init_user_tables()
+    init_screener_tables()
     yield
     print(f"🛑  {APP_TITLE} — shutting down")
 
