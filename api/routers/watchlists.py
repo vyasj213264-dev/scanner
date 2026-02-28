@@ -2,7 +2,8 @@
 Watchlists router — CRUD for user watchlists and their stocks.
 All routes require authentication.
 """
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -30,7 +31,7 @@ class AddStockRequest(BaseModel):
 class WatchlistOut(BaseModel):
     id: int
     name: str
-    created_at: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
 
 class WatchlistStocksResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

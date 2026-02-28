@@ -1,7 +1,8 @@
 """
 Custom Screener router — dynamic SQL generation from JSON filter tree.
 """
-from typing import List, Optional, Any
+from datetime import datetime
+from typing import List, Optional, Any, Union
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 import json
@@ -38,7 +39,7 @@ class SavedScreenOut(BaseModel):
     id: int
     name: str
     payload: ScreenPayload
-    created_at: str
+    created_at: Union[str, datetime]
 
 # ── Services ──────────────────────────────────────────────────────────────────
 

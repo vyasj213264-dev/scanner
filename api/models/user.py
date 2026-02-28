@@ -1,7 +1,8 @@
 """
 User models for authentication.
 """
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Union
 from pydantic import BaseModel
 
 
@@ -12,7 +13,7 @@ class User(BaseModel):
     picture: Optional[str] = None
     google_id: Optional[str] = None
     plan: str = "free"
-    created_at: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
 
 
 class TokenResponse(BaseModel):
