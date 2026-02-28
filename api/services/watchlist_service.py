@@ -73,7 +73,7 @@ def get_watchlist_stocks(watchlist_id: int, user_id: int) -> Optional[List[dict]
         # Join with screen_data for live metrics
         rows = conn.execute(
             """
-            SELECT s.*
+            SELECT ws.ticker AS Ticker, s.*
             FROM watchlist_stocks ws
             LEFT JOIN screen_data s ON s.Ticker = ws.ticker
             WHERE ws.watchlist_id = ?
