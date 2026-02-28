@@ -2661,6 +2661,18 @@
                 dropdownsHtml = `<div style="padding: 6px 10px; font-size: 0.8rem; color: var(--text-muted);">No watchlists</div>`;
             }
 
+            let removeHtml = '';
+            if (activeScanner && activeScanner.startsWith('wl-')) {
+                const currentWlId = parseInt(activeScanner.split('-')[1]);
+                removeHtml = `
+                    <div style="border-top: 1px solid var(--border-light); margin-top: 4px; padding-top: 4px;">
+                        <button class="wl-item-btn" onclick="removeFromWatchlist('${ticker}', ${currentWlId}, event)" style="color: var(--red);">
+                            − Remove Watchlist
+                        </button>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="wl-dropdown-wrapper" onclick="event.stopPropagation()">
                     <button class="wl-add-btn" onclick="toggleWlDropdown(this, event)">
@@ -2674,6 +2686,7 @@
                                 + New Watchlist
                             </button>
                         </div>
+                        ${removeHtml}
                     </div>
                 </div>
             `;
@@ -2719,6 +2732,36 @@
                     }, 1000);
                     showToast(`Added ${ticker} to watchlist`, 'success');
                 }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function removeFromWatchlist(ticker, watchlistId, event) {
+            event.stopPropagation();
+            try {
+                const res = await fetchApi(`/watchlists/${watchlistId}/stocks/${ticker}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) throw new Error('Failed to remove stock');
+
+                showToast(`Removed ${ticker} from watchlist`, 'success');
+                event.target.closest('.wl-dropdown-menu').classList.remove('show');
+
+                // Immediately update local array and rerender to remove the card/row
+                lastResults = lastResults.filter(s => s.ticker !== ticker);
+
+                // Update meta count
+                document.getElementById('results-meta').innerHTML = `
+                    <span class="results-count-pill">${lastResults.length} results</span>
+                `;
+
+                if (scannerViewMode === 'table') {
+                    renderScannerTable(sortResults(lastResults));
+                } else {
+                    renderGrid(sortResults(lastResults));
+                }
+
             } catch (err) {
                 showToast(err.message, 'error');
             }
