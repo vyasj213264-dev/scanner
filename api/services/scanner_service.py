@@ -83,6 +83,31 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         description="Full universe filtered to stocks in a Stage 2 uptrend (Minervini criteria).",
         category="Market Breadth",
     ),
+    # Pullbacks
+    ScannerMeta(
+        id="pullback-5dma",
+        label="Pullback to 5DMA",
+        description="Price within +/- 2% of the 5-day moving average.",
+        category="Pullbacks",
+    ),
+    ScannerMeta(
+        id="pullback-9dma",
+        label="Pullback to 9DMA",
+        description="Price within +/- 2% of the 9-day moving average.",
+        category="Pullbacks",
+    ),
+    ScannerMeta(
+        id="pullback-21dma",
+        label="Pullback to 21DMA",
+        description="Price within +/- 2% of the 21-day moving average.",
+        category="Pullbacks",
+    ),
+    ScannerMeta(
+        id="pullback-50dma",
+        label="Pullback to 50DMA",
+        description="Price within +/- 2% of the 50-day moving average.",
+        category="Pullbacks",
+    ),
 ]
 
 # Lookup by id for O(1) access
@@ -109,6 +134,10 @@ _FILTERS: dict = {
     "golden-crossover":       "Golden_Crossover",
     "high-volume":            "RVOL > 3.0",
     "stage-2":                "In_Stage_2",
+    "pullback-5dma":          "abs(Close - SMA_5) / SMA_5 <= 0.02",
+    "pullback-9dma":          "abs(Close - SMA_9) / SMA_9 <= 0.02",
+    "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
+    "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
 }
 
 # ---------------------------------------------------------------------------

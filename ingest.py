@@ -48,8 +48,11 @@ def calculate_indicators(df):
         return None
     
     # Moving Averages
+    df['SMA_5'] = df['Close'].rolling(window=5).mean()
+    df['SMA_9'] = df['Close'].rolling(window=9).mean()
     df['SMA_10'] = df['Close'].rolling(window=10).mean()
     df['SMA_20'] = df['Close'].rolling(window=20).mean()
+    df['SMA_21'] = df['Close'].rolling(window=21).mean()
     df['SMA_50'] = df['Close'].rolling(window=50).mean()
     df['SMA_100'] = df['Close'].rolling(window=100).mean()
     df['SMA_150'] = df['Close'].rolling(window=150).mean()
@@ -189,7 +192,7 @@ def main():
         import psycopg2
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
         conn = psycopg2.connect(url)
-        placeholders = ', '.join(['%s'] * 28)
+        placeholders = ', '.join(['%s'] * 34)
         sql_types = {
             "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
             "TEXT": "VARCHAR(255)", 
@@ -198,7 +201,7 @@ def main():
         }
     else:
         conn = sqlite3.connect(DB_NAME)
-        placeholders = ', '.join(['?'] * 28)
+        placeholders = ', '.join(['?'] * 31)
         sql_types = {
             "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
             "TEXT": "TEXT", 
@@ -217,8 +220,11 @@ def main():
             Date {sql_types["TEXT"]},
             Close {sql_types["REAL"]},
             Volume {sql_types["REAL"]},
+            SMA_5 {sql_types["REAL"]},
+            SMA_9 {sql_types["REAL"]},
             SMA_10 {sql_types["REAL"]},
             SMA_20 {sql_types["REAL"]},
+            SMA_21 {sql_types["REAL"]},
             SMA_50 {sql_types["REAL"]},
             SMA_100 {sql_types["REAL"]},
             SMA_200 {sql_types["REAL"]},
@@ -339,8 +345,11 @@ def main():
                         str(last.name),
                         float(last['Close']),
                         float(last['Volume']),
+                        float(last['SMA_5']),
+                        float(last['SMA_9']),
                         float(last['SMA_10']),
                         float(last['SMA_20']),
+                        float(last['SMA_21']),
                         float(last['SMA_50']),
                         float(last['SMA_100']),
                         float(last['SMA_200']),
@@ -371,16 +380,16 @@ def main():
                 except Exception as parse_e:
                     continue
 
-    # Build the correct placeholders for all 30 columns (28 original + Sector + Industry)
+    # Build the correct placeholders for all 34 columns
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        full_placeholders = ', '.join(['%s'] * 31)
+        full_placeholders = ', '.join(['%s'] * 34)
     else:
-        full_placeholders = ', '.join(['?'] * 31)
+        full_placeholders = ', '.join(['?'] * 34)
     
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     cursor.executemany(f'''
         INSERT INTO screen_data (
-            Ticker, Date, Close, Volume, SMA_10, SMA_20, SMA_50, SMA_100, SMA_200,
+            Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
             RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
             RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
             Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
@@ -428,6 +437,10 @@ def main():
         "golden-crossover":       "Golden_Crossover",
         "high-volume":            "RVOL > 3.0",
         "stage-2":                "In_Stage_2",
+        "pullback-5dma":          "abs(Close - SMA_5) / SMA_5 <= 0.02",
+        "pullback-9dma":          "abs(Close - SMA_9) / SMA_9 <= 0.02",
+        "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
+        "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
     }
     
     baseline = "Close >= 5"
