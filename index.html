@@ -1511,6 +1511,109 @@
                 opacity: 1;
             }
         }
+
+        /* ── Custom Prompt Modal ──────────────────────────────── */
+        .prompt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 8, 16, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .prompt-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .prompt-modal {
+            background: var(--glass);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.95) translateY(10px);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .prompt-overlay.active .prompt-modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .prompt-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            white-space: pre-wrap;
+            /* For screens list */
+        }
+
+        .prompt-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .prompt-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .prompt-btn {
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .prompt-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .prompt-btn-submit {
+            background: var(--accent);
+            border: 1px solid var(--accent);
+            color: #fff;
+        }
+
+        .prompt-btn-submit:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 
@@ -1760,6 +1863,18 @@
         </div>
     </div>
 
+    <!-- ── Custom Prompt Modal ──────────────────────────────── -->
+    <div class="prompt-overlay" id="custom-prompt-overlay">
+        <div class="prompt-modal">
+            <div class="prompt-title" id="custom-prompt-title">Prompt</div>
+            <input type="text" class="prompt-input" id="custom-prompt-input" autocomplete="off" />
+            <div class="prompt-actions">
+                <button class="prompt-btn prompt-btn-cancel" id="custom-prompt-cancel">Cancel</button>
+                <button class="prompt-btn prompt-btn-submit" id="custom-prompt-submit">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ── Config ──────────────────────────────────────────────
         const API = '/api/v1';
@@ -1832,6 +1947,47 @@
                 toast.style.transition = 'all 0.3s ease';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        }
+
+        // Custom Async Prompt
+        function showCustomPrompt(titleText, defaultVal = '') {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('custom-prompt-overlay');
+                const title = document.getElementById('custom-prompt-title');
+                const input = document.getElementById('custom-prompt-input');
+                const btnCancel = document.getElementById('custom-prompt-cancel');
+                const btnSubmit = document.getElementById('custom-prompt-submit');
+
+                title.textContent = titleText;
+                input.value = defaultVal;
+
+                const close = (value) => {
+                    overlay.classList.remove('active');
+                    // Cleanup event listeners
+                    btnCancel.onclick = null;
+                    btnSubmit.onclick = null;
+                    input.onkeydown = null;
+                    resolve(value);
+                };
+
+                btnCancel.onclick = () => close(null);
+                btnSubmit.onclick = () => close(input.value.trim() || null);
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        close(input.value.trim() || null);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        close(null);
+                    }
+                };
+
+                overlay.classList.add('active');
+
+                // Focus input after transition
+                setTimeout(() => input.focus(), 100);
+            });
         }
 
         // ── Mobile Menu Toggle ───────────────────────────────────
@@ -2071,7 +2227,7 @@
         }
 
         async function createWatchlist() {
-            const name = prompt("Enter watchlist name:");
+            const name = await showCustomPrompt("Enter watchlist name:");
             if (!name) return;
             try {
                 const res = await fetchApi('/watchlists', {
@@ -2561,7 +2717,7 @@
 
         async function createWatchlistAndAdd(ticker, event) {
             event.stopPropagation();
-            const name = prompt("Enter new watchlist name:");
+            const name = await showCustomPrompt("Enter new watchlist name:");
             if (!name) return;
             try {
                 // 1. Create WL
@@ -3368,8 +3524,8 @@
         }
 
         async function saveCurrentScreen() {
-            if (!authToken) return alert("Please log in first");
-            const name = prompt("Enter a name for this custom screen:");
+            if (!authToken) return showToast("Please log in first", "error");
+            const name = await showCustomPrompt("Enter a name for this custom screen:");
             if (!name) return;
 
             const payload = {
@@ -3398,10 +3554,10 @@
                 if (!res.ok) throw new Error();
                 const screens = await res.json();
 
-                if (screens.length === 0) return alert("No saved screens found.");
+                if (screens.length === 0) return showToast("No saved screens found.", "error");
 
-                const names = screens.map((s, i) => `${i + 1}. ${s.name}`).join('\\n');
-                const choice = prompt(`Select a screen to load (enter number):\\n\\n${names}`);
+                const names = screens.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
+                const choice = await showCustomPrompt(`Select a screen to load (enter number):\n\n${names}`);
                 if (!choice) return;
 
                 const idx = parseInt(choice) - 1;
