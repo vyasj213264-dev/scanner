@@ -5,7 +5,7 @@ All routes require authentication.
 from datetime import datetime
 from typing import List, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from api.models.user import User
