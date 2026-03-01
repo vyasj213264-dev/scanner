@@ -44,10 +44,16 @@ async def get_current_user(
 ) -> Optional[User]:
     if not credentials:
         return None
-    user_id = decode_access_token(credentials.credentials)
+    token_data = decode_access_token(credentials.credentials)
+    user_id = token_data.get("user_id")
     if user_id is None:
         return None
-    return get_user_by_id(user_id)
+    
+    user = get_user_by_id(user_id)
+    if user:
+        # Attach session_id for downstream event tracking/analytics
+        user.session_id = token_data.get("session_id")
+    return user
 
 
 async def require_user(
