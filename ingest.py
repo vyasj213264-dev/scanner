@@ -245,9 +245,11 @@ def main():
                 retry_delay *= 2
                 
         if data is None or data.empty:
-            print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts.", flush=True)
+            print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts. Continuing to next chunk...", flush=True)
             continue
             
+        success_count = 0
+        skipped_count = 0
         for ticker in chunk:
             if len(chunk) == 1:
                 df = data
@@ -263,6 +265,7 @@ def main():
             
             last = calculate_indicators(df)
             if last is not None:
+                success_count += 1
                 rs_raw = calculate_rs_rating(df, spy_data)
                 # Convert NaN to None so PostgreSQL stores it as NULL (not NaN)
                 rs_raw_clean = None if (rs_raw is None or pd.isna(rs_raw)) else float(rs_raw)
@@ -306,7 +309,12 @@ def main():
                     )
                     all_data.append(record)
                 except Exception as parse_e:
+                    skipped_count += 1
                     continue
+            else:
+                skipped_count += 1
+
+        print(f"  Chunk {i//chunk_size + 1} complete: {success_count} processed, {skipped_count} skipped. Total records in memory: {len(all_data)}", flush=True)
 
     if not all_data:
         print("Error: No data records generated. Exiting.", flush=True)
@@ -449,6 +457,7 @@ def main():
         
         for i in range(0, len(update_data), batch_size):
             batch = update_data[i:i + batch_size]
+            print(f"  Updating RS_Rating batch {i//batch_size + 1} for {len(batch)} tickers...", flush=True)
             if DATABASE_URL and DATABASE_URL.startswith("postgres"):
                 cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", batch)
             else:
@@ -484,6 +493,7 @@ def main():
     
     cache_records = []
     for scanner_id, condition in filters.items():
+        print(f"  Calculating matches for scanner: {scanner_id}...", flush=True)
         # SQLite uses 1/0 for booleans, Postgres correctly parses true/false mapping natively using psycopg2
         cursor.execute(f"SELECT Ticker FROM screen_data WHERE {baseline} AND ({condition})")
         matching = cursor.fetchall()
@@ -537,6 +547,7 @@ def main():
             # Rank (ascending=False means highest momentum gets rank 1)
             # method='min' ensures ties get the same top rank
             for met in ['m1d', 'm1w', 'm1m', 'm3m', 'm6m', 'm1y']:
+                print(f"    Ranking {category_name} by {met}...", flush=True)
                 grouped[f'rank_{met}'] = grouped[met].rank(ascending=False, method='min').fillna(9999).astype(int)
                 
             rank_data = []
