@@ -205,109 +205,15 @@ def main():
     if 'SPY' not in tickers:
         tickers.append('SPY')
 
-    chunk_size = 100
+    # ---------------------------------------------------------
+    # 2. Sequential Data Download & Indicator Calculation
+    # ---------------------------------------------------------
+    # We do all processing in memory FIRST to avoid keeping an idle DB connection open
+    # during the long (20-30 min) yfinance download phase.
     all_data = []
+    chunk_size = 100
     
     spy_data = yf.download('SPY', period='2y', progress=False)
-    
-    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        import psycopg2
-        url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
-        conn = psycopg2.connect(url)
-        placeholders = ', '.join(['%s'] * 34)
-        sql_types = {
-            "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
-            "TEXT": "VARCHAR(255)", 
-            "REAL": "DOUBLE PRECISION",
-            "BOOLEAN": "BOOLEAN"
-        }
-    else:
-        conn = sqlite3.connect(DB_NAME)
-        placeholders = ', '.join(['?'] * 34)
-        sql_types = {
-            "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
-            "TEXT": "TEXT", 
-            "REAL": "REAL",
-            "BOOLEAN": "BOOLEAN"
-        }
-    
-    cursor = conn.cursor()
-    
-    # Drop table to start fresh with new columns
-    cursor.execute('DROP TABLE IF EXISTS screen_data')
-    
-    cursor.execute(f'''
-        CREATE TABLE screen_data (
-            Ticker {sql_types["TEXT PRIMARY KEY"]},
-            Date {sql_types["TEXT"]},
-            Close {sql_types["REAL"]},
-            Volume {sql_types["REAL"]},
-            SMA_5 {sql_types["REAL"]},
-            SMA_9 {sql_types["REAL"]},
-            SMA_10 {sql_types["REAL"]},
-            SMA_20 {sql_types["REAL"]},
-            SMA_21 {sql_types["REAL"]},
-            SMA_50 {sql_types["REAL"]},
-            SMA_100 {sql_types["REAL"]},
-            SMA_200 {sql_types["REAL"]},
-            RVOL {sql_types["REAL"]},
-            ADR_20 {sql_types["REAL"]},
-            Pct_From_52W_High {sql_types["REAL"]},
-            In_Stage_2 {sql_types["BOOLEAN"]},
-            Tight_Setup {sql_types["BOOLEAN"]},
-            Near_Horizontal_Resistance {sql_types["BOOLEAN"]},
-            RS_Raw {sql_types["REAL"]},
-            Inside_Bar {sql_types["BOOLEAN"]},
-            Golden_Crossover {sql_types["BOOLEAN"]},
-            Gap_Up {sql_types["BOOLEAN"]},
-            Gap_Down {sql_types["BOOLEAN"]},
-            VCP_Approximation {sql_types["BOOLEAN"]},
-            Momentum_1D {sql_types["REAL"]},
-            Momentum_1W {sql_types["REAL"]},
-            Momentum_1M {sql_types["REAL"]},
-            Momentum_3M {sql_types["REAL"]},
-            Momentum_6M {sql_types["REAL"]},
-            Momentum_1Y {sql_types["REAL"]},
-            RS_Rating {sql_types["REAL"]},
-            Sector {sql_types["TEXT"]},
-            Industry {sql_types["TEXT"]},
-            Market_Cap {sql_types["REAL"]}
-        )
-    ''')
-    
-    # Create the new industry_ranks table to track daily theme rotation
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS industry_ranks (
-            Date {sql_types["TEXT"]},
-            Category {sql_types["TEXT"]},
-            Name {sql_types["TEXT"]},
-            Stock_Count INTEGER,
-            Rank_1D INTEGER,
-            Rank_1W INTEGER,
-            Rank_1M INTEGER,
-            Rank_3M INTEGER,
-            Rank_6M INTEGER,
-            Rank_1Y INTEGER,
-            PRIMARY KEY (Date, Category, Name)
-        )
-    ''')
-    
-    # ---------------------------------------------------------
-    # Create the cache table for pre-computed scanner results
-    # ---------------------------------------------------------
-    cursor.execute('DROP TABLE IF EXISTS scanner_results')
-    cursor.execute(f'''
-        CREATE TABLE scanner_results (
-            scanner_id {sql_types["TEXT"]},
-            Ticker {sql_types["TEXT"]},
-            UNIQUE(scanner_id, Ticker)
-        )
-    ''')
-    
-    # Enable faster inserts
-    if not (DATABASE_URL and DATABASE_URL.startswith("postgres")):
-        cursor.execute("PRAGMA synchronous = OFF")
-        cursor.execute("PRAGMA journal_mode = MEMORY")
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
@@ -402,12 +308,112 @@ def main():
                 except Exception as parse_e:
                     continue
 
-    # Build the correct placeholders for all 34 columns
+    if not all_data:
+        print("Error: No data records generated. Exiting.", flush=True)
+        return
+
+    # ---------------------------------------------------------
+    # 3. Database Connection & Schema Initialization
+    # ---------------------------------------------------------
+    # ONLY connect right before we are ready to write.
+    print(f"Opening database connection for final insertion phase...", flush=True)
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        import psycopg2
+        url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
+        conn = psycopg2.connect(url, connect_timeout=10)
         full_placeholders = ', '.join(['%s'] * 34)
+        sql_types = {
+            "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
+            "TEXT": "VARCHAR(255)", 
+            "REAL": "DOUBLE PRECISION",
+            "BOOLEAN": "BOOLEAN"
+        }
     else:
+        conn = sqlite3.connect(DB_NAME)
         full_placeholders = ', '.join(['?'] * 34)
+        sql_types = {
+            "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
+            "TEXT": "TEXT", 
+            "REAL": "REAL",
+            "BOOLEAN": "BOOLEAN"
+        }
     
+    cursor = conn.cursor()
+    
+    # Drop and re-create schema to ensure freshness
+    print("Re-initializing database schema...", flush=True)
+    cursor.execute('DROP TABLE IF EXISTS screen_data')
+    cursor.execute(f'''
+        CREATE TABLE screen_data (
+            Ticker {sql_types["TEXT PRIMARY KEY"]},
+            Date {sql_types["TEXT"]},
+            Close {sql_types["REAL"]},
+            Volume {sql_types["REAL"]},
+            SMA_5 {sql_types["REAL"]},
+            SMA_9 {sql_types["REAL"]},
+            SMA_10 {sql_types["REAL"]},
+            SMA_20 {sql_types["REAL"]},
+            SMA_21 {sql_types["REAL"]},
+            SMA_50 {sql_types["REAL"]},
+            SMA_100 {sql_types["REAL"]},
+            SMA_200 {sql_types["REAL"]},
+            RVOL {sql_types["REAL"]},
+            ADR_20 {sql_types["REAL"]},
+            Pct_From_52W_High {sql_types["REAL"]},
+            In_Stage_2 {sql_types["BOOLEAN"]},
+            Tight_Setup {sql_types["BOOLEAN"]},
+            Near_Horizontal_Resistance {sql_types["BOOLEAN"]},
+            RS_Raw {sql_types["REAL"]},
+            Inside_Bar {sql_types["BOOLEAN"]},
+            Golden_Crossover {sql_types["BOOLEAN"]},
+            Gap_Up {sql_types["BOOLEAN"]},
+            Gap_Down {sql_types["BOOLEAN"]},
+            VCP_Approximation {sql_types["BOOLEAN"]},
+            Momentum_1D {sql_types["REAL"]},
+            Momentum_1W {sql_types["REAL"]},
+            Momentum_1M {sql_types["REAL"]},
+            Momentum_3M {sql_types["REAL"]},
+            Momentum_6M {sql_types["REAL"]},
+            Momentum_1Y {sql_types["REAL"]},
+            RS_Rating {sql_types["REAL"]},
+            Sector {sql_types["TEXT"]},
+            Industry {sql_types["TEXT"]},
+            Market_Cap {sql_types["REAL"]}
+        )
+    ''')
+    
+    cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS industry_ranks (
+            Date {sql_types["TEXT"]},
+            Category {sql_types["TEXT"]},
+            Name {sql_types["TEXT"]},
+            Stock_Count INTEGER,
+            Rank_1D INTEGER,
+            Rank_1W INTEGER,
+            Rank_1M INTEGER,
+            Rank_3M INTEGER,
+            Rank_6M INTEGER,
+            Rank_1Y INTEGER,
+            PRIMARY KEY (Date, Category, Name)
+        )
+    ''')
+    
+    cursor.execute('DROP TABLE IF EXISTS scanner_results')
+    cursor.execute(f'''
+        CREATE TABLE scanner_results (
+            scanner_id {sql_types["TEXT"]},
+            Ticker {sql_types["TEXT"]},
+            UNIQUE(scanner_id, Ticker)
+        )
+    ''')
+    
+    if not (DATABASE_URL and DATABASE_URL.startswith("postgres")):
+        cursor.execute("PRAGMA synchronous = OFF")
+        cursor.execute("PRAGMA journal_mode = MEMORY")
+
+    # ---------------------------------------------------------
+    # 4. Final Batch Insertions
+    # ---------------------------------------------------------
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     batch_size = 500
     for i in range(0, len(all_data), batch_size):
@@ -596,7 +602,9 @@ def main():
     print("Database cleanup complete. Historical data pruned to 5 days.", flush=True)
 
     conn.commit()
-    conn.close()
+    if conn:
+        conn.close()
+        print("Database connection closed.", flush=True)
     print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.", flush=True)
 
 if __name__ == "__main__":
