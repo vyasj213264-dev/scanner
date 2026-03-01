@@ -9,9 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION, CORS_ORIGINS
-from api.routers import health, scanner, themes
-from api.routers import auth
-from api.routers import watchlists
+from api.routers import health, scanner, themes, auth, watchlists, analytics
 from api.routers import breadth
 from api.routers import screener
 from api.services.auth_service import init_user_tables
@@ -51,6 +49,7 @@ app.include_router(scanner.router)
 app.include_router(themes.router)
 app.include_router(auth.router)
 app.include_router(watchlists.router)
+app.include_router(analytics.router)
 app.include_router(breadth.router)
 app.include_router(screener.router)
 

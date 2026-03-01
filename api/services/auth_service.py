@@ -64,6 +64,40 @@ def init_user_tables() -> None:
                 FOREIGN KEY (watchlist_id) REFERENCES watchlists(id)
             );
         """)
+        
+        # Admin Analytics Tables
+        session_id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        event_id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                id               {session_id_type},
+                user_id          INTEGER NOT NULL,
+                login_time       TIMESTAMP {now_func},
+                last_active_time TIMESTAMP {now_func},
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """)
+        
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS user_events (
+                id          {event_id_type},
+                session_id  INTEGER NOT NULL,
+                user_id     INTEGER NOT NULL,
+                event_type  TEXT NOT NULL,
+                event_data  TEXT,
+                created_at  TIMESTAMP {now_func},
+                FOREIGN KEY (session_id) REFERENCES user_sessions(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """)
+        
+        # Add is_admin column to users if it doesn't exist (SQLite specific logic needed if iterating, but we'll handle standard alter)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE")
+        except Exception:
+            pass # Column likely exists
+            
         conn.commit()
 
 
@@ -86,7 +120,7 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
         cursor = conn.cursor()
         if row is None:
             # Create new user
-            sql = "INSERT INTO users (email, name, picture, google_id) VALUES (?,?,?,?) RETURNING id, email, name, picture, google_id, plan, created_at"
+            sql = "INSERT INTO users (email, name, picture, google_id) VALUES (?,?,?,?) RETURNING id, email, name, picture, google_id, plan, is_admin, created_at"
             if is_postgres:
                 sql = sql.replace('?', '%s')
             cursor.execute(sql, (email, name, picture, google_id))
@@ -111,7 +145,24 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
             
             # Re-fetch mutated row
             updated_row = fetch_one("SELECT * FROM users WHERE id = ?", (row["id"],))
-            return User(**dict(updated_row))
+            user = User(**dict(updated_row))
+            
+        # Create a new session record on login
+        session_sql = "INSERT INTO user_sessions (user_id) VALUES (?) RETURNING id"
+        if is_postgres: session_sql = session_sql.replace('?', '%s')
+        
+        cursor.execute(session_sql, (user.id,))
+        session_row = cursor.fetchone()
+        conn.commit()
+        
+        if session_row is None:
+            # Fallback for old SQLite
+            last_id = cursor.lastrowid
+            user.session_id = last_id
+        else:
+            user.session_id = dict(session_row)["id"]
+            
+        return user
 
 
 def get_user_by_id(user_id: int) -> Optional[User]:
@@ -123,16 +174,18 @@ def get_user_by_id(user_id: int) -> Optional[User]:
 # JWT
 # ---------------------------------------------------------------------------
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, session_id: Optional[int] = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     payload = {"sub": str(user_id), "exp": expire}
+    if session_id:
+        payload["session_id"] = session_id
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[int]:
-    """Returns user_id or None if invalid/expired."""
+def decode_access_token(token: str) -> dict:
+    """Returns dict with user_id and session_id, or empty dict if invalid/expired."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return int(payload["sub"])
+        return {"user_id": int(payload["sub"]), "session_id": payload.get("session_id")}
     except (JWTError, KeyError, ValueError):
-        return None
+        return {}

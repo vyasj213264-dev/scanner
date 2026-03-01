@@ -13,7 +13,20 @@ class User(BaseModel):
     picture: Optional[str] = None
     google_id: Optional[str] = None
     plan: str = "free"
+    is_admin: bool = False
+    session_id: Optional[int] = None
     created_at: Optional[Union[str, datetime]] = None
+
+class UserSession(BaseModel):
+    id: int
+    user_id: int
+    login_time: Optional[Union[str, datetime]] = None
+    last_active_time: Optional[Union[str, datetime]] = None
+
+class UserEvent(BaseModel):
+    event_type: str
+    event_data: Optional[str] = None
+
 
 
 class TokenResponse(BaseModel):
