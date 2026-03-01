@@ -43,13 +43,42 @@ def get_admin_stats():
     total_users = total_users_row["count"] if total_users_row else 0
     
     # 2. Recent logins (last 50 sessions)
-    recent_sessions = fetch_all("""
+    recent_sessions_raw = fetch_all("""
         SELECT s.id, u.email, u.name, s.login_time, s.last_active_time
         FROM user_sessions s
         JOIN users u ON s.user_id = u.id
         ORDER BY s.login_time DESC
         LIMIT 50
     """)
+    
+    # Calculate duration in seconds for each session
+    from datetime import datetime
+    recent_sessions = []
+    for s in recent_sessions_raw:
+        # fetch_all returns dictionaries
+        login = s['login_time']
+        active = s['last_active_time']
+        
+        duration = 0
+        try:
+            # Handle both string timestamps (SQLite) and datetime objects (Postgres)
+            if isinstance(login, str):
+                login_dt = datetime.fromisoformat(login.replace('Z', '+00:00'))
+            else:
+                login_dt = login
+                
+            if isinstance(active, str):
+                active_dt = datetime.fromisoformat(active.replace('Z', '+00:00'))
+            else:
+                active_dt = active
+                
+            duration = int((active_dt - login_dt).total_seconds())
+        except:
+            pass
+            
+        s_plus = dict(s)
+        s_plus['duration_seconds'] = max(0, duration)
+        recent_sessions.append(s_plus)
     
     # 3. Most popular charts/actions today
     # (SQLite and Postgres timestamps differ, we'll just do global top for simplicity right now)
