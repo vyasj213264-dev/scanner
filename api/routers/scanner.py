@@ -3,7 +3,7 @@ Scanner router — GET /api/v1/scan/{scanner_type}
               — GET /api/v1/scanners
               — GET /api/v1/stock/{ticker}
 """
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from fastapi import APIRouter, HTTPException, Query
 
 from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult, StockResult

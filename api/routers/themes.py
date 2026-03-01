@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from api.models.themes import ThemeResponse
 from api.models.scanner import ScanResponse, StockResult

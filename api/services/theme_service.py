@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 from api.database import fetch_all, fetch_val
 from api.models.themes import ThemeRankRecord
 
