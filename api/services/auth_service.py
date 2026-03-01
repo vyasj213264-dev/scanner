@@ -91,6 +91,17 @@ def init_user_tables() -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
+
+        # 5. Magic Watchlist Items (for /test page)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS magic_watchlist_items (
+                id          {event_id_type},
+                section     TEXT NOT NULL,
+                ticker      TEXT NOT NULL,
+                sort_order  INTEGER DEFAULT 0,
+                updated_at  TIMESTAMP {now_func}
+            );
+        """)
         
         # Add is_admin column to users if it doesn't exist (SQLite specific logic needed if iterating, but we'll handle standard alter)
         try:

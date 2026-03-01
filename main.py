@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION, CORS_ORIGINS
-from api.routers import health, scanner, themes, auth, watchlists, analytics
+from api.routers import health, scanner, themes, auth, watchlists, analytics, magic
 from api.routers import breadth
 from api.routers import screener
 from api.services.auth_service import init_user_tables
@@ -52,6 +52,7 @@ app.include_router(watchlists.router)
 app.include_router(analytics.router)
 app.include_router(breadth.router)
 app.include_router(screener.router)
+app.include_router(magic.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -61,6 +62,10 @@ def serve_ui():
 @app.get("/aaddmmiinn", include_in_schema=False)
 def serve_admin_ui():
     return FileResponse("admin.html")
+
+@app.get("/test", include_in_schema=False)
+def serve_test_ui():
+    return FileResponse("test.html")
 
 @app.get("/manifest.json", include_in_schema=False)
 def serve_manifest():
