@@ -228,6 +228,26 @@
                 </div>
             </div>
 
+            <!-- Ticker Engagement -->
+            <div class="card">
+                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Top Tickers by Time (Daily)
+                </h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>User / Ticker</th>
+                                <th>Time Spent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticker-time-body">
+                            <!-- JS populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Registered Users -->
             <div class="card" style="grid-column: 1 / -1;">
                 <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Registered Users (Full
@@ -296,6 +316,18 @@
                     </tr>
                 `).join('');
                 document.getElementById('events-body').innerHTML = eventsHtml || '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No events recorded</td></tr>';
+
+                const tickerTimeHtml = data.top_ticker_time.map(t => `
+                    <tr>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">${t.day}</td>
+                        <td>
+                            <div style="font-weight: 500; color: var(--accent);">${t.ticker}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">${t.user}</div>
+                        </td>
+                        <td style="font-weight: 600;">${formatDuration(t.seconds)}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('ticker-time-body').innerHTML = tickerTimeHtml || '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No ticker data</td></tr>';
 
                 const usersHtml = data.all_users.map(u => `
                     <tr>
