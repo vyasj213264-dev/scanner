@@ -166,6 +166,28 @@ def main():
         print(f"Successfully pre-filtered universe down to {len(valid_dynamic)} stocks trading >= $5.00.", flush=True)
     except Exception as e:
         print(f"Warning: Failed to dynamically fetch Nasdaq index: {e}", flush=True)
+        print("Falling back to SEC company tickers list...", flush=True)
+        try:
+            sec_url = 'https://www.sec.gov/files/company_tickers.json'
+            r = requests.get(sec_url, headers={'User-Agent': 'TradersChart admin@traderschart.com'}, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            # Returns dict like: {"0":{"cik_str":320193,"ticker":"AAPL","title":"Apple Inc."}}
+            valid_fallback = []
+            for item in data.values():
+                symbol = str(item.get('ticker', '')).replace('.', '-').upper().strip()
+                if symbol and '^' not in symbol and '/' not in symbol and '~' not in symbol:
+                    if len(symbol) <= 6 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
+                        valid_fallback.append(symbol)
+                        ticker_meta[symbol] = {
+                            'sector': 'Unknown',
+                            'industry': 'Unknown',
+                            'market_cap': None
+                        }
+            tickers.extend(valid_fallback)
+            print(f"Successfully loaded {len(valid_fallback)} symbols from SEC fallback.", flush=True)
+        except Exception as sec_e:
+            print(f"Error: SEC fallback also failed: {sec_e}", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
