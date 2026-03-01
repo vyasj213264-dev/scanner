@@ -223,7 +223,7 @@ def main():
         }
     else:
         conn = sqlite3.connect(DB_NAME)
-        placeholders = ', '.join(['?'] * 31)
+        placeholders = ', '.join(['?'] * 34)
         sql_types = {
             "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
             "TEXT": "TEXT", 
@@ -409,37 +409,46 @@ def main():
         full_placeholders = ', '.join(['?'] * 34)
     
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
-    cursor.executemany(f'''
-        INSERT INTO screen_data (
-            Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
-            RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
-            RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
-            Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
-            Sector, Industry, Market_Cap
-        ) VALUES ({full_placeholders})
-    ''', all_data)
+    batch_size = 500
+    for i in range(0, len(all_data), batch_size):
+        batch = all_data[i:i + batch_size]
+        cursor.executemany(f'''
+            INSERT INTO screen_data (
+                Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
+                RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
+                RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
+                Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
+                Sector, Industry, Market_Cap
+            ) VALUES ({full_placeholders})
+        ''', batch)
+        conn.commit()  # Periodically commit to keep transactions small
+        print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
+
     print(f"Successfully inserted {len(all_data)} records.", flush=True)
     
     
     print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)
     cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
+    # Handle list of tuples directly (default for both sqlite3 and psycopg2 without DictRow)
     df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
-    # Extra safety: drop any NaN values that slipped through (e.g. PostgreSQL NaN vs NULL)
+    # Extra safety: drop any NaN values that slipped through
     df_db = df_db.dropna(subset=['RS_Raw'])
     
     print(f"Found {len(df_db)} tickers with valid RS_Raw values.", flush=True)
     
     if not df_db.empty:
         df_db['RS_Rating'] = df_db['RS_Raw'].rank(pct=True) * 99
-        # IMPORTANT: psycopg2 cannot natively adapt numpy.float64 without a registration adapter.
-        # We must explicitly cast the pandas column to native Python floats to prevent silent NULLs in PostgreSQL.
         update_data = [(float(r), t) for r, t in zip(df_db['RS_Rating'], df_db['Ticker'])]
-        print(f"Sample RS_Rating values: {update_data[:3]}", flush=True)
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", update_data)
-        else:
-            cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", update_data)
+        
+        for i in range(0, len(update_data), batch_size):
+            batch = update_data[i:i + batch_size]
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", batch)
+            else:
+                cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", batch)
+            conn.commit()
+        
         print(f"Successfully updated RS_Rating for {len(update_data)} tickers.", flush=True)
             
     # ---------------------------------------------------------
@@ -478,10 +487,14 @@ def main():
             cache_records.append((scanner_id, ticker_val))
             
     if cache_records:
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (%s, %s)", cache_records)
-        else:
-            cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (?, ?)", cache_records)
+        batch_size = 500
+        for i in range(0, len(cache_records), batch_size):
+            batch = cache_records[i:i + batch_size]
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (%s, %s)", batch)
+            else:
+                cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (?, ?)", batch)
+            conn.commit()
             
         print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.", flush=True)
         
@@ -541,25 +554,29 @@ def main():
         all_theme_data = sector_ranks + industry_ranks
         
         if all_theme_data:
-            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-                cursor.executemany('''
-                    INSERT INTO industry_ranks (
-                        Date, Category, Name, Stock_Count, 
-                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (Date, Category, Name) DO UPDATE SET
-                        Stock_Count = EXCLUDED.Stock_Count,
-                        Rank_1D = EXCLUDED.Rank_1D, Rank_1W = EXCLUDED.Rank_1W,
-                        Rank_1M = EXCLUDED.Rank_1M, Rank_3M = EXCLUDED.Rank_3M,
-                        Rank_6M = EXCLUDED.Rank_6M, Rank_1Y = EXCLUDED.Rank_1Y
-                ''', all_theme_data)
-            else:
-                cursor.executemany('''
-                    INSERT OR REPLACE INTO industry_ranks (
-                        Date, Category, Name, Stock_Count, 
-                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', all_theme_data)
+            batch_size = 500
+            for i in range(0, len(all_theme_data), batch_size):
+                batch = all_theme_data[i:i + batch_size]
+                if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                    cursor.executemany('''
+                        INSERT INTO industry_ranks (
+                            Date, Category, Name, Stock_Count, 
+                            Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (Date, Category, Name) DO UPDATE SET
+                            Stock_Count = EXCLUDED.Stock_Count,
+                            Rank_1D = EXCLUDED.Rank_1D, Rank_1W = EXCLUDED.Rank_1W,
+                            Rank_1M = EXCLUDED.Rank_1M, Rank_3M = EXCLUDED.Rank_3M,
+                            Rank_6M = EXCLUDED.Rank_6M, Rank_1Y = EXCLUDED.Rank_1Y
+                    ''', batch)
+                else:
+                    cursor.executemany('''
+                        INSERT OR REPLACE INTO industry_ranks (
+                            Date, Category, Name, Stock_Count, 
+                            Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', batch)
+                conn.commit()
             print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.", flush=True)
 
     # ---------------------------------------------------------
