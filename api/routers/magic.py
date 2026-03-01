@@ -24,6 +24,7 @@ def get_magic_test():
         return data
     except Exception as e:
         err_str = str(e).lower()
+        print(f"❌ Error in /test: {err_str}")
         if "does not exist" in err_str or "no such table" in err_str:
             # Try once to init tables if they were missed during startup
             from api.services.auth_service import init_user_tables
@@ -33,6 +34,11 @@ def get_magic_test():
                 return magic_service.get_magic_test_data()
             except Exception as e2:
                 raise HTTPException(status_code=500, detail=f"Database initialization failed: {str(e2)}")
+        
+        # Specific KeyError handling for diagnostics
+        if isinstance(e, KeyError):
+            raise HTTPException(status_code=500, detail=f"KeyError: {str(e)} - Data structure mismatch")
+            
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test", summary="Overwrite magic watchlist data")

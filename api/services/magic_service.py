@@ -7,6 +7,17 @@ from typing import List, Dict, Any
 from api.database import get_db, fetch_all, DATABASE_URL
 from api.models.scanner import StockResult
 
+def get_row_val(row: dict, key: str, default: Any = None) -> Any:
+    """Case-insensitive dictionary lookup for DB rows."""
+    if not row: return default
+    if key in row: return row[key]
+    # Check lowercase variant
+    low_key = key.lower()
+    if low_key in row: return row[low_key]
+    # Check PascalCase variant if it's 'ticker'
+    if key == 'ticker' and 'Ticker' in row: return row['Ticker']
+    return default
+
 def get_magic_test_data() -> List[Dict[str, Any]]:
     """
     Returns the grouped stocks in the magic watchlist with live metrics.
@@ -22,7 +33,9 @@ def get_magic_test_data() -> List[Dict[str, Any]]:
             return []
 
     # 2. Get unique tickers to fetch metrics
-    tickers = list(set([item['ticker'] for item in items]))
+    tickers = list(set([get_row_val(item, 'ticker') for item in items if get_row_val(item, 'ticker')]))
+    if not tickers:
+        return []
     
     # 3. Fetch metrics from screen_data
     # We join them manually to ensure we keep the section grouping
@@ -32,13 +45,28 @@ def get_magic_test_data() -> List[Dict[str, Any]]:
         sql = sql.replace('?', '%s')
     
     metrics_rows = fetch_all(sql, tuple(tickers))
-    metrics_map = {row['Ticker']: StockResult.model_validate(row) for row in metrics_rows}
-    
+    metrics_map = {}
+    for row in metrics_rows:
+        t = get_row_val(row, 'Ticker')
+        if t:
+            try:
+                # Ensure we pass a dict that Pydantic likes (PascalCase for aliases)
+                pydantic_dict = dict(row)
+                # If Ticker is lowercase, satisfy the validation_alias
+                if 'ticker' in pydantic_dict and 'Ticker' not in pydantic_dict:
+                    pydantic_dict['Ticker'] = pydantic_dict['ticker']
+                
+                metrics_map[t] = StockResult.model_validate(pydantic_dict)
+            except Exception as e:
+                print(f"Validation error for {t}: {e}")
+
     # 4. Group by section
     sections_map = {}
     for item in items:
-        section = item['section']
-        ticker = item['ticker']
+        section = get_row_val(item, 'section', 'General')
+        ticker = get_row_val(item, 'ticker')
+        if not ticker: continue
+        
         if section not in sections_map:
             sections_map[section] = []
         
@@ -47,7 +75,7 @@ def get_magic_test_data() -> List[Dict[str, Any]]:
             sections_map[section].append(metrics_map[ticker])
         else:
             # Placeholder for tickers not in DB yet
-            sections_map[section].append({"Ticker": ticker, "Company": "Unknown", "Price": 0, "RS_Rating": 0})
+            sections_map[section].append({"ticker": ticker, "company": "Unknown", "price": 0, "rs_rating": 0})
 
     # Convert map to list of dicts
     result = []

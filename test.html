@@ -308,16 +308,16 @@
                             <tbody>
                 `;
                 section.stocks.forEach(s => {
-                    const price = s.Price || 0;
-                    const change = s.Pct_Change || 0;
+                    const price = s.close || 0;
+                    const change = (s.momentum_1d || 0) * 100; // Convert to % if stored as decimal
                     const cls = change >= 0 ? 'change-up' : 'change-down';
                     html += `
                         <tr>
-                            <td class="ticker">${s.Ticker}</td>
+                            <td class="ticker">${s.ticker}</td>
                             <td class="price">$${price.toFixed(2)}</td>
                             <td class="${cls}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</td>
-                            <td><span style="background:var(--card); padding:2px 8px; border-radius:4px; font-weight:700; color:var(--accent);">${s.RS_Rating || '--'}</span></td>
-                            <td style="color:var(--text-dim)">${s.RVOL?.toFixed(1) || '--'}x</td>
+                            <td><span style="background:var(--card); padding:2px 8px; border-radius:4px; font-weight:700; color:var(--accent);">${s.rs_rating || '--'}</span></td>
+                            <td style="color:var(--text-dim)">${s.rvol?.toFixed(1) || '--'}x</td>
                         </tr>
                     `;
                 });
@@ -335,22 +335,23 @@
                 section.stocks.forEach(s => {
                     const card = document.createElement('div');
                     card.className = 'chart-card';
+                    const containerId = `chart-${s.ticker}-${section.section.replace(/\s/g, '-')}`;
                     card.innerHTML = `
                         <div class="chart-header">
                             <div>
-                                <span class="ticker" style="font-size:1.1rem">${s.Ticker}</span>
+                                <span class="ticker" style="font-size:1.1rem">${s.ticker}</span>
                                 <span style="font-size:0.7rem; color:var(--text-dim); margin-left:8px;">${section.section}</span>
                             </div>
-                            <div style="font-size:0.85rem; font-weight:600;">$${s.Price?.toFixed(2) || '--'}</div>
+                            <div style="font-size:0.85rem; font-weight:600;">$${s.close?.toFixed(2) || '--'}</div>
                         </div>
-                        <div class="chart-container" id="chart-${s.Ticker}-${section.section.replace(/\s/g, '-')}"></div>
+                        <div class="chart-container" id="${containerId}"></div>
                     `;
                     grid.appendChild(card);
 
                     new TradingView.widget({
                         "width": "100%",
                         "height": 400,
-                        "symbol": s.Ticker,
+                        "symbol": s.ticker,
                         "interval": "D",
                         "timezone": "Etc/UTC",
                         "theme": "dark",
@@ -358,7 +359,7 @@
                         "locale": "en",
                         "enable_publishing": false,
                         "allow_symbol_change": false,
-                        "container_id": `chart-${s.Ticker}-${section.section.replace(/\s/g, '-')} `,
+                        "container_id": containerId,
                         "hide_side_toolbar": true,
                         "save_image": false
                     });
