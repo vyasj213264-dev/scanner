@@ -18,6 +18,14 @@ def get_magic_test():
     try:
         return magic_service.get_magic_test_data()
     except Exception as e:
+        # Self-healing: try to init tables if they are missing
+        if "does not exist" in str(e) or "no such table" in str(e):
+            from api.services.auth_service import init_user_tables
+            try:
+                init_user_tables()
+                return magic_service.get_magic_test_data()
+            except Exception as e2:
+                raise HTTPException(status_code=500, detail=f"Migration failed: {str(e2)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test", summary="Overwrite magic watchlist data")
