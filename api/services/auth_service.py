@@ -93,23 +93,30 @@ def init_user_tables() -> None:
         """)
 
         # 5. Magic Watchlist Items (for /test page)
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS magic_watchlist_items (
-                id          {event_id_type},
-                section     TEXT NOT NULL,
-                ticker      TEXT NOT NULL,
-                sort_order  INTEGER DEFAULT 0,
-                updated_at  TIMESTAMP {now_func}
-            );
-        """)
+        try:
+            print("📦 Ensuring magic_watchlist_items table exists...")
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS magic_watchlist_items (
+                    id          {event_id_type},
+                    section     TEXT NOT NULL,
+                    ticker      TEXT NOT NULL,
+                    sort_order  INTEGER DEFAULT 0,
+                    updated_at  TIMESTAMP {now_func}
+                );
+            """)
+            print("✅ magic_watchlist_items table verified.")
+        except Exception as e:
+            print(f"❌ Error creating magic_watchlist_items: {e}")
         
-        # Add is_admin column to users if it doesn't exist (SQLite specific logic needed if iterating, but we'll handle standard alter)
+        # Add is_admin column to users if it doesn't exist
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE")
+            print("✅ users.is_admin column verified.")
         except Exception:
             pass # Column likely exists
             
         conn.commit()
+        print("💾 Database initialization complete.")
 
 
 # ---------------------------------------------------------------------------

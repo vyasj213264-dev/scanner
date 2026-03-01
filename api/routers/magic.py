@@ -18,37 +18,21 @@ def get_magic_test():
     try:
         data = magic_service.get_magic_test_data()
         if not data:
-            # If database is empty, trigger a sync directly
+            # If database is empty, trigger a sync directly from TradingView
             magic_service.sync_tradingview_watchlist()
             data = magic_service.get_magic_test_data()
         return data
     except Exception as e:
-        # Self-healing: try to init tables if they are missing
         err_str = str(e).lower()
         if "does not exist" in err_str or "no such table" in err_str:
-            from api.database import get_db, DATABASE_URL
-            is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
-            pk_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
-            now_func = "DEFAULT CURRENT_TIMESTAMP" if is_postgres else "DEFAULT (datetime('now'))"
-            
+            # Try once to init tables if they were missed during startup
+            from api.services.auth_service import init_user_tables
             try:
-                with get_db() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(f"""
-                        CREATE TABLE IF NOT EXISTS magic_watchlist_items (
-                            id          {pk_type},
-                            section     TEXT NOT NULL,
-                            ticker      TEXT NOT NULL,
-                            sort_order  INTEGER DEFAULT 0,
-                            updated_at  TIMESTAMP {now_func}
-                        );
-                    """)
-                    conn.commit()
-                # Now that table exists, sync and return
+                init_user_tables()
                 magic_service.sync_tradingview_watchlist()
                 return magic_service.get_magic_test_data()
             except Exception as e2:
-                raise HTTPException(status_code=500, detail=f"Self-healing failed: {str(e2)}")
+                raise HTTPException(status_code=500, detail=f"Database initialization failed: {str(e2)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test", summary="Overwrite magic watchlist data")

@@ -95,82 +95,54 @@ def sync_tradingview_watchlist(watchlist_id: str = "42004254") -> bool:
     """
     url = f"https://www.tradingview.com/watchlists/{watchlist_id}/"
     try:
+        print(f"🔄 Syncing TradingView watchlist {watchlist_id}...")
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, headers=headers, timeout=15)
         res.raise_for_status()
         
-        # Look for the JSON payload in the HTML
-        # Usually it's in a script tag. We'll search for the tickers or a pattern.
-        # Based on subagent research, they also use a POST, but the HTML often has it.
-        # Fallback: simple regex search for tickers in a specific pattern or just the symbols.
+        # Extract JSON from <script type="application/prs.init-data+json">
+        match = re.search(r'<script type=\"application/prs\.init-data\+json\">(.*?)</script>', res.text, re.DOTALL)
+        if not match:
+            print("❌ Could not find initialization JSON in TradingView page")
+            return False
+            
+        data_json = json.loads(match.group(1))
+        symbols_list = data_json.get("sharedWatchlist", {}).get("list", {}).get("symbols", [])
         
-        # Try to find the sectioned list.
-        # TradingView public watchlists often have a specific structure.
-        # If we can't parse perfectly, we'll try to extract anything starting with ### as sections.
-        
-        # Let's try to extract the symbol list. 
-        # For now, I'll use a robust regex or just the subagent's discovered sections if I had them.
-        # Wait, I'll use the exact sections the subagent found.
-        
-        # Actually, let's try to get it dynamically.
-        # TV uses a script tag with "window.tradingview_watchlist_initial_state" or similar in some versions.
-        # In others, it's a JSON block.
-        
-        # I'll implement a broad search.
-        content = res.text
-        
-        # Look for "items":[...] in the JSON blob
-        # Or better: search for strings like "###SECTION"
-        sections = []
-        current_section = "General"
-        tickers = []
-        
-        # A more reliable way: find the symbols list
-        # Symbols are often inside "symbols": [...] or similar.
-        
-        # Let's look for the specific symbols the subagent saw.
-        # Indexes, Longs, Focus, Semiconductors 2, etc.
-        
-        # If I can't find a clean JSON, I'll use a targeted regex.
-        # TV watchlist markers: "type":"section","text":"###SECTIONNAME"
-        
-        found_sections = re.findall(r'\"text\":\"###(.*?)\"', content)
-        if not found_sections:
-            # Try another pattern
-            found_sections = re.findall(r'###([A-Z0-9\s]+)', content)
+        if not symbols_list:
+            print("❌ No symbols found in TradingView JSON")
+            return False
 
-        # Let's try a simpler approach: get all strings that look like tickers
-        # and sections.
+        # Group symbols into sections
+        payload = []
+        current_section = "General"
+        current_tickers = []
         
-        # For now, to satisfy the "END TO END" and "DYNAMIC" requirement immediately,
-        # I will implement a service that uses the subagent's identified URL if possible.
-        # But requests.post to TV scanner might need specific credentials/cookies.
+        for item in symbols_list:
+            if item.startswith("###"):
+                # Save previous section if it had tickers
+                if current_tickers:
+                    payload.append({"section": current_section, "tickers": current_tickers})
+                # Start new section
+                current_section = item.replace("###", "").strip()
+                current_tickers = []
+            else:
+                # TradingView uses 'EXCHANGE:TICKER' format, we want just TICKER for screen_data lookup
+                ticker = item.split(":")[-1] if ":" in item else item
+                current_tickers.append(ticker)
         
-        # I'll stick to parsing the public HTML which is usually sufficient.
-        
-        # IF parsing fails, I will use a fallback list to ensure the user is NOT seeing an empty page.
-        
-        # Mocking the sync for now with the subagent's discovered data to guarantee success
-        # while I build the robust scraper.
-        
-        data = [
-            {"section": "INDEXES", "tickers": ["SPY", "QQQ", "IWM", "DIA"]},
-            {"section": "LONGS", "tickers": ["NVDA", "AMD", "META", "AMZN", "MSFT", "GOOGL", "AAPL"]},
-            {"section": "FOCUS", "tickers": ["XOM", "MU", "SNDK", "PANW"]},
-            {"section": "SEMICONDUCTORS 2", "tickers": ["TSM", "AVGO", "ARM", "ASML"]},
-            {"section": "MAG 7", "tickers": ["NFLX", "TSLA"]},
-            {"section": "RETAIL", "tickers": ["WMT", "COST", "TGT"]},
-            {"section": "SPACE", "tickers": ["PLTR", "RKLB", "LUNR", "ASTS", "PL"]},
-            {"section": "DATA MEMORY", "tickers": ["WDC", "STX"]}
-        ]
-        
-        # Attempt to parse real data from HTML (refining this)
-        # ...
-        
-        update_magic_test_data(data)
+        # Add final section
+        if current_tickers:
+            payload.append({"section": current_section, "tickers": current_tickers})
+
+        # Update local DB
+        update_magic_test_data(payload)
+        print(f"✅ Successfully synced {len(symbols_list)} items across {len(payload)} sections")
         return True
     except Exception as e:
-        print(f"Sync error: {e}")
+        print(f"❌ Sync error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
