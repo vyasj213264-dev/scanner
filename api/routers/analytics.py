@@ -61,8 +61,12 @@ def get_admin_stats():
         LIMIT 20
     """)
 
+    # 4. All registered users
+    all_users = fetch_all("SELECT id, email, name, created_at FROM users ORDER BY created_at DESC")
+
     return {
         "total_users": total_users,
         "recent_sessions": recent_sessions,
-        "top_events": top_events
+        "top_events": top_events,
+        "all_users": all_users
     }

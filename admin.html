@@ -188,39 +188,22 @@
             </div>
         </div>
 
-        <div class="grid-main">
-            <!-- Active Sessions -->
-            <div class="card">
-                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Recent Logins</h3>
+        <div class="grid-main" style="margin-top: 24px;">
+            <!-- Registered Users -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Registered Users (Full
+                    List)</h3>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Login Time</th>
-                                <th>Last Active</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Joined</th>
+                                <th>User ID</th>
                             </tr>
                         </thead>
-                        <tbody id="sessions-body">
-                            <!-- JS populated -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Top Events -->
-            <div class="card">
-                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Most Popular Actions</h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Action</th>
-                                <th>Detail</th>
-                                <th>Count</th>
-                            </tr>
-                        </thead>
-                        <tbody id="events-body">
+                        <tbody id="users-body">
                             <!-- JS populated -->
                         </tbody>
                     </table>
@@ -232,7 +215,7 @@
     <script>
         async function loadDashboard() {
             try {
-                // Fetch stats from the public endpoint (since we removed the auth requirement for the magic URL)
+                // Fetch stats from the public endpoint
                 const res = await fetch('/api/v1/admin/stats');
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const data = await res.json();
@@ -263,6 +246,16 @@
                     </tr>
                 `).join('');
                 document.getElementById('events-body').innerHTML = eventsHtml || '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No events recorded</td></tr>';
+
+                const usersHtml = data.all_users.map(u => `
+                    <tr>
+                        <td style="font-weight: 500;">${u.name || '—'}</td>
+                        <td>${u.email}</td>
+                        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                        <td style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${u.id}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('users-body').innerHTML = usersHtml || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No registered users</td></tr>';
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
