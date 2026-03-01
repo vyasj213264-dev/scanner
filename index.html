@@ -2303,11 +2303,6 @@
 
                     buildSidebar(scanData.scanners);
 
-                    // Route handling on boot
-                    if (window.location.hash === '#admin') {
-                        renderAdminDashboard();
-                    }
-
                     return; // success
                 } catch (err) {
                     console.warn(`Boot attempt ${attempt} failed:`, err);
@@ -4632,115 +4627,6 @@
                 createChartCard(stock, grid);
             }
         }
-
-        // ── Admin Dashboard ──────────────────────────────────────
-        async function renderAdminDashboard() {
-            // Hide normal UI
-            document.getElementById('sidebar').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
-            document.getElementById('sort-controls').style.display = 'none';
-
-            const area = document.getElementById('grid-area');
-            area.innerHTML = '<div style="padding:40px;text-align:center;">Loading Admin Dashboard...</div>';
-
-            try {
-                const res = await fetchApi('/admin/stats');
-                const data = await res.json();
-
-                let html = `
-                    <div style="padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h2 style="margin: 0;">Admin Dashboard</h2>
-                            <button onclick="window.location.hash=''; window.location.reload();" class="auth-btn">Exit Admin</button>
-                        </div>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 40px;">
-                            <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
-                                <h3 style="margin-top: 0; color: var(--text-muted); font-size: 0.9rem;">Total Users</h3>
-                                <div style="font-size: 2.5rem; font-weight: bold; color: var(--accent);">${data.total_users}</div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                            <!-- Active Sessions -->
-                            <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
-                                <h3 style="margin-top: 0; margin-bottom: 16px;">Recent Sessions</h3>
-                                <div style="overflow-x: auto;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                                        <thead>
-                                            <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
-                                                <th style="padding: 8px 0;">User</th>
-                                                <th style="padding: 8px 0;">Login Time</th>
-                                                <th style="padding: 8px 0;">Last Active</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${data.recent_sessions.map(s => `
-                                                <tr style="border-bottom: 1px solid var(--border-light);">
-                                                    <td style="padding: 12px 0;">
-                                                        <div style="font-weight: 500">${s.name || 'Unknown'}</div>
-                                                        <div style="font-size: 0.8rem; color: var(--text-muted);">${s.email}</div>
-                                                    </td>
-                                                    <td style="padding: 12px 0; font-size: 0.9rem;">${new Date(s.login_time).toLocaleString()}</td>
-                                                    <td style="padding: 12px 0; font-size: 0.9rem;">${new Date(s.last_active_time).toLocaleString()}</td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Top Events -->
-                            <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
-                                <h3 style="margin-top: 0; margin-bottom: 16px;">Most Popular Actions</h3>
-                                <div style="overflow-x: auto;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                                        <thead>
-                                            <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
-                                                <th style="padding: 8px 0;">Action</th>
-                                                <th style="padding: 8px 0;">Detail</th>
-                                                <th style="padding: 8px 0;">Count</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${data.top_events.map(e => `
-                                                <tr style="border-bottom: 1px solid var(--border-light);">
-                                                    <td style="padding: 12px 0; font-weight: 500;">
-                                                        <span style="display:inline-block; padding: 2px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem;">
-                                                            ${e.event_type}
-                                                        </span>
-                                                    </td>
-                                                    <td style="padding: 12px 0; font-size: 0.9rem; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title='${e.event_data || "N/A"}'>${e.event_data || '—'}</td>
-                                                    <td style="padding: 12px 0; font-weight: bold;">${e.count}</td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                area.innerHTML = html;
-            } catch (err) {
-                if (err.message === 'Unauthorized') return; // Handled by fetchApi redirect
-                area.innerHTML = `
-                    <div style="padding:40px; text-align:center; color:var(--red);">
-                        Error loading Admin Dashboard: You may not have administrative privileges.<br>
-                        <button onclick="window.location.hash=''; window.location.reload();" class="auth-btn" style="margin-top: 16px;">Back to Scanners</button>
-                    </div>
-                `;
-            }
-        }
-
-        window.addEventListener('hashchange', () => {
-            if (window.location.hash === '#admin') {
-                renderAdminDashboard();
-            } else if (document.getElementById('sidebar').style.display === 'none') {
-                // If leaving admin via back button, just reload to restore UI layout
-                window.location.reload();
-            }
-        });
 
         // ── Init ─────────────────────────────────────────────────
 

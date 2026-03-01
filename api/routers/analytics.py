@@ -35,12 +35,9 @@ def log_user_event(event: UserEvent, user: User = Depends(require_user)):
     return {"status": "logged"}
 
 
-@router.get("/admin/stats", summary="Get aggregated user stats (Admin Only)")
-def get_admin_stats(user: User = Depends(require_user)):
-    """Returns aggregated statistics about user activity."""
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden. Admin access required.")
-
+@router.get("/admin/stats", summary="Get aggregated user stats (Magic URL)")
+def get_admin_stats():
+    """Returns aggregated statistics about user activity for the magic URL dashboard."""
     # 1. Total users
     total_users_row = fetch_one("SELECT COUNT(*) as count FROM users")
     total_users = total_users_row["count"] if total_users_row else 0

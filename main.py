@@ -58,6 +58,10 @@ app.include_router(screener.router)
 def serve_ui():
     return FileResponse("index.html")
 
+@app.get("/aaddmmiinn", include_in_schema=False)
+def serve_admin_ui():
+    return FileResponse("admin.html")
+
 @app.get("/manifest.json", include_in_schema=False)
 def serve_manifest():
     return FileResponse("manifest.json", media_type="application/json")

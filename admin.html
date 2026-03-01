@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - TradersChart</title>
+    <!-- Same font and basic reset as main app -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --border-light: #475569;
+            --red: #ef4444;
+            --green: #22c55e;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .auth-btn {
+            background-color: var(--surface);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+
+        .auth-btn:hover {
+            background-color: var(--border);
+        }
+
+        .grid-top {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 800px) {
+            .grid-main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.9rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        .truncate {
+            display: block;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">Loading dashboard metrics...</div>
+
+    <div class="container" id="dashboard" style="display:none;">
+        <div class="header">
+            <h2>TradersChart Analytics</h2>
+            <a href="/" class="auth-btn">← Back to App</a>
+        </div>
+
+        <div class="grid-top">
+            <div class="card">
+                <h3>Total Authenticated Users</h3>
+                <div class="stat-value" id="tot-users">-</div>
+            </div>
+        </div>
+
+        <div class="grid-main">
+            <!-- Active Sessions -->
+            <div class="card">
+                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Recent Logins</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Login Time</th>
+                                <th>Last Active</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-body">
+                            <!-- JS populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top Events -->
+            <div class="card">
+                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">Most Popular Actions</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Detail</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-body">
+                            <!-- JS populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadDashboard() {
+            try {
+                // Fetch stats from the public endpoint (since we removed the auth requirement for the magic URL)
+                const res = await fetch('/api/v1/admin/stats');
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const data = await res.json();
+
+                document.getElementById('tot-users').textContent = data.total_users;
+
+                const sessionsHtml = data.recent_sessions.map(s => `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 500">${s.name || 'Unknown'}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${s.email}</div>
+                        </td>
+                        <td>${new Date(s.login_time).toLocaleString()}</td>
+                        <td>${new Date(s.last_active_time).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('sessions-body').innerHTML = sessionsHtml || '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No recent sessions</td></tr>';
+
+                const eventsHtml = data.top_events.map(e => `
+                    <tr>
+                        <td style="font-weight: 500;">
+                            <span class="badge">${e.event_type}</span>
+                        </td>
+                        <td title='${e.event_data || "N/A"}'>
+                            <span class="truncate">${e.event_data || '—'}</span>
+                        </td>
+                        <td style="font-weight: bold;">${e.count}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('events-body').innerHTML = eventsHtml || '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No events recorded</td></tr>';
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('loading').innerHTML = `
+                    <div style="color:var(--red); text-align:center;">
+                        Failed to load dashboard data.<br>
+                        <span style="font-size: 0.9rem; color: var(--text-muted);">${err.message}</span>
+                    </div>
+                `;
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>
