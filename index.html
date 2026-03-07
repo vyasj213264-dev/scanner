@@ -3297,7 +3297,17 @@
                                     <th data-ksort="ticker" class="sortable">Ticker</th>
                                     <th data-ksort="close" class="sortable">Price</th>
                                     <th data-ksort="sector" class="sortable">Sector</th>
+                                    <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
+                                    <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
+                                    <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
+                                    <th data-ksort="sector_rank_3m" class="sortable" title="Sector Rank 3M">sec3M</th>
+                                    <th data-ksort="sector_rank_6m" class="sortable" title="Sector Rank 6M">sec6M</th>
                                     <th data-ksort="industry" class="sortable">Industry</th>
+                                    <th data-ksort="industry_rank_1d" class="sortable" title="Industry Rank 1D">ind1D</th>
+                                    <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
+                                    <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
+                                    <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
+                                    <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
                                     <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                                     <th data-ksort="adr_20" class="sortable">ATR%</th>
                                     <th data-ksort="rs_rating" class="sortable">RS</th>
@@ -3320,7 +3330,17 @@
                                     <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
                                     <td>${fmtPrice(s.close)}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1w || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1m || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_3m || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_6m || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1d || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1w || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1m || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_3m || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>
                                     <td>${fmtMcap(s.market_cap)}</td>
                                     <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                                     <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
@@ -3502,7 +3522,17 @@
                             <th data-ksort="ticker" class="sortable">Ticker</th>
                             <th data-ksort="close" class="sortable">Price</th>
                             <th data-ksort="sector" class="sortable">Sector</th>
+                            <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
+                            <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
+                            <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
+                            <th data-ksort="sector_rank_3m" class="sortable" title="Sector Rank 3M">sec3M</th>
+                            <th data-ksort="sector_rank_6m" class="sortable" title="Sector Rank 6M">sec6M</th>
                             <th data-ksort="industry" class="sortable">Industry</th>
+                            <th data-ksort="industry_rank_1d" class="sortable" title="Industry Rank 1D">ind1D</th>
+                            <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
+                            <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
+                            <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
+                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable" title="Average Daily Range %">ATR%</th>
                             <th data-ksort="momentum_1d" class="sortable">1D</th>
@@ -3546,7 +3576,17 @@
                     <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td>${fmtPrice(row.close)}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1d || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1w || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1m || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_3m || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_6m || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.industry || ''}">${row.industry || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_1d || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_1w || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_1m || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_3m || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_6m || '—'}</td>
                     <td>${fmtMcap(row.market_cap)}</td>
                     <td>${row.adr_20 != null ? row.adr_20.toFixed(1) + '%' : '—'}</td>
                     <td>${fmtPct(row.momentum_1d)}</td>
@@ -4555,7 +4595,17 @@
                             <th data-ksort="ticker" class="sortable">Ticker</th>
                             <th data-ksort="close" class="sortable">Price</th>
                             <th data-ksort="sector" class="sortable">Sector</th>
+                            <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
+                            <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
+                            <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
+                            <th data-ksort="sector_rank_3m" class="sortable" title="Sector Rank 3M">sec3M</th>
+                            <th data-ksort="sector_rank_6m" class="sortable" title="Sector Rank 6M">sec6M</th>
                             <th data-ksort="industry" class="sortable">Industry</th>
+                            <th data-ksort="industry_rank_1d" class="sortable" title="Industry Rank 1D">ind1D</th>
+                            <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
+                            <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
+                            <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
+                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable">ATR%</th>
                             <th data-ksort="rs_rating" class="sortable">RS</th>
@@ -4579,7 +4629,17 @@
                             <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
                             <td>${fmtPrice(s.close)}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1w || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1m || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_3m || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_6m || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.industry || ''}">${s.industry || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1d || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1w || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1m || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_3m || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>
                             <td>${fmtMcap(s.market_cap)}</td>
                             <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                             <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>

@@ -223,9 +223,22 @@ def run_scan(
         extra_where += f" AND d.Industry NOT IN ({placeholders})"
         params.extend(exclude_industries)
 
+    # Join industry_ranks twice: once for Sector, once for Industry
+    # We use MAX(Date) or just the most recent available date by joining without Date filter,
+    # relying on the DB clean-up keeping only the last 5 days and joining by Category and Name.
+    # To be precise, we join on the latest date holding ranks.
+    latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
+    
     sql = (
-        f"SELECT d.* FROM screen_data d "
+        f"SELECT d.*, "
+        f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
+        f"sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M, "
+        f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
+        f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
+        f"FROM screen_data d "
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
+        f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query} "
+        f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query} "
         f"WHERE r.scanner_id = ? AND d.{BASELINE_FILTER}{extra_where} "
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
@@ -290,11 +303,19 @@ def get_universe(
         extra_where += f" AND Industry NOT IN ({placeholders})"
         params.extend(exclude_industries)
 
+    latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
     sql = (
-        f"SELECT Ticker, Close, Sector, Industry, Market_Cap, ADR_20, "
-        f"Momentum_1D, Momentum_1W, Momentum_1M, "
-        f"Momentum_3M, Momentum_6M, Momentum_1Y "
-        f"FROM screen_data WHERE {BASELINE_FILTER}{extra_where}"
+        f"SELECT d.Ticker, d.Close, d.Sector, d.Industry, d.Market_Cap, d.ADR_20, "
+        f"d.Momentum_1D, d.Momentum_1W, d.Momentum_1M, "
+        f"d.Momentum_3M, d.Momentum_6M, d.Momentum_1Y, "
+        f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
+        f"sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M, "
+        f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
+        f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
+        f"FROM screen_data d "
+        f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query} "
+        f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query} "
+        f"WHERE d.{BASELINE_FILTER}{extra_where}"
     )
     rows = fetch_all(sql, tuple(params))
     last_updated = get_last_updated()

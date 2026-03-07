@@ -128,7 +128,19 @@ def get_themes_stocks(
         extra_where += " AND Close >= ?"
         params.append(min_price)
 
-    sql = f"SELECT * FROM screen_data WHERE {col} = ?{extra_where} ORDER BY RS_Rating DESC NULLS LAST"
+    latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
+    sql = (
+        f"SELECT d.*, "
+        f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
+        f"sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M, "
+        f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
+        f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
+        f"FROM screen_data d "
+        f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query} "
+        f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query} "
+        f"WHERE d.{col} = ?{extra_where} "
+        f"ORDER BY d.RS_Rating DESC NULLS LAST"
+    )
     rows = fetch_all(sql, tuple(params))
     
     universe_count = fetch_val("SELECT COUNT(*) FROM screen_data") or 0

@@ -127,10 +127,17 @@ def get_watchlist_stocks(
         params.extend(exclude_industries)
 
     # Join with screen_data for live metrics using fetch_all so it hits the live database
+    latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
     sql = f"""
-        SELECT ws.ticker AS "Ticker", s.*
+        SELECT ws.ticker AS "Ticker", s.*,
+        sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W,
+        sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M,
+        ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W,
+        ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M
         FROM watchlist_stocks ws
         LEFT JOIN screen_data s ON s.Ticker = ws.ticker
+        LEFT JOIN industry_ranks sr ON s.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query}
+        LEFT JOIN industry_ranks ir ON s.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query}
         WHERE ws.watchlist_id = ?{extra_where}
         ORDER BY ws.added_at DESC
     """

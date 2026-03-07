@@ -47,6 +47,16 @@ class StockResult(BaseModel):
     market_cap: Optional[float] = Field(None, validation_alias="Market_Cap")
     sector: Optional[str] = Field(None, validation_alias="Sector")
     industry: Optional[str] = Field(None, validation_alias="Industry")
+    sector_rank_1d: Optional[int] = Field(None, validation_alias="Sector_Rank_1D")
+    sector_rank_1w: Optional[int] = Field(None, validation_alias="Sector_Rank_1W")
+    sector_rank_1m: Optional[int] = Field(None, validation_alias="Sector_Rank_1M")
+    sector_rank_3m: Optional[int] = Field(None, validation_alias="Sector_Rank_3M")
+    sector_rank_6m: Optional[int] = Field(None, validation_alias="Sector_Rank_6M")
+    industry_rank_1d: Optional[int] = Field(None, validation_alias="Industry_Rank_1D")
+    industry_rank_1w: Optional[int] = Field(None, validation_alias="Industry_Rank_1W")
+    industry_rank_1m: Optional[int] = Field(None, validation_alias="Industry_Rank_1M")
+    industry_rank_3m: Optional[int] = Field(None, validation_alias="Industry_Rank_3M")
+    industry_rank_6m: Optional[int] = Field(None, validation_alias="Industry_Rank_6M")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)
@@ -93,6 +103,16 @@ class UniverseStockResult(BaseModel):
     momentum_3m: Optional[float] = Field(None, validation_alias="Momentum_3M")
     momentum_6m: Optional[float] = Field(None, validation_alias="Momentum_6M")
     momentum_1y: Optional[float] = Field(None, validation_alias="Momentum_1Y")
+    sector_rank_1d: Optional[int] = Field(None, validation_alias="Sector_Rank_1D")
+    sector_rank_1w: Optional[int] = Field(None, validation_alias="Sector_Rank_1W")
+    sector_rank_1m: Optional[int] = Field(None, validation_alias="Sector_Rank_1M")
+    sector_rank_3m: Optional[int] = Field(None, validation_alias="Sector_Rank_3M")
+    sector_rank_6m: Optional[int] = Field(None, validation_alias="Sector_Rank_6M")
+    industry_rank_1d: Optional[int] = Field(None, validation_alias="Industry_Rank_1D")
+    industry_rank_1w: Optional[int] = Field(None, validation_alias="Industry_Rank_1W")
+    industry_rank_1m: Optional[int] = Field(None, validation_alias="Industry_Rank_1M")
+    industry_rank_3m: Optional[int] = Field(None, validation_alias="Industry_Rank_3M")
+    industry_rank_6m: Optional[int] = Field(None, validation_alias="Industry_Rank_6M")
     
     model_config = ConfigDict(populate_by_name=True)
 
