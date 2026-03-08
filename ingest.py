@@ -477,26 +477,41 @@ def main():
     print(f"Successfully inserted {len(all_data)} records into screen_data.", flush=True)
     
     print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
-    ohlcv_placeholders = ', '.join(['%s'] * 7) if DATABASE_URL and DATABASE_URL.startswith("postgres") else ', '.join(['?'] * 7)
     
-    for i in range(0, len(all_ohlcv), batch_size):
-        batch = all_ohlcv[i:i + batch_size]
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            cursor.executemany(f'''
-                INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
-                VALUES ({ohlcv_placeholders}) 
-                ON CONFLICT (Ticker, Date) DO UPDATE SET 
-                Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
-                Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
-            ''', batch)
-        else:
+    is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    ohlcv_batch_size = 10000 if is_pg else 5000
+    commit_every = 50000  # commit once every 50K rows
+    
+    if is_pg:
+        from psycopg2.extras import execute_values
+        sql = '''
+            INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
+            VALUES %s 
+            ON CONFLICT (Ticker, Date) DO UPDATE SET 
+            Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
+            Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
+        '''
+        for i in range(0, len(all_ohlcv), ohlcv_batch_size):
+            batch = all_ohlcv[i:i + ohlcv_batch_size]
+            execute_values(cursor, sql, batch, page_size=ohlcv_batch_size)
+            if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
+                conn.commit()
+                print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
+        conn.commit()  # final commit
+    else:
+        ohlcv_placeholders = ', '.join(['?'] * 7)
+        for i in range(0, len(all_ohlcv), ohlcv_batch_size):
+            batch = all_ohlcv[i:i + ohlcv_batch_size]
             cursor.executemany(f'''
                 INSERT OR REPLACE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
                 VALUES ({ohlcv_placeholders})
             ''', batch)
-        conn.commit()
+            if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
+                conn.commit()
+                print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
+        conn.commit()  # final commit
         
-    print(f"Successfully inserted {len(all_ohlcv)} historical OHLCV records.", flush=True)
+    print(f"Successfully inserted {len(all_ohlcv):,} historical OHLCV records.", flush=True)
     
     
     print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)
