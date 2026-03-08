@@ -4810,8 +4810,11 @@
                 }
 
             } catch (err) {
-                console.error("Chart Render Error:", err);
-                container.innerHTML = `<div style="padding:20px;text-align:center;color:#f87171">Failed to build inner chart: ${err.message}</div>`;
+                console.warn("Chart data not available for", ticker, err.message);
+                container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--text-muted);opacity:0.5;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    <span style="font-size:0.75rem;">Chart data pending</span>
+                </div>`;
             }
         }
 
