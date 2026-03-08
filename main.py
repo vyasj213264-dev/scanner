@@ -12,6 +12,7 @@ from api.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION, CORS_ORIGINS
 from api.routers import health, scanner, themes, auth, watchlists, analytics, magic
 from api.routers import breadth
 from api.routers import screener
+from api.routers import chart
 from api.services.auth_service import init_user_tables
 from api.routers.screener import init_screener_tables
 
@@ -53,6 +54,7 @@ app.include_router(analytics.router)
 app.include_router(breadth.router)
 app.include_router(screener.router)
 app.include_router(magic.router)
+app.include_router(chart.router)
 
 
 @app.get("/", include_in_schema=False)

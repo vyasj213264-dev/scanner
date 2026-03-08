@@ -211,6 +211,7 @@ def main():
     # We do all processing in memory FIRST to avoid keeping an idle DB connection open
     # during the long (20-30 min) yfinance download phase.
     all_data = []
+    all_ohlcv = []
     chunk_size = 100
     
     spy_data = yf.download('SPY', period='2y', progress=False)
@@ -308,13 +309,34 @@ def main():
                         _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap'))
                     )
                     all_data.append(record)
+                    
+                    # Store up to 1 year of daily trailing OHLCV data for Lightweight Charts
+                    trailing_year = df.tail(252).copy()
+                    
+                    # yfinance uses MultiIndex columns if group_by='ticker' wasn't perfectly parsed, but here we have standard columns
+                    # We need to extract Date (index), Open, High, Low, Close, Volume
+                    for date_idx, row_data in trailing_year.iterrows():
+                        # Handle potential numpy types / pandas timestamp
+                        date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
+                        
+                        ohlcv_record = (
+                            ticker,
+                            date_str,
+                            _safe_float(row_data['Open']),
+                            _safe_float(row_data['High']),
+                            _safe_float(row_data['Low']),
+                            _safe_float(row_data['Close']),
+                            _safe_float(row_data['Volume'])
+                        )
+                        all_ohlcv.append(ohlcv_record)
+                        
                 except Exception as parse_e:
                     skipped_count += 1
                     continue
             else:
                 skipped_count += 1
 
-        print(f"  Chunk {i//chunk_size + 1} complete: {success_count} processed, {skipped_count} skipped. Total records in memory: {len(all_data)}", flush=True)
+        print(f"  Chunk {i//chunk_size + 1} complete: {success_count} processed, {skipped_count} skipped. Total records: {len(all_data)}", flush=True)
 
     if not all_data:
         print("Error: No data records generated. Exiting.", flush=True)
@@ -406,6 +428,20 @@ def main():
         )
     ''')
     
+    cursor.execute('DROP TABLE IF EXISTS daily_ohlcv')
+    cursor.execute(f'''
+        CREATE TABLE daily_ohlcv (
+            Ticker {sql_types["TEXT"]},
+            Date {sql_types["TEXT"]},
+            Open {sql_types["REAL"]},
+            High {sql_types["REAL"]},
+            Low {sql_types["REAL"]},
+            Close {sql_types["REAL"]},
+            Volume {sql_types["REAL"]},
+            PRIMARY KEY (Ticker, Date)
+        )
+    ''')
+    
     cursor.execute('DROP TABLE IF EXISTS scanner_results')
     cursor.execute(f'''
         CREATE TABLE scanner_results (
@@ -438,7 +474,29 @@ def main():
         conn.commit()  # Periodically commit to keep transactions small
         print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
 
-    print(f"Successfully inserted {len(all_data)} records.", flush=True)
+    print(f"Successfully inserted {len(all_data)} records into screen_data.", flush=True)
+    
+    print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
+    ohlcv_placeholders = ', '.join(['%s'] * 7) if DATABASE_URL and DATABASE_URL.startswith("postgres") else ', '.join(['?'] * 7)
+    
+    for i in range(0, len(all_ohlcv), batch_size):
+        batch = all_ohlcv[i:i + batch_size]
+        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+            cursor.executemany(f'''
+                INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
+                VALUES ({ohlcv_placeholders}) 
+                ON CONFLICT (Ticker, Date) DO UPDATE SET 
+                Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
+                Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
+            ''', batch)
+        else:
+            cursor.executemany(f'''
+                INSERT OR REPLACE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
+                VALUES ({ohlcv_placeholders})
+            ''', batch)
+        conn.commit()
+        
+    print(f"Successfully inserted {len(all_ohlcv)} historical OHLCV records.", flush=True)
     
     
     print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)

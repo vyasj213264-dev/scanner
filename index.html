@@ -13,7 +13,8 @@
         rel="stylesheet" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#080b12" />
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript"
+        src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
     <style>
         /* ── Design Tokens ─────────────────────────────────────── */
@@ -2355,30 +2356,8 @@
                 document.getElementById(id).textContent = "--";
             });
 
-            // Mount TV widget
-            document.getElementById('sp-tv-widget').innerHTML = '';
-            try {
-                panelWidget = new TradingView.widget({
-                    autosize: true,
-                    symbol: ticker,
-                    interval: 'D',
-                    timezone: 'Etc/UTC',
-                    theme: currentTheme,
-                    style: '1',
-                    locale: 'en',
-                    enable_publishing: false,
-                    hide_top_toolbar: true,
-                    hide_legend: false,
-                    save_image: false,
-                    container_id: 'sp-tv-widget',
-                    backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
-                    gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
-                    studies: [
-                        { id: "MAExp@tv-basicstudies", inputs: { length: 10 } },
-                        { id: "MAExp@tv-basicstudies", inputs: { length: 21 } }
-                    ]
-                });
-            } catch (e) { }
+            // Mount custom Lightweight Chart
+            renderCustomChart('sp-tv-widget', ticker, false);
 
             try {
                 const res = await fetchApi(`/stock/${ticker}`);
@@ -2411,9 +2390,9 @@
         function closeStockPanel() {
             document.getElementById('stock-panel-overlay').classList.remove('active');
             document.getElementById('stock-panel').classList.remove('open');
-            if (panelWidget) {
-                document.getElementById('sp-tv-widget').innerHTML = ''; // Destroy to save memory
-                panelWidget = null;
+            if (window.activeCharts && window.activeCharts['sp-tv-widget']) {
+                window.activeCharts['sp-tv-widget'].remove();
+                delete window.activeCharts['sp-tv-widget'];
             }
         }
 
@@ -3429,27 +3408,9 @@
                 entries.forEach(entry => {
                     if (!entry.isIntersecting) return;
                     try {
-                        new TradingView.widget({
-                            autosize: true,
-                            symbol: stock.ticker,
-                            interval: 'D',
-                            timezone: 'Etc/UTC',
-                            theme: currentTheme,
-                            style: '1',
-                            locale: 'en',
-                            enable_publishing: false,
-                            hide_top_toolbar: true,
-                            hide_legend: true,
-                            save_image: false,
-                            container_id: containerId,
-                            backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
-                            gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
-                            studies: [
-                                { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
-                            ]
-                        });
+                        requestAnimationFrame(() => renderCustomChart(containerId, stock.ticker, true));
                     } catch (err) {
-                        console.error(`TradingView widget error for ${stock.ticker}: `, err);
+                        console.error(`Custom chart error for ${stock.ticker}: `, err);
                     }
                     o.unobserve(entry.target);
                 });
@@ -3962,27 +3923,7 @@
                     const el = document.getElementById(containerId);
                     if (el) {
                         el.innerHTML = ''; // Clear "Click to view chart"
-                        try {
-                            new TradingView.widget({
-                                autosize: true,
-                                symbol: stock.ticker,
-                                interval: 'D',
-                                timezone: 'Etc/UTC',
-                                theme: currentTheme,
-                                style: '1',
-                                locale: 'en',
-                                enable_publishing: false,
-                                hide_top_toolbar: true,
-                                hide_legend: false,
-                                save_image: false,
-                                container_id: containerId,
-                                backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
-                                gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
-                                studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
-                            });
-                        } catch (err) {
-                            el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
-                        }
+                        requestAnimationFrame(() => renderCustomChart(containerId, stock.ticker, true));
                     }
                 }
             } catch (err) {
@@ -4256,23 +4197,7 @@
                             // If we have a hardcoded ETF ticker, render directly
                             if (ticker) {
                                 try {
-                                    new TradingView.widget({
-                                        autosize: true,
-                                        symbol: ticker,
-                                        interval: 'D',
-                                        timezone: 'Etc/UTC',
-                                        theme: currentTheme,
-                                        style: '1',
-                                        locale: 'en',
-                                        enable_publishing: false,
-                                        hide_top_toolbar: true,
-                                        hide_legend: true,
-                                        save_image: false,
-                                        container_id: containerId,
-                                        backgroundColor: currentTheme === 'light' ? '#ffffff' : '#080b12',
-                                        gridColor: currentTheme === 'light' ? '#e2e8f0' : '#1e2a40',
-                                        studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
-                                    });
+                                    requestAnimationFrame(() => renderCustomChart(containerId, ticker, true));
                                 } catch (err) {
                                     const el = document.getElementById(containerId);
                                     if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
@@ -4306,23 +4231,7 @@
                                     el.innerHTML = ''; // clear loading state
 
                                     try {
-                                        new TradingView.widget({
-                                            autosize: true,
-                                            symbol: tickerFormula,
-                                            interval: 'D',
-                                            timezone: 'Etc/UTC',
-                                            theme: 'dark',
-                                            style: '1',
-                                            locale: 'en',
-                                            enable_publishing: false,
-                                            hide_top_toolbar: true,
-                                            hide_legend: true,
-                                            save_image: false,
-                                            container_id: containerId,
-                                            backgroundColor: '#131926',
-                                            gridColor: '#1e2a40',
-                                            studies: [{ id: "MAExp@tv-basicstudies", inputs: { length: 9 } }]
-                                        });
+                                        requestAnimationFrame(() => renderCustomChart(containerId, tickerFormula, true));
                                     } catch (err) {
                                         el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
                                     }
@@ -4685,6 +4594,241 @@
             const sorted = sortResults(stocks);
             for (const stock of sorted) {
                 createChartCard(stock, grid);
+            }
+        }
+
+        // ── Custom Lightweight Charts Engine ────────────────────────────────
+        function calculateSMA(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) continue;
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += data[i - j].close;
+                }
+                result.push({ time: data[i].time, value: sum / period });
+            }
+            return result;
+        }
+
+        function calculateEMA(data, period) {
+            const result = [];
+            let multiplier = 2 / (period + 1);
+            let ema = data[0].close; // seed
+            for (let i = 0; i < data.length; i++) {
+                ema = (data[i].close - ema) * multiplier + ema;
+                if (i >= period - 1) {
+                    result.push({ time: data[i].time, value: ema });
+                }
+            }
+            return result;
+        }
+
+        // Expose globally so components can clear their instances if needed
+        window.activeCharts = window.activeCharts || {};
+
+        async function renderCustomChart(containerId, ticker, isSmallGrid = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;">Loading data for ${ticker}...</div>`;
+
+            try {
+                const res = await fetchApi(`/chart/${ticker}`);
+                if (!res.ok) throw new Error("Chart data unavailable");
+                const rawData = await res.json();
+
+                if (rawData.length === 0) throw new Error("No data");
+
+                container.innerHTML = ''; // clear loading state
+
+                // Cleanup old chart if exists in this container
+                if (window.activeCharts[containerId]) {
+                    window.activeCharts[containerId].remove();
+                    delete window.activeCharts[containerId];
+                }
+
+                // 1. Initialize Chart
+                const chartTheme = currentTheme === 'light' ? {
+                    bg: '#ffffff',
+                    grid: '#f1f5f9',
+                    text: '#64748b',
+                    up: '#10b981',
+                    down: '#f43f5e'
+                } : {
+                    bg: '#080b12',
+                    grid: '#1e293b',
+                    text: '#64748b',
+                    up: '#10b981',
+                    down: '#f43f5e'
+                };
+
+                const chart = LightweightCharts.createChart(container, {
+                    layout: {
+                        background: { type: 'solid', color: chartTheme.bg },
+                        textColor: chartTheme.text,
+                        fontFamily: 'Inter, sans-serif'
+                    },
+                    grid: {
+                        vertLines: { color: chartTheme.grid, style: 1, visible: !isSmallGrid },
+                        horzLines: { color: chartTheme.grid, style: 1, visible: !isSmallGrid },
+                    },
+                    crosshair: {
+                        mode: LightweightCharts.CrosshairMode.Normal,
+                    },
+                    rightPriceScale: {
+                        borderColor: chartTheme.grid,
+                        autoScale: true
+                    },
+                    timeScale: {
+                        borderColor: chartTheme.grid,
+                        timeVisible: true,
+                        autoScale: true,
+                        tickMarkFormatter: (time, tickMarkType, locale) => {
+                            const d = new Date(time);
+                            return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+                        }
+                    },
+                });
+
+                window.activeCharts[containerId] = chart; // save ref
+
+                // Resize handler
+                new ResizeObserver(entries => {
+                    if (entries.length === 0 || entries[0].target !== container) return;
+                    const newRect = entries[0].contentRect;
+                    chart.applyOptions({ height: newRect.height, width: newRect.width });
+                }).observe(container);
+
+                // 2. Add Candlestick Series
+                const mainSeries = chart.addCandlestickSeries({
+                    upColor: chartTheme.up,
+                    downColor: chartTheme.down,
+                    borderVisible: false,
+                    wickUpColor: chartTheme.up,
+                    wickDownColor: chartTheme.down,
+                });
+                mainSeries.setData(rawData);
+
+                // Add current price line
+                const lastPrice = rawData[rawData.length - 1].close;
+                mainSeries.createPriceLine({
+                    price: lastPrice,
+                    color: chartTheme.down,
+                    lineWidth: 1,
+                    lineStyle: 3, // dashed
+                    axisLabelVisible: true,
+                    title: 'Current'
+                });
+
+                // 3. Add Volume overlay (bottom 15%)
+                const volumeSeries = chart.addHistogramSeries({
+                    color: '#26a69a',
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: '', // set as an overlay
+                    scaleMargins: { top: 0.85, bottom: 0 },
+                });
+                const volData = rawData.map(d => ({
+                    time: d.time,
+                    value: d.volume,
+                    color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'
+                }));
+                volumeSeries.setData(volData);
+
+                // 4. Moving Averages
+                const indicators = {};
+                if (!isSmallGrid) { // Save memory on huge grids
+                    const ema9 = calculateEMA(rawData, 9);
+                    const ema21 = calculateEMA(rawData, 21);
+                    const sma50 = calculateSMA(rawData, 50);
+                    const sma200 = calculateSMA(rawData, 200);
+
+                    const sEma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'EMA 9' });
+                    sEma9.setData(ema9);
+
+                    const sEma21 = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'EMA 21' });
+                    sEma21.setData(ema21);
+
+                    const sSma50 = chart.addLineSeries({ color: '#ef4444', lineWidth: 2, title: 'SMA 50' });
+                    sSma50.setData(sma50);
+
+                    const sSma200 = chart.addLineSeries({ color: '#8b5cf6', lineWidth: 2, title: 'SMA 200' });
+                    sSma200.setData(sma200);
+
+                    indicators['EMA9'] = { series: sEma9, color: '#f59e0b', data: ema9 };
+                    indicators['EMA21'] = { series: sEma21, color: '#3b82f6', data: ema21 };
+                    indicators['SMA50'] = { series: sSma50, color: '#ef4444', data: sma50 };
+                    indicators['SMA200'] = { series: sSma200, color: '#8b5cf6', data: sma200 };
+
+                    chart._indicators = indicators; // attach for toggling
+                }
+
+                // 5. Fit to screen
+                chart.timeScale().fitContent();
+
+                // 6. Build HTML Legend
+                if (!isSmallGrid) {
+                    const legendHtml = document.createElement('div');
+                    legendHtml.style = `position: absolute; left: 12px; top: 12px; z-index: 10; font-family: Inter; font-size: 13px; color: ${chartTheme.text}; pointer-events: none; display: flex; flex-direction: column; gap: 4px;`;
+                    container.style.position = 'relative';
+                    container.appendChild(legendHtml);
+
+                    const updateLegend = (param) => {
+                        const validCrosshairPoint = !(
+                            param === undefined || param.time === undefined || param.point.x < 0 || param.point.y < 0
+                        );
+
+                        const cur = validCrosshairPoint ? rawData.find(d => d.time === param.time) || rawData[rawData.length - 1] : rawData[rawData.length - 1];
+
+                        let html = `
+                            <div style="font-weight:600; font-size:16px; color: var(--text-primary); margin-bottom:4px;">
+                                ${ticker} <span style="font-weight:400; font-size:12px; margin-left:8px;">1D</span>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <span>O <span style="color:var(--text-primary)">${cur.open.toFixed(2)}</span></span>
+                                <span>H <span style="color:var(--text-primary)">${cur.high.toFixed(2)}</span></span>
+                                <span>L <span style="color:var(--text-primary)">${cur.low.toFixed(2)}</span></span>
+                                <span>C <span style="color:var(--text-primary)">${cur.close.toFixed(2)}</span></span>
+                                <span>Vol <span style="color:var(--text-primary)">${(cur.volume / 1e6).toFixed(2)}M</span></span>
+                            </div>
+                        `;
+
+                        let indsHtml = `<div style="display:flex; gap:12px; margin-top:2px;">`;
+                        for (const [name, ind] of Object.entries(indicators)) {
+                            // Find matching data point or use last
+                            const point = validCrosshairPoint ? ind.data.find(d => d.time === param.time) : ind.data[ind.data.length - 1];
+                            const val = point ? point.value.toFixed(2) : "—";
+                            // Add slightly transparent background matching the series color for standard Tweevest look
+                            indsHtml += `<div style="background: ${ind.color}20; padding:2px 6px; border-radius:4px; color:${ind.color}; font-size:11px; font-weight:600;">${name} ${val}</div>`;
+                        }
+                        indsHtml += `</div>`;
+
+                        legendHtml.innerHTML = html + indsHtml;
+                    };
+
+                    updateLegend(undefined);
+                    chart.subscribeCrosshairMove(updateLegend);
+                }
+
+            } catch (err) {
+                console.error("Chart Render Error:", err);
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:#f87171">Failed to build inner chart: ${err.message}</div>`;
+            }
+        }
+
+        function toggleIndicator(name, btn) {
+            const chart = window.activeCharts['sp-tv-widget'];
+            if (!chart || !chart._indicators || !chart._indicators[name]) return;
+
+            const series = chart._indicators[name].series;
+            const currentVis = series.options().visible;
+            const newVal = currentVis !== undefined ? !currentVis : false;
+
+            series.applyOptions({ visible: newVal });
+
+            if (newVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
             }
         }
 
