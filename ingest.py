@@ -343,6 +343,54 @@ def main():
         return
 
     # ---------------------------------------------------------
+    # 2b. Download Sector ETF OHLCV Data (for Themes chart view)
+    # ---------------------------------------------------------
+    # These ETFs represent sectors in the Themes UI but are NOT part of the stock 
+    # universe, so their OHLCV data wouldn't otherwise be in daily_ohlcv.
+    sector_etf_tickers = [
+        'XLK', 'XLV', 'XLY', 'XLF', 'XLI', 'XLP', 'XLE', 'XLRE',
+        'XLB', 'XLU', 'XLC', 'XTL', 'IYM', 'SPY'
+    ]
+    
+    # Filter out any ETFs that happen to already be in the universe
+    existing_tickers = set(r[0] for r in all_ohlcv)  # ticker is first element of tuple
+    etfs_to_download = [t for t in sector_etf_tickers if t not in existing_tickers]
+    
+    if etfs_to_download:
+        print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
+        try:
+            etf_data = yf.download(etfs_to_download, period='1y', group_by='ticker', threads=True)
+            
+            for etf_ticker in etfs_to_download:
+                try:
+                    if len(etfs_to_download) > 1:
+                        df_etf = etf_data[etf_ticker].dropna(subset=['Close'])
+                    else:
+                        df_etf = etf_data.dropna(subset=['Close'])
+                    
+                    trailing = df_etf.tail(252)
+                    etf_count = 0
+                    for date_idx, row_data in trailing.iterrows():
+                        date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
+                        all_ohlcv.append((
+                            etf_ticker,
+                            date_str,
+                            _safe_float(row_data['Open']),
+                            _safe_float(row_data['High']),
+                            _safe_float(row_data['Low']),
+                            _safe_float(row_data['Close']),
+                            _safe_float(row_data['Volume'])
+                        ))
+                        etf_count += 1
+                    print(f"  {etf_ticker}: {etf_count} days", flush=True)
+                except Exception as etf_err:
+                    print(f"  Warning: Failed to get OHLCV for {etf_ticker}: {etf_err}", flush=True)
+        except Exception as etf_batch_err:
+            print(f"  Warning: ETF batch download failed: {etf_batch_err}", flush=True)
+    
+    print(f"Total OHLCV records (stocks + ETFs): {len(all_ohlcv):,}", flush=True)
+
+    # ---------------------------------------------------------
     # 3. Database Connection & Schema Initialization
     # ---------------------------------------------------------
     # ONLY connect right before we are ready to write.
