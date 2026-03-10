@@ -2512,12 +2512,8 @@
                     renderGrid(sortResults(lastResults));
                 }
 
-                const url = new URL(window.location.href);
-                url.searchParams.set('scanner', `wl-${id}`);
-                url.searchParams.delete('theme');
-                url.searchParams.delete('sector');
-                url.searchParams.delete('industry');
-                history.pushState({ scanner: `wl-${id}` }, '', url.toString());
+                const cleanUrl = buildCleanUrl({ scanner: `wl-${id}` });
+                history.pushState({ scanner: `wl-${id}` }, '', cleanUrl);
 
                 if (window.innerWidth <= 1024) {
                     document.getElementById('sidebar').classList.remove('open');
@@ -2902,11 +2898,19 @@
 
 
         // ── URL Routing ──────────────────────────────────────────
+        // Build a clean URL with only the specified params (no stale leftovers)
+        function buildCleanUrl(params = {}) {
+            const url = new URL(window.location.pathname, window.location.origin);
+            for (const [key, val] of Object.entries(params)) {
+                if (val != null) url.searchParams.set(key, val);
+            }
+            return url.toString();
+        }
+
         // Push scanner into the browser history so the URL reflects the active scan.
         function pushScannerToHistory(scannerId) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('scanner', scannerId);
-            history.pushState({ scanner: scannerId }, '', url.toString());
+            const cleanUrl = buildCleanUrl({ scanner: scannerId });
+            history.pushState({ scanner: scannerId }, '', cleanUrl);
         }
 
         // Back/Forward: sync the UI to whichever scanner the history state points to.
@@ -3481,6 +3485,7 @@
                         <tr>
                             <th style="width: 40px;"></th>
                             <th data-ksort="ticker" class="sortable">Ticker</th>
+                            <th data-ksort="rs_rating" class="sortable" title="Relative Strength Rating">RS</th>
                             <th data-ksort="close" class="sortable">Price</th>
                             <th data-ksort="sector" class="sortable">Sector</th>
                             <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
@@ -3535,6 +3540,7 @@
                 <tr>
                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(row.ticker)}</td>
                     <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
+                    <td style="color:${row.rs_rating >= 90 ? 'var(--pos)' : row.rs_rating >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating >= 90 ? '700' : '400'}">${row.rs_rating != null ? row.rs_rating.toFixed(0) : '—'}</td>
                     <td>${fmtPrice(row.close)}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1d || '—'}</td>
@@ -3605,6 +3611,7 @@
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-breadth').classList.add('active');
             activeScanner = null;
+            history.pushState({}, '', buildCleanUrl());
 
             document.getElementById('results-title').textContent = 'Market Breadth Dashboard';
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of US Equities health</span>`;
@@ -3983,10 +3990,8 @@
         // ── Themes Engine ─────────────────────────────────────────
         async function runThemes(category) {
             themesCategory = category || 'Sector';
-            const url = new URL(window.location.href);
-            url.searchParams.set('theme', themesCategory);
-            url.searchParams.delete('scanner');
-            history.pushState({ theme: themesCategory }, '', url.toString());
+            const cleanUrl = buildCleanUrl({ theme: themesCategory });
+            history.pushState({ theme: themesCategory }, '', cleanUrl);
 
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             const btnId = themesCategory === 'Sector' ? 'btn-themes-sector' : 'btn-themes-industry';
@@ -4253,11 +4258,8 @@
             selectedSector = sectorName;
             themesLevel = 'industries';
 
-            const url = new URL(window.location.href);
-            url.searchParams.set('theme', themesCategory);
-            url.searchParams.set('sector', sectorName);
-            url.searchParams.delete('industry');
-            history.pushState({ theme: themesCategory, sector: sectorName }, '', url.toString());
+            const cleanUrl = buildCleanUrl({ theme: themesCategory, sector: sectorName });
+            history.pushState({ theme: themesCategory, sector: sectorName }, '', cleanUrl);
 
             themesSortBy = 'rank_1m';
             themesSortDir = 1;
@@ -4418,11 +4420,8 @@
             selectedIndustry = name;
             themesLevel = 'stocks';
 
-            const url = new URL(window.location.href);
-            url.searchParams.set('theme', themesCategory);
-            url.searchParams.set('industry', name);
-            if (selectedSector) url.searchParams.set('sector', selectedSector);
-            history.pushState({ theme: themesCategory, industry: name, sector: selectedSector }, '', url.toString());
+            const cleanUrl = buildCleanUrl({ theme: themesCategory, sector: selectedSector, industry: name });
+            history.pushState({ theme: themesCategory, industry: name, sector: selectedSector }, '', cleanUrl);
 
             const catType = themesCategory === 'Sector' ? 'Sector' : 'Industry';
             const catLabel = themesCategory === 'Sector' ? selectedSector || name : name;
