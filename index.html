@@ -4954,6 +4954,8 @@
                     },
                     crosshair: {
                         mode: LightweightCharts.CrosshairMode.Normal,
+                        vertLine: { style: 0 },
+                        horzLine: { style: 0 },
                     },
                     rightPriceScale: {
                         borderColor: chartTheme.grid,
@@ -4986,6 +4988,7 @@
                     borderVisible: false,
                     wickUpColor: chartTheme.up,
                     wickDownColor: chartTheme.down,
+                    priceLineStyle: 0, // solid
                 });
                 mainSeries.setData(rawData);
 
