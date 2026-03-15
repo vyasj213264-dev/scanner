@@ -4753,30 +4753,21 @@
                     title: ''
                 });
 
-                // 3. Add Volume overlay (bottom 15%)
-                const volumeSeries = chart.addHistogramSeries({
-                    color: '#26a69a',
-                    priceFormat: { type: 'volume' },
-                    priceScaleId: '', // set as an overlay
-                    scaleMargins: { top: 0.85, bottom: 0 },
-                });
-                const volData = rawData.map(d => ({
-                    time: d.time,
-                    value: d.volume,
-                    color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'
-                }));
-                volumeSeries.setData(volData);
-
+                // 3. Volume overlay removed as requested
                 // 4. Moving Averages
                 const indicators = {};
                 if (!isSmallGrid) { // Save memory on huge grids
-                    const ema9 = calculateEMA(rawData, 9);
+                    const sma5 = calculateSMA(rawData, 5);
+                    const sma9 = calculateSMA(rawData, 9);
                     const ema21 = calculateEMA(rawData, 21);
                     const sma50 = calculateSMA(rawData, 50);
                     const sma200 = calculateSMA(rawData, 200);
 
-                    const sEma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'EMA 9' });
-                    sEma9.setData(ema9);
+                    const sSma5 = chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'SMA 5' });
+                    sSma5.setData(sma5);
+                    
+                    const sSma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'SMA 9' });
+                    sSma9.setData(sma9);
 
                     const sEma21 = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'EMA 21' });
                     sEma21.setData(ema21);
@@ -4787,7 +4778,8 @@
                     const sSma200 = chart.addLineSeries({ color: '#8b5cf6', lineWidth: 2, title: 'SMA 200' });
                     sSma200.setData(sma200);
 
-                    indicators['EMA9'] = { series: sEma9, color: '#f59e0b', data: ema9 };
+                    indicators['SMA5'] = { series: sSma5, color: '#10b981', data: sma5 };
+                    indicators['SMA9'] = { series: sSma9, color: '#f59e0b', data: sma9 };
                     indicators['EMA21'] = { series: sEma21, color: '#3b82f6', data: ema21 };
                     indicators['SMA50'] = { series: sSma50, color: '#ef4444', data: sma50 };
                     indicators['SMA200'] = { series: sSma200, color: '#8b5cf6', data: sma200 };
