@@ -29,6 +29,25 @@ def _safe_float(val):
         return val.item()  # handles numpy scalars and single-element Series
     return float(val)
 
+def _nan_to_none(val):
+    """Convert NaN/inf to None for clean DB storage as NULL."""
+    try:
+        f = float(val) if not hasattr(val, 'item') else val.item()
+        if pd.isna(f) or np.isinf(f):
+            return None
+        return f
+    except (TypeError, ValueError):
+        return None
+
+def _safe_bool(val):
+    """Convert a pandas/numpy boolean to Python bool, treating NaN as False."""
+    try:
+        if pd.isna(val):
+            return False
+        return bool(val)
+    except (TypeError, ValueError):
+        return False
+
 def calculate_rs_rating(stock_df, spy_df):
     global _rs_error_logged
     try:
@@ -44,7 +63,7 @@ def calculate_rs_rating(stock_df, spy_df):
         return np.nan
 
 def calculate_indicators(df):
-    if df is None or len(df) < 200:
+    if df is None or len(df) < 5:
         return None
     
     # Moving Averages
@@ -111,10 +130,8 @@ def calculate_indicators(df):
     last_row['Tight_Setup'] = bool(tight_setup)
     last_row['Near_Horizontal_Resistance'] = bool(is_at_res)
 
-    # Ensure NaN momentum values (due to recent IPOs) gracefully become None/0 in the database
-    for col in ['Momentum_1D', 'Momentum_1W', 'Momentum_1M', 'Momentum_3M', 'Momentum_6M', 'Momentum_1Y']:
-        if pd.isna(last_row[col]):
-            last_row[col] = 0.0
+    # NaN momentum values (due to recent IPOs) will be stored as NULL in the database
+    # via _nan_to_none() during record construction — no need to fill with 0.0
 
     return last_row
 
@@ -261,7 +278,7 @@ def main():
                 except KeyError:
                     continue
             
-            if len(df) < 200:
+            if len(df) < 5:
                 continue
             
             last = calculate_indicators(df)
@@ -275,34 +292,34 @@ def main():
                     record = (
                         ticker,
                         str(last.name),
-                        float(last['Close']),
-                        float(last['Volume']),
-                        float(last['SMA_5']),
-                        float(last['SMA_9']),
-                        float(last['SMA_10']),
-                        float(last['SMA_20']),
-                        float(last['SMA_21']),
-                        float(last['SMA_50']),
-                        float(last['SMA_100']),
-                        float(last['SMA_200']),
-                        float(last['RVOL']),
-                        float(last['ADR_20']),
-                        float(last['Pct_From_52W_High']),
-                        bool(last['In_Stage_2']),
-                        bool(last['Tight_Setup']),
-                        bool(last['Near_Horizontal_Resistance']),
+                        _nan_to_none(last['Close']),
+                        _nan_to_none(last['Volume']),
+                        _nan_to_none(last['SMA_5']),
+                        _nan_to_none(last['SMA_9']),
+                        _nan_to_none(last['SMA_10']),
+                        _nan_to_none(last['SMA_20']),
+                        _nan_to_none(last['SMA_21']),
+                        _nan_to_none(last['SMA_50']),
+                        _nan_to_none(last['SMA_100']),
+                        _nan_to_none(last['SMA_200']),
+                        _nan_to_none(last['RVOL']),
+                        _nan_to_none(last['ADR_20']),
+                        _nan_to_none(last['Pct_From_52W_High']),
+                        _safe_bool(last['In_Stage_2']),
+                        _safe_bool(last['Tight_Setup']),
+                        _safe_bool(last['Near_Horizontal_Resistance']),
                         rs_raw_clean,
-                        bool(last['Inside_Bar']),
-                        bool(last['Golden_Crossover']),
-                        bool(last['Gap_Up']),
-                        bool(last['Gap_Down']),
-                        bool(last['VCP_Approximation']),
-                        float(last['Momentum_1D']),
-                        float(last['Momentum_1W']),
-                        float(last['Momentum_1M']),
-                        float(last['Momentum_3M']),
-                        float(last['Momentum_6M']),
-                        float(last['Momentum_1Y']),
+                        _safe_bool(last['Inside_Bar']),
+                        _safe_bool(last['Golden_Crossover']),
+                        _safe_bool(last['Gap_Up']),
+                        _safe_bool(last['Gap_Down']),
+                        _safe_bool(last['VCP_Approximation']),
+                        _nan_to_none(last['Momentum_1D']),
+                        _nan_to_none(last['Momentum_1W']),
+                        _nan_to_none(last['Momentum_1M']),
+                        _nan_to_none(last['Momentum_3M']),
+                        _nan_to_none(last['Momentum_6M']),
+                        _nan_to_none(last['Momentum_1Y']),
                         0.0, # Placeholder for RS_Rating
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
