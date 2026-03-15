@@ -15,6 +15,12 @@ from api.models.scanner import StockResult, ScannerMeta
 SCANNER_CATALOGUE: List[ScannerMeta] = [
     # Trend & Breakout
     ScannerMeta(
+        id="minervini-cheat",
+        label="🎯 Minervini Cheat Entry",
+        description="Stage 2 leaders with volume dry-up and price hugging the 10/20 DMA inside a VCP — early entry before the pivot breakout.",
+        category="Trend & Breakout",
+    ),
+    ScannerMeta(
         id="horizontal-resistance",
         label="Horizontal Resistance",
         description="Stocks testing a key horizontal resistance level with above-average volume.",
@@ -123,6 +129,11 @@ def get_scanner_meta(scanner_id: str) -> Optional[ScannerMeta]:
 # ---------------------------------------------------------------------------
 
 _FILTERS: dict = {
+    "minervini-cheat":        (
+        "In_Stage_2 AND RS_Rating >= 70 AND RVOL < 0.85 AND VCP_Approximation "
+        "AND Momentum_3M > 0.10 AND Pct_From_52W_High > -25 "
+        "AND (abs(Close - SMA_10) / SMA_10 <= 0.03 OR abs(Close - SMA_20) / SMA_20 <= 0.03)"
+    ),
     "horizontal-resistance": "Near_Horizontal_Resistance AND RVOL > 1.0",
     "tight-setup":            "Tight_Setup AND In_Stage_2 AND RVOL < 1.0",
     "rs-high-before-price-high": "RS_Rating > 90 AND Pct_From_52W_High < -5",
