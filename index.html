@@ -4949,8 +4949,8 @@
                         fontFamily: 'Inter, sans-serif'
                     },
                     grid: {
-                        vertLines: { color: chartTheme.grid, style: 1, visible: !isSmallGrid },
-                        horzLines: { color: chartTheme.grid, style: 1, visible: !isSmallGrid },
+                        vertLines: { color: chartTheme.grid, style: 0, visible: !isSmallGrid },
+                        horzLines: { color: chartTheme.grid, style: 0, visible: !isSmallGrid },
                     },
                     crosshair: {
                         mode: LightweightCharts.CrosshairMode.Normal,
@@ -4995,7 +4995,7 @@
                     price: lastPrice,
                     color: chartTheme.down,
                     lineWidth: 1,
-                    lineStyle: 3, // dashed
+                    lineStyle: 0, // solid
                     axisLabelVisible: true,
                     title: ''
                 });
@@ -5003,9 +5003,9 @@
                 // 3b. SMA 5 & 9 — always shown on all chart sizes
                 const sma5 = calculateSMA(rawData, 5);
                 const sma9 = calculateSMA(rawData, 9);
-                const sSma5 = chart.addLineSeries({ color: '#10b981', lineWidth: isSmallGrid ? 1 : 2, title: 'SMA 5' });
+                const sSma5 = chart.addLineSeries({ color: '#10b981', lineWidth: isSmallGrid ? 1 : 2 });
                 sSma5.setData(sma5);
-                const sSma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: isSmallGrid ? 1 : 2, title: 'SMA 9' });
+                const sSma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: isSmallGrid ? 1 : 2 });
                 sSma9.setData(sma9);
 
                 // 4. Full indicators — detail panel only (too cluttered on small grid cards)
@@ -5065,10 +5065,11 @@
 
                         let indsHtml = `<div style="display:flex; gap:12px; margin-top:2px;">`;
                         for (const [name, ind] of Object.entries(indicators)) {
+                            if (name === 'SMA5' || name === 'SMA9') continue; // Hide SMA 5/9 from legend as requested
                             // Find matching data point or use last
                             const point = validCrosshairPoint ? ind.data.find(d => d.time === param.time) : ind.data[ind.data.length - 1];
                             const val = point ? point.value.toFixed(2) : "—";
-                            // Add slightly transparent background matching the series color for standard Tweevest look
+                            // Add slightly transparent background matching the series color
                             indsHtml += `<div style="background: ${ind.color}20; padding:2px 6px; border-radius:4px; color:${ind.color}; font-size:11px; font-weight:600;">${name} ${val}</div>`;
                         }
                         indsHtml += `</div>`;
