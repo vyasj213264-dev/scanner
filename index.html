@@ -1983,6 +1983,15 @@
                     </div>
                 </div>
                 <div class="filter-bar" id="filter-bar" style="display:none">
+                    <div class="filter-group" style="position:relative;">
+                        <label>Ticker</label>
+                        <input type="text" id="f-ticker-search" placeholder="e.g. AA" maxlength="10"
+                            style="width:80px; text-transform:uppercase;"
+                            onkeydown="if(event.key==='Enter'){searchUniverse()}">
+                        <button onclick="clearTickerSearch()" id="f-ticker-clear"
+                            style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; padding:2px 4px; line-height:1;"
+                            title="Clear search">&times;</button>
+                    </div>
                     <span class="sort-label">≡ Filters:</span>
                     <div class="filter-group">
                         <label>Mkt Cap ≥</label>
@@ -2795,6 +2804,8 @@
             document.getElementById('f-adr-min').value = '';
             document.getElementById('f-adr-max').value = '';
             document.getElementById('f-price').value = '';
+            const tickerEl = document.getElementById('f-ticker-search');
+            if (tickerEl) tickerEl.value = '';
             filterSectors = {};
             filterIndustries = {};
             updateFilterButtons();
@@ -3474,8 +3485,19 @@
         function renderUniverseTable() {
             const area = document.getElementById('grid-area');
 
-            // Sort data using the global sort logic (adapted for universeData)
-            const sorted = sortResults(universeData);
+            // Filter by ticker search prefix if set
+            const tickerSearchEl = document.getElementById('f-ticker-search');
+            const tickerQuery = tickerSearchEl ? tickerSearchEl.value.trim().toUpperCase() : '';
+            const clearBtn = document.getElementById('f-ticker-clear');
+            if (clearBtn) clearBtn.style.display = tickerQuery ? 'block' : 'none';
+
+            let filteredData = universeData;
+            if (tickerQuery) {
+                filteredData = universeData.filter(s => s.ticker && s.ticker.toUpperCase().startsWith(tickerQuery));
+            }
+
+            // Sort data using the global sort logic
+            const sorted = sortResults(filteredData);
 
             // Build table HTML as a string
             let html = `
@@ -3528,7 +3550,7 @@
                 return `$${val.toFixed(0)}`;
             };
 
-            const totalPages = Math.ceil(universeData.length / UNIVERSE_PAGE_SIZE);
+            const totalPages = Math.ceil(filteredData.length / UNIVERSE_PAGE_SIZE);
             if (universePage > totalPages) universePage = totalPages || 1;
 
             const startIdx = (universePage - 1) * UNIVERSE_PAGE_SIZE;
@@ -3572,7 +3594,7 @@
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding: 0 4px; flex-wrap: wrap; gap: 12px;">
                     <div style="font-size:0.85rem; color:var(--text-muted);">
-                        Showing ${startIdx + 1}–${Math.min(endIdx, universeData.length)} of ${universeData.length.toLocaleString()} stocks
+                        Showing ${startIdx + 1}–${Math.min(endIdx, filteredData.length)} of ${filteredData.length.toLocaleString()} stocks${tickerQuery ? ` matching "${tickerQuery}"` : ''}
                     </div>
                     <div style="display:flex; gap:8px;">
                         <button class="sort-btn" onclick="changeUniversePage(-1)" ${universePage === 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>&laquo; Prev</button>
@@ -3592,6 +3614,18 @@
                 currentTh.classList.add('active-sort');
             }
         }
+
+        window.searchUniverse = function () {
+            universePage = 1;
+            renderUniverseTable();
+        };
+
+        window.clearTickerSearch = function () {
+            const el = document.getElementById('f-ticker-search');
+            if (el) el.value = '';
+            universePage = 1;
+            renderUniverseTable();
+        };
 
         // Global pagination handler
         window.changeUniversePage = function (delta) {
