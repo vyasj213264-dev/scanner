@@ -10,6 +10,9 @@ load_dotenv()
 # --- Database ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scanner.db")
+# Separate SQLite file for user/watchlist data — survives scanner.db rebuilds.
+# On Render without a persistent disk, set DATABASE_URL (Postgres) to truly persist.
+USERS_DB_PATH = os.getenv("USERS_DB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "users.db"))
 
 # --- Universe ---
 UNIVERSE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "master_universe.txt")

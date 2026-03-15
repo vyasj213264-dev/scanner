@@ -4,7 +4,7 @@ Watchlist service — CRUD operations against the SQLite watchlists tables.
 import os
 from typing import List, Optional
 
-from api.database import get_db, fetch_all, fetch_one
+from api.database import get_db, get_user_db, fetch_all, fetch_one
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ def get_watchlists(user_id: int) -> List[dict]:
 
 
 def create_watchlist(user_id: int, name: str) -> dict:
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         # Handle SQLite vs Postgres ? parameter substitution
         from api.config import DATABASE_URL
@@ -45,7 +45,7 @@ def create_watchlist(user_id: int, name: str) -> dict:
 
 def delete_watchlist(watchlist_id: int, user_id: int) -> bool:
     """Delete only if owned by user_id."""
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         sql = "DELETE FROM watchlists WHERE id = ? AND user_id = ?"
         from api.config import DATABASE_URL
@@ -57,7 +57,7 @@ def delete_watchlist(watchlist_id: int, user_id: int) -> bool:
 
 
 def rename_watchlist(watchlist_id: int, user_id: int, new_name: str) -> bool:
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         sql = "UPDATE watchlists SET name = ? WHERE id = ? AND user_id = ?"
         from api.config import DATABASE_URL
@@ -156,7 +156,7 @@ def add_stock_to_watchlist(watchlist_id: int, user_id: int, ticker: str) -> bool
     if wl is None:
         return False
         
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         sql = "INSERT INTO watchlist_stocks (watchlist_id, ticker) VALUES (?, ?)"
         from api.config import DATABASE_URL
@@ -180,7 +180,7 @@ def remove_stock_from_watchlist(watchlist_id: int, user_id: int, ticker: str) ->
     if wl is None:
         return False
         
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         sql = "DELETE FROM watchlist_stocks WHERE watchlist_id = ? AND ticker = ?"
         from api.config import DATABASE_URL

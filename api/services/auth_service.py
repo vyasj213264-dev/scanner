@@ -9,7 +9,7 @@ from typing import Optional
 from jose import JWTError, jwt
 
 from api.models.user import User
-from api.database import get_db, fetch_one, fetch_all
+from api.database import get_db, get_user_db, fetch_one, fetch_all
 from api.config import DATABASE_URL
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-production-please")
@@ -32,7 +32,7 @@ def init_user_tables() -> None:
     
     now_func = "DEFAULT CURRENT_TIMESTAMP" if is_postgres else "DEFAULT (datetime('now'))"
     
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS users (
@@ -134,7 +134,7 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
         # Try by email (account existed before OAuth)
         row = fetch_one("SELECT * FROM users WHERE email = ?", (email,))
         
-    with get_db() as conn:
+    with get_user_db() as conn:
         cursor = conn.cursor()
         if row is None:
             # Create new user

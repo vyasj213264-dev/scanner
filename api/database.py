@@ -5,15 +5,14 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple
 
-from api.config import DB_PATH, DATABASE_URL
+from api.config import DB_PATH, USERS_DB_PATH, DATABASE_URL
 
 @contextmanager
 def get_db():
-    """Context manager that yields a database connection and auto-closes."""
+    """Context manager for scanner/screen_data database."""
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
         import psycopg2
         import psycopg2.extras
-        # Handle 'postgres://' vs 'postgresql://' safely
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
         conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.DictCursor)
         try:
@@ -22,6 +21,28 @@ def get_db():
             conn.close()
     else:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+
+@contextmanager
+def get_user_db():
+    """Context manager for user/watchlist database (separate from scanner.db)."""
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        import psycopg2
+        import psycopg2.extras
+        url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
+        conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.DictCursor)
+        try:
+            yield conn
+        finally:
+            conn.close()
+    else:
+        # Use a SEPARATE SQLite file for user data so ingest.py never touches it
+        conn = sqlite3.connect(USERS_DB_PATH)
         conn.row_factory = sqlite3.Row
         try:
             yield conn
