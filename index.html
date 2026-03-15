@@ -1890,6 +1890,11 @@
                 </svg>
             </button>
             <div style="margin-bottom: 8px;">
+                <button class="scanner-btn" id="btn-watchlist" onclick="runWatchlistView()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">📋 Watchlist</span>
+                    <span id="wl-live-dot" style="display:none; width:7px; height:7px; border-radius:50%; background:#10b981; flex-shrink:0;"></span>
+                </button>
+                <div style="height: 4px;"></div>
                 <button class="scanner-btn" id="btn-universe" onclick="runUniverse()">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
                 </button>
@@ -3638,6 +3643,228 @@
             // Scroll back to top of main content wrapper
             document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // ── Watchlist View ───────────────────────────────────────
+        let _wlViewMode = 'table';   // 'table' | 'chart'
+        let _wlRefreshTimer = null;  // setInterval handle
+        let _wlData = null;          // cached API response
+
+        function _isMarketHours() {
+            // ET timezone offset: standard = -5h, DST = -4h
+            const now = new Date();
+            const etOffset = -5; // use standard; DST tolerance negligible at boundary
+            const utcH = now.getUTCHours() + now.getUTCMinutes() / 60;
+            const etH = ((utcH + etOffset) % 24 + 24) % 24;
+            // Market: 9:30–16:00 ET; window: 8:30–16:30 ET
+            return etH >= 8.5 && etH < 16.5;
+        }
+
+        function _wlStopRefresh() {
+            if (_wlRefreshTimer) { clearInterval(_wlRefreshTimer); _wlRefreshTimer = null; }
+            const dot = document.getElementById('wl-live-dot');
+            if (dot) dot.style.display = 'none';
+        }
+
+        function _wlStartRefresh() {
+            _wlStopRefresh();
+            if (!_isMarketHours()) return;
+            const dot = document.getElementById('wl-live-dot');
+            if (dot) dot.style.display = 'inline-block';
+            _wlRefreshTimer = setInterval(() => {
+                if (!document.getElementById('btn-watchlist').classList.contains('active')) {
+                    _wlStopRefresh(); return;
+                }
+                if (_isMarketHours()) _fetchAndRenderWatchlist();
+                else _wlStopRefresh();
+            }, 60000);
+        }
+
+        async function _fetchAndRenderWatchlist() {
+            const area = document.getElementById('grid-area');
+            try {
+                const res = await fetchApi('/api/v1/watchlist/data');
+                if (!res.ok) throw new Error('API error');
+                _wlData = await res.json();
+            } catch(e) {
+                area.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load watchlist data: ${e.message}</div>`;
+                return;
+            }
+            _renderWatchlist();
+        }
+
+        function _renderWatchlist() {
+            if (!_wlData) return;
+            if (_wlViewMode === 'table') _renderWatchlistTable();
+            else _renderWatchlistCharts();
+        }
+
+        function _fmtPerf(val) {
+            if (val == null) return '<span style="color:var(--text-muted)">—</span>';
+            const pct = val.toFixed(2);
+            const color = val > 0 ? '#10b981' : val < 0 ? '#f43f5e' : 'var(--text-muted)';
+            return `<span style="color:${color}">${val > 0 ? '+' : ''}${pct}%</span>`;
+        }
+
+        function _fmtRSI(val) {
+            if (val == null) return '<span style="color:var(--text-muted)">—</span>';
+            const v = val.toFixed(1);
+            const color = val >= 70 ? '#f43f5e' : val <= 30 ? '#3b82f6' : 'inherit';
+            return `<span style="color:${color}">${v}</span>`;
+        }
+
+        function _fmtRec(label) {
+            if (!label) return '<span style="color:var(--text-muted)">—</span>';
+            const colors = {
+                'Strong Buy': '#10b981', 'Buy': '#34d399',
+                'Neutral': 'var(--text-muted)',
+                'Sell': '#fb923c', 'Strong Sell': '#f43f5e'
+            };
+            return `<span style="color:${colors[label] || 'inherit'};font-weight:600">${label}</span>`;
+        }
+
+        function _renderWatchlistTable() {
+            const area = document.getElementById('wl-content') || document.getElementById('grid-area');
+            let html = `
+            <div class="universe-table-wrapper">
+            <table class="universe-table">
+                <thead><tr>
+                    <th>Ticker</th>
+                    <th style="text-align:right">1W</th>
+                    <th style="text-align:right">1M</th>
+                    <th style="text-align:right">3M</th>
+                    <th style="text-align:right">YTD</th>
+                    <th style="text-align:right">1Y</th>
+                    <th style="text-align:right">Vol W%</th>
+                    <th style="text-align:right">RSI</th>
+                    <th style="text-align:right">Mom</th>
+                    <th style="text-align:right">Rec</th>
+                </tr></thead>
+                <tbody>`;
+
+            for (const group of _wlData.groups) {
+                // Group header row
+                html += `<tr style="background:var(--bg-elevated)">
+                    <td colspan="10" style="padding:6px 12px; font-size:0.72rem; font-weight:700; letter-spacing:0.08em; color:var(--accent); text-transform:uppercase; border-bottom:1px solid var(--border);">
+                        ▸ ${group.name}
+                    </td>
+                </tr>`;
+                for (const t of group.tickers) {
+                    const isFuture = t.ticker.endsWith('!') || t.symbol.startsWith('TVC:') || t.symbol.startsWith('COINBASE:') || t.symbol.startsWith('CME') || t.symbol.startsWith('NYMEX') || t.symbol.startsWith('COMEX') || t.symbol.startsWith('CBOE') || t.symbol.startsWith('INDEX:');
+                    const tickerCell = isFuture
+                        ? `<span style="color:var(--text-secondary);font-size:0.85rem">${t.ticker}</span>`
+                        : `<a href="#" onclick="event.preventDefault();fetchStockDetail('${t.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600">${t.ticker}</a>`;
+                    html += `<tr>
+                        <td>${tickerCell}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Perf.W'])}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Perf.1M'])}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Perf.3M'])}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Perf.YTD'])}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Perf.Y'])}</td>
+                        <td style="text-align:right;color:var(--text-secondary)">${t['Volatility.W'] != null ? t['Volatility.W'].toFixed(2)+'%' : '—'}</td>
+                        <td style="text-align:right">${_fmtRSI(t['RSI'])}</td>
+                        <td style="text-align:right">${_fmtPerf(t['Mom'])}</td>
+                        <td style="text-align:right">${_fmtRec(t['recommend_label'])}</td>
+                    </tr>`;
+                }
+            }
+            html += `</tbody></table></div>`;
+            area.innerHTML = html;
+        }
+
+        function _renderWatchlistCharts() {
+            const area = document.getElementById('wl-content') || document.getElementById('grid-area');
+            area.innerHTML = '';
+            for (const group of _wlData.groups) {
+                const header = document.createElement('div');
+                header.className = 'theme-section-header';
+                header.style.cssText = 'margin:20px 0 10px; font-size:0.75rem; letter-spacing:0.08em; color:var(--accent); text-transform:uppercase; font-weight:700;';
+                header.textContent = `▸ ${group.name}`;
+                area.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'chart-grid';
+                area.appendChild(grid);
+
+                for (const t of group.tickers) {
+                    // Skip non-equity instruments (futures, crypto, ETFs we don't chart)
+                    const skip = t.symbol.startsWith('TVC:') || t.symbol.startsWith('CME') ||
+                                 t.symbol.startsWith('NYMEX') || t.symbol.startsWith('COMEX') ||
+                                 t.symbol.startsWith('COINBASE:') || t.symbol.startsWith('INDEX:');
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    const cid = `wl-chart-${t.ticker.replace(/[^a-zA-Z0-9]/g,'')}-${++tvWidgetCount}`;
+                    const perf1m = _fmtPerf(t['Perf.1M']);
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-ticker">${t.ticker}</div>
+                            <div class="card-metrics" style="margin-left:auto">
+                                <span class="metric-chip">1M: ${perf1m}</span>
+                                <span class="metric-chip">RSI: ${t['RSI'] != null ? t['RSI'].toFixed(0) : '—'}</span>
+                            </div>
+                        </div>
+                        <div class="chart-container" id="${cid}" style="height:160px"></div>`;
+                    grid.appendChild(card);
+
+                    if (!skip) {
+                        const obs = new IntersectionObserver((entries, o) => {
+                            entries.forEach(entry => {
+                                if (!entry.isIntersecting) return;
+                                o.unobserve(entry.target);
+                                requestAnimationFrame(() => renderCustomChart(cid, t.ticker, true));
+                            });
+                        }, { rootMargin: '120px' });
+                        obs.observe(card);
+                    } else {
+                        document.getElementById(cid).innerHTML =
+                            `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">${t.symbol}</div>`;
+                    }
+                }
+            }
+        }
+
+        function _wlSetHeader() {
+            const liveLabel = _isMarketHours()
+                ? `<span style="color:#10b981;font-weight:600">🟢 Live</span> — auto-refreshing every 60s`
+                : `<span style="color:#94a3b8">🔴 Market closed</span>`;
+            document.getElementById('results-title').textContent = '📋 Watchlist';
+            document.getElementById('results-meta').innerHTML = liveLabel;
+        }
+
+        async function runWatchlistView() {
+            // Stop any previous refresh from another context
+            _wlStopRefresh();
+
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-watchlist').classList.add('active');
+            activeScanner = 'watchlist';
+            history.pushState({ scanner: 'watchlist' }, '', buildCleanUrl({ scanner: 'watchlist' }));
+
+            document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
+            _wlSetHeader();
+
+            // View toggle bar
+            const area = document.getElementById('grid-area');
+            area.innerHTML = `
+                <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+                    <button id="wl-btn-table" class="sort-btn ${_wlViewMode==='table'?'active':''}" onclick="wlSwitchView('table')">Table</button>
+                    <button id="wl-btn-chart" class="sort-btn ${_wlViewMode==='chart'?'active':''}" onclick="wlSwitchView('chart')">Charts</button>
+                    <span id="wl-refresh-status" style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Loading…</span>
+                </div>
+                <div id="wl-content"></div>`;
+
+            await _fetchAndRenderWatchlist();
+            document.getElementById('wl-refresh-status').textContent =
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+            _wlStartRefresh();
+        }
+
+        window.wlSwitchView = function(mode) {
+            _wlViewMode = mode;
+            document.getElementById('wl-btn-table').classList.toggle('active', mode === 'table');
+            document.getElementById('wl-btn-chart').classList.toggle('active', mode === 'chart');
+            _renderWatchlist();
         };
 
         // ── Market Breadth ────────────────────────────────────────

@@ -13,6 +13,7 @@ from api.routers import health, scanner, themes, auth, watchlists, analytics, ma
 from api.routers import breadth
 from api.routers import screener
 from api.routers import chart
+from api.routers import watchlist_data
 from api.services.auth_service import init_user_tables
 from api.routers.screener import init_screener_tables
 
@@ -55,6 +56,7 @@ app.include_router(breadth.router)
 app.include_router(screener.router)
 app.include_router(magic.router)
 app.include_router(chart.router)
+app.include_router(watchlist_data.router)
 
 
 @app.get("/", include_in_schema=False)
