@@ -4753,21 +4753,20 @@
                     title: ''
                 });
 
-                // 3. Volume overlay removed as requested
-                // 4. Moving Averages
+                // 3b. SMA 5 & 9 — always shown on all chart sizes
+                const sma5 = calculateSMA(rawData, 5);
+                const sma9 = calculateSMA(rawData, 9);
+                const sSma5 = chart.addLineSeries({ color: '#10b981', lineWidth: isSmallGrid ? 1 : 2, title: 'SMA 5' });
+                sSma5.setData(sma5);
+                const sSma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: isSmallGrid ? 1 : 2, title: 'SMA 9' });
+                sSma9.setData(sma9);
+
+                // 4. Full indicators — detail panel only (too cluttered on small grid cards)
                 const indicators = {};
-                if (!isSmallGrid) { // Save memory on huge grids
-                    const sma5 = calculateSMA(rawData, 5);
-                    const sma9 = calculateSMA(rawData, 9);
+                if (!isSmallGrid) {
                     const ema21 = calculateEMA(rawData, 21);
                     const sma50 = calculateSMA(rawData, 50);
                     const sma200 = calculateSMA(rawData, 200);
-
-                    const sSma5 = chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'SMA 5' });
-                    sSma5.setData(sma5);
-                    
-                    const sSma9 = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'SMA 9' });
-                    sSma9.setData(sma9);
 
                     const sEma21 = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, title: 'EMA 21' });
                     sEma21.setData(ema21);
