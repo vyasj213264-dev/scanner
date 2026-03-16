@@ -62,6 +62,9 @@ def calculate_rs_rating(stock_df, spy_df):
             _rs_error_logged = True
         return np.nan
 
+# Dictionary to store daily aggregations for Stage 1-4
+historical_stages = {}
+
 def calculate_indicators(df):
     if df is None or len(df) < 5:
         return None
@@ -141,6 +144,17 @@ def calculate_indicators(df):
     last_row['Tight_Setup'] = bool(tight_setup)
     last_row['Near_Horizontal_Resistance'] = bool(is_at_res)
     last_row['Stage'] = int(df['Stage'].iloc[-1])
+
+    # Store the daily stage values into the global historical_stages dictionary
+    # Only store dates where Stage is accurately calculated (> 70 rows due to 50dma + 20 slope offset)
+    if len(df) > 70:
+        for idx, row in df.tail(130).iterrows():
+            date_str = str(idx).split(' ')[0]
+            stage_val = int(row['Stage']) if pd.notna(row['Stage']) else 0
+            if stage_val in [1, 2, 3, 4]:
+                if date_str not in historical_stages:
+                    historical_stages[date_str] = {1: 0, 2: 0, 3: 0, 4: 0}
+                historical_stages[date_str][stage_val] += 1
 
     # NaN momentum values (due to recent IPOs) will be stored as NULL in the database
     # via _nan_to_none() during record construction — no need to fill with 0.0
@@ -532,6 +546,17 @@ def main():
         )
     ''')
     
+    cursor.execute('DROP TABLE IF EXISTS market_breadth_history')
+    cursor.execute(f'''
+        CREATE TABLE market_breadth_history (
+            Date {sql_types["TEXT PRIMARY KEY"]},
+            Stage_1 {sql_types["INTEGER"]},
+            Stage_2 {sql_types["INTEGER"]},
+            Stage_3 {sql_types["INTEGER"]},
+            Stage_4 {sql_types["INTEGER"]}
+        )
+    ''')
+
     if not (DATABASE_URL and DATABASE_URL.startswith("postgres")):
         cursor.execute("PRAGMA synchronous = OFF")
         cursor.execute("PRAGMA journal_mode = MEMORY")
@@ -556,6 +581,27 @@ def main():
         print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
 
     print(f"Successfully inserted {len(all_data)} records into screen_data.", flush=True)
+
+    # Insert historical stages
+    print(f"Aggregating {len(historical_stages)} days of historical market breadth...", flush=True)
+    history_records = []
+    
+    # Sort dates chronologically
+    sorted_dates = sorted(list(historical_stages.keys()))
+    for d in sorted_dates:
+        counts = historical_stages[d]
+        history_records.append((
+            d, counts[1], counts[2], counts[3], counts[4]
+        ))
+    
+    if history_records:
+        history_placeholders = ', '.join(['%s' if DATABASE_URL and DATABASE_URL.startswith("postgres") else '?'] * 5)
+        cursor.executemany(f'''
+            INSERT INTO market_breadth_history (Date, Stage_1, Stage_2, Stage_3, Stage_4) 
+            VALUES ({history_placeholders})
+        ''', history_records)
+        conn.commit()
+        print(f"Successfully inserted {len(history_records)} historical breadth records.", flush=True)
     
     print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
     

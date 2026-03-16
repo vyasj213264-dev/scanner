@@ -118,6 +118,20 @@ def get_breadth():
                 "pct_stage3": round((r.get("sw_stage3") or 0) / t * 100, 1),
                 "pct_stage4": round((r.get("sw_stage4") or 0) / t * 100, 1),
             })
+            
+        # Global Stage History
+        history_rows = fetch_all(
+            "SELECT Date, Stage_1, Stage_2, Stage_3, Stage_4 FROM market_breadth_history ORDER BY Date ASC"
+        )
+        history = []
+        for r in history_rows:
+            history.append({
+                "date": r.get("Date") or r.get("date"),
+                "stage1": r.get("Stage_1") or r.get("stage_1"),
+                "stage2": r.get("Stage_2") or r.get("stage_2"),
+                "stage3": r.get("Stage_3") or r.get("stage_3"),
+                "stage4": r.get("Stage_4") or r.get("stage_4"),
+            })
 
         return {
             "total_stocks": total,
@@ -140,6 +154,7 @@ def get_breadth():
             "pct_sw_stage2": pct(stage2_count),
             "pct_sw_stage3": pct(stage3_count),
             "pct_sw_stage4": pct(stage4_count),
+            "history": history,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

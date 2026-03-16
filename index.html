@@ -1764,7 +1764,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
 
     <!-- Auth Overlay -->
-    <div id="auth-overlay" class="auth-overlay" style="display: none;">
+    <div id="auth-overlay" class="auth-overlay" style="display: none !important;">
         <div class="auth-card">
             <div class="auth-logo">TradersChart</div>
             <div class="auth-sub">Sign in to access professional scanners, custom screeners, and watchlists.</div>
@@ -3989,6 +3989,9 @@
                                 <div style="color: var(--text-secondary); font-size: 0.95rem;">${data.sw_stage4_count} &middot; ${data.pct_sw_stage4}%</div>
                             </div>
                         </div>
+
+                        <!-- Historical Line Chart -->
+                        <div id="stage-history-chart" style="width: 100%; height: 250px; margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px;"></div>
                     </div>
 
                     <!-- Sector Heatmap -->
@@ -4112,6 +4115,74 @@
                 `;
 
                 area.innerHTML = html;
+
+                // Render Historical Stage Chart
+                if (data.history && data.history.length > 0) {
+                    const chartArea = document.getElementById('stage-history-chart');
+                    const chart = LightweightCharts.createChart(chartArea, {
+                        layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
+                        grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+                        rightPriceScale: { borderVisible: false },
+                        timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
+                        crosshair: {
+                            mode: LightweightCharts.CrosshairMode.Normal,
+                            vertLine: { width: 1, color: '#4b5563', style: LightweightCharts.LineStyle.Solid },
+                            horzLine: { visible: false, labelVisible: false },
+                        },
+                        handleScroll: false,
+                        handleScale: false
+                    });
+
+                    const baselineLine = chart.addLineSeries({ color: '#9ca3af', lineWidth: 1, crosshairMarkerVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed });
+                    const s1Line = chart.addLineSeries({ color: '#9ca3af', lineWidth: 2 });
+                    const s2Line = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2 });
+                    const s3Line = chart.addLineSeries({ color: '#facc15', lineWidth: 2 });
+                    const s4Line = chart.addLineSeries({ color: '#ec4899', lineWidth: 2 });
+                    
+                    const formatTime = (dStr) => {
+                        const [y, m, d] = dStr.split('-');
+                        return { year: parseInt(y), month: parseInt(m), day: parseInt(d) };
+                    };
+
+                    const maxCount = Math.max(...data.history.map(h => Math.max(h.stage1, h.stage2, h.stage3, h.stage4)));
+                    
+                    // We can plot a dashed baseline at 0 if desired
+                    baselineLine.setData(data.history.map(h => ({ time: formatTime(h.date), value: 0 })));
+
+                    s1Line.setData(data.history.map(h => ({ time: formatTime(h.date), value: h.stage1 })));
+                    s2Line.setData(data.history.map(h => ({ time: formatTime(h.date), value: h.stage2 })));
+                    s3Line.setData(data.history.map(h => ({ time: formatTime(h.date), value: h.stage3 })));
+                    s4Line.setData(data.history.map(h => ({ time: formatTime(h.date), value: h.stage4 })));
+
+                    chart.timeScale().fitContent();
+
+                    // Optional: Custom tooltip for exact numbers
+                    const tooltip = document.createElement('div');
+                    tooltip.style = `width: 200px; padding: 8px; box-sizing: border-box; font-size: 12px; text-align: left; z-index: 1000; top: 12px; left: 12px; position: absolute; display: none; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; pointer-events: none;`;
+                    chartArea.appendChild(tooltip);
+
+                    chart.subscribeCrosshairMove(param => {
+                        if (!param.time || param.point.x < 0 || param.point.x > chartArea.clientWidth || param.point.y < 0 || param.point.y > chartArea.clientHeight) {
+                            tooltip.style.display = 'none';
+                        } else {
+                            const dateStr = param.time.year + '-' + String(param.time.month).padStart(2, '0') + '-' + String(param.time.day).padStart(2, '0');
+                            const val1 = param.seriesData.get(s1Line);
+                            const val2 = param.seriesData.get(s2Line);
+                            const val3 = param.seriesData.get(s3Line);
+                            const val4 = param.seriesData.get(s4Line);
+                            if (val1 && val2 && val3 && val4) {
+                                tooltip.style.display = 'block';
+                                tooltip.innerHTML = `
+                                    <div style="font-weight:600;margin-bottom:4px;color:var(--text-secondary);">${dateStr}</div>
+                                    <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">• S2 Advancing</span><span>${val2.value}</span></div>
+                                    <div style="display:flex;justify-content:space-between"><span style="color:#ec4899">• S4 Declining</span><span>${val4.value}</span></div>
+                                    <div style="display:flex;justify-content:space-between;margin-top:2px;opacity:0.6"><span style="color:#9ca3af">• S1 Basing</span><span>${val1.value}</span></div>
+                                    <div style="display:flex;justify-content:space-between;opacity:0.6"><span style="color:#facc15">• S3 Topping</span><span>${val3.value}</span></div>
+                                `;
+                            }
+                        }
+                    });
+                }
 
                 if (window.innerWidth <= 768) toggleMobileMenu();
 
