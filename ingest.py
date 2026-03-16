@@ -93,6 +93,17 @@ def calculate_indicators(df):
     df['SMA_200_Up'] = df['SMA_200'] > df['SMA_200'].shift(20)
     df['In_Stage_2'] = (df['Close'] > df['SMA_150']) & (df['SMA_150'] > df['SMA_200']) & df['SMA_200_Up']
 
+    # New Stage Analysis (Stan Weinstein 50-day SMA basis)
+    df['SMA_50_Slope'] = (df['SMA_50'] / df['SMA_50'].shift(20)) - 1.0
+    conditions = [
+        (df['SMA_50_Slope'] > 0.01) & (df['Close'] >= df['SMA_50']),   # Stage 2: Advancing
+        (df['SMA_50_Slope'] <= 0.01) & (df['Close'] >= df['SMA_50']),  # Stage 1: Basing
+        (df['SMA_50_Slope'] < -0.01) & (df['Close'] < df['SMA_50']),   # Stage 4: Declining
+        (df['SMA_50_Slope'] >= -0.01) & (df['Close'] < df['SMA_50'])   # Stage 3: Topping
+    ]
+    choices = [2, 1, 4, 3]
+    df['Stage'] = np.select(conditions, choices, default=0)
+
     # Momentum Timeframes
     # 1D = 1 day, 1W = 5 days, 1M = 21 days, 3M = 63 days, 6M = 126 days, 1Y = 252 days
     df['Momentum_1D'] = (df['Close'] / df['Close'].shift(1)) - 1.0
@@ -129,6 +140,7 @@ def calculate_indicators(df):
     last_row = df.iloc[-1].copy()
     last_row['Tight_Setup'] = bool(tight_setup)
     last_row['Near_Horizontal_Resistance'] = bool(is_at_res)
+    last_row['Stage'] = int(df['Stage'].iloc[-1])
 
     # NaN momentum values (due to recent IPOs) will be stored as NULL in the database
     # via _nan_to_none() during record construction — no need to fill with 0.0
@@ -323,7 +335,8 @@ def main():
                         0.0, # Placeholder for RS_Rating
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
-                        _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap'))
+                        _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap')),
+                        int(last['Stage']) if pd.notna(last['Stage']) else None
                     )
                     all_data.append(record)
                     
@@ -416,21 +429,23 @@ def main():
         import psycopg2
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1) if DATABASE_URL.startswith("postgres://") else DATABASE_URL
         conn = psycopg2.connect(url, connect_timeout=10)
-        full_placeholders = ', '.join(['%s'] * 34)
+        full_placeholders = ', '.join(['%s'] * 35)
         sql_types = {
             "TEXT PRIMARY KEY": "VARCHAR(255) PRIMARY KEY",
             "TEXT": "VARCHAR(255)", 
             "REAL": "DOUBLE PRECISION",
-            "BOOLEAN": "BOOLEAN"
+            "BOOLEAN": "BOOLEAN",
+            "INTEGER": "INTEGER"
         }
     else:
         conn = sqlite3.connect(DB_NAME)
-        full_placeholders = ', '.join(['?'] * 34)
+        full_placeholders = ', '.join(['?'] * 35)
         sql_types = {
             "TEXT PRIMARY KEY": "TEXT PRIMARY KEY",
             "TEXT": "TEXT", 
             "REAL": "REAL",
-            "BOOLEAN": "BOOLEAN"
+            "BOOLEAN": "BOOLEAN",
+            "INTEGER": "INTEGER"
         }
     
     cursor = conn.cursor()
@@ -473,7 +488,8 @@ def main():
             RS_Rating {sql_types["REAL"]},
             Sector {sql_types["TEXT"]},
             Industry {sql_types["TEXT"]},
-            Market_Cap {sql_types["REAL"]}
+            Market_Cap {sql_types["REAL"]},
+            Stage {sql_types["INTEGER"]}
         )
     ''')
     
@@ -533,7 +549,7 @@ def main():
                 RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
                 RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
                 Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
-                Sector, Industry, Market_Cap
+                Sector, Industry, Market_Cap, Stage
             ) VALUES ({full_placeholders})
         ''', batch)
         conn.commit()  # Periodically commit to keep transactions small

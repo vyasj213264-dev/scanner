@@ -28,6 +28,12 @@ def get_breadth():
         stage2 = fetch_val(
             "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND In_Stage_2"
         ) or 0
+        
+        # New: Stan Weinstein 50-day SMA Stages
+        stage1_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 1") or 0
+        stage2_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 2") or 0
+        stage3_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 3") or 0
+        stage4_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 4") or 0
         pos_1m = fetch_val(
             "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Momentum_1M > 0"
         ) or 0
@@ -53,8 +59,12 @@ def get_breadth():
                 COUNT(*) as total,
                 SUM(CASE WHEN Close > SMA_50 THEN 1 ELSE 0 END) as above_50sma,
                 SUM(CASE WHEN Close > SMA_200 THEN 1 ELSE 0 END) as above_200sma,
-                SUM(CASE WHEN In_Stage_2 THEN 1 ELSE 0 END) as stage2_count,
+                SUM(CASE WHEN In_Stage_2 THEN 1 ELSE 0 END) as stage2_count_legacy,
                 SUM(CASE WHEN Momentum_1M > 0 THEN 1 ELSE 0 END) as pos_1m,
+                SUM(CASE WHEN Stage = 1 THEN 1 ELSE 0 END) as sw_stage1,
+                SUM(CASE WHEN Stage = 2 THEN 1 ELSE 0 END) as sw_stage2,
+                SUM(CASE WHEN Stage = 3 THEN 1 ELSE 0 END) as sw_stage3,
+                SUM(CASE WHEN Stage = 4 THEN 1 ELSE 0 END) as sw_stage4,
                 AVG(RS_Rating) as avg_rs
             FROM screen_data
             WHERE Close >= 5 AND Sector IS NOT NULL AND Sector != ''
@@ -71,22 +81,65 @@ def get_breadth():
                 "total": t,
                 "pct_above_50sma": round((r.get("above_50sma") or 0) / t * 100, 1),
                 "pct_above_200sma": round((r.get("above_200sma") or 0) / t * 100, 1),
-                "pct_stage2": round((r.get("stage2_count") or 0) / t * 100, 1),
+                "pct_stage2_legacy": round((r.get("stage2_count_legacy") or 0) / t * 100, 1),
                 "pct_pos_1m": round((r.get("pos_1m") or 0) / t * 100, 1),
                 "avg_rs": round(r.get("avg_rs") or 0, 1),
+                "pct_stage1": round((r.get("sw_stage1") or 0) / t * 100, 1),
+                "pct_stage2": round((r.get("sw_stage2") or 0) / t * 100, 1),
+                "pct_stage3": round((r.get("sw_stage3") or 0) / t * 100, 1),
+                "pct_stage4": round((r.get("sw_stage4") or 0) / t * 100, 1),
+            })
+            
+        # Industry-level breakdown (for SW Stages only)
+        industry_rows = fetch_all(
+            """
+            SELECT 
+                Industry,
+                COUNT(*) as total,
+                SUM(CASE WHEN Stage = 1 THEN 1 ELSE 0 END) as sw_stage1,
+                SUM(CASE WHEN Stage = 2 THEN 1 ELSE 0 END) as sw_stage2,
+                SUM(CASE WHEN Stage = 3 THEN 1 ELSE 0 END) as sw_stage3,
+                SUM(CASE WHEN Stage = 4 THEN 1 ELSE 0 END) as sw_stage4
+            FROM screen_data
+            WHERE Close >= 5 AND Industry IS NOT NULL AND Industry != ''
+            GROUP BY Industry
+            ORDER BY total DESC
+            """
+        )
+        
+        industries = []
+        for r in industry_rows:
+            t = r.get("total") or 1
+            industries.append({
+                "industry": r.get("Industry") or r.get("industry"),
+                "total": t,
+                "pct_stage1": round((r.get("sw_stage1") or 0) / t * 100, 1),
+                "pct_stage2": round((r.get("sw_stage2") or 0) / t * 100, 1),
+                "pct_stage3": round((r.get("sw_stage3") or 0) / t * 100, 1),
+                "pct_stage4": round((r.get("sw_stage4") or 0) / t * 100, 1),
             })
 
         return {
             "total_stocks": total,
             "pct_above_50sma": pct(above_50),
             "pct_above_200sma": pct(above_200),
-            "pct_stage2": pct(stage2),
+            "pct_stage2": pct(stage2), # legacy
             "pct_pos_1m": pct(pos_1m),
             "pct_pos_3m": pct(pos_3m),
             "pct_pos_6m": pct(pos_6m),
             "near_highs": near_highs,
             "near_lows": near_lows,
             "sectors": sectors,
+            "industries": industries,
+            # Global SW Stages
+            "sw_stage1_count": stage1_count,
+            "sw_stage2_count": stage2_count,
+            "sw_stage3_count": stage3_count,
+            "sw_stage4_count": stage4_count,
+            "pct_sw_stage1": pct(stage1_count),
+            "pct_sw_stage2": pct(stage2_count),
+            "pct_sw_stage3": pct(stage3_count),
+            "pct_sw_stage4": pct(stage4_count),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

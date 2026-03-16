@@ -57,6 +57,7 @@ class StockResult(BaseModel):
     industry_rank_1m: Optional[int] = Field(None, validation_alias="Industry_Rank_1M")
     industry_rank_3m: Optional[int] = Field(None, validation_alias="Industry_Rank_3M")
     industry_rank_6m: Optional[int] = Field(None, validation_alias="Industry_Rank_6M")
+    stage: Optional[int] = Field(None, validation_alias="Stage")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)

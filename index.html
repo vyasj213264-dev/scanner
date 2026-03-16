@@ -3943,6 +3943,54 @@
                         </div>
                     </div>
 
+                    <!-- Stage Analysis Visualizer -->
+                    <div class="sp-stat-box" style="padding: 24px;">
+                        <div class="theme-section-header" style="margin-bottom: 24px; font-size: 1.1rem; color: var(--text-primary);">Stage Analysis</div>
+                        
+                        <!-- Progress Bar -->
+                        <div style="display: flex; height: 12px; width: 100%; border-radius: 6px; overflow: hidden; margin-bottom: 32px; background: var(--surface);">
+                            <div style="width: ${data.pct_sw_stage1}%; background: #9ca3af;" title="Stage 1 (Basing): ${data.sw_stage1_count} stocks (${data.pct_sw_stage1}%)"></div>
+                            <div style="width: ${data.pct_sw_stage2}%; background: #3b82f6;" title="Stage 2 (Advancing): ${data.sw_stage2_count} stocks (${data.pct_sw_stage2}%)"></div>
+                            <div style="width: ${data.pct_sw_stage3}%; background: #facc15;" title="Stage 3 (Topping): ${data.sw_stage3_count} stocks (${data.pct_sw_stage3}%)"></div>
+                            <div style="width: ${data.pct_sw_stage4}%; background: #ec4899;" title="Stage 4 (Declining): ${data.sw_stage4_count} stocks (${data.pct_sw_stage4}%)"></div>
+                        </div>
+
+                        <!-- Labels -->
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; gap: 8px;">
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #9ca3af;"></div>
+                                    <span style="font-weight: 600; color: var(--text-primary);">Stage 1</span>
+                                </div>
+                                <div style="color: var(--text-secondary); font-size: 0.95rem;">${data.sw_stage1_count} &middot; ${data.pct_sw_stage1}%</div>
+                            </div>
+                            
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #3b82f6;"></div>
+                                    <span style="font-weight: 600; color: var(--text-primary);">Stage 2</span>
+                                </div>
+                                <div style="color: var(--text-secondary); font-size: 0.95rem;">${data.sw_stage2_count} &middot; ${data.pct_sw_stage2}%</div>
+                            </div>
+                            
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #facc15;"></div>
+                                    <span style="font-weight: 600; color: var(--text-primary);">Stage 3</span>
+                                </div>
+                                <div style="color: var(--text-secondary); font-size: 0.95rem;">${data.sw_stage3_count} &middot; ${data.pct_sw_stage3}%</div>
+                            </div>
+                            
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #ec4899;"></div>
+                                    <span style="font-weight: 600; color: var(--text-primary);">Stage 4</span>
+                                </div>
+                                <div style="color: var(--text-secondary); font-size: 0.95rem;">${data.sw_stage4_count} &middot; ${data.pct_sw_stage4}%</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Sector Heatmap -->
                     <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Heatmap (% Stage 2)</div>
@@ -3991,8 +4039,11 @@
                                         <th style="text-align:right;">Avg RS</th>
                                         <th style="text-align:right;">% &gt; 50SMA</th>
                                         <th style="text-align:right;">% &gt; 200SMA</th>
-                                        <th style="text-align:right;">% Stage 2</th>
                                         <th style="text-align:right;">% Pos 1M</th>
+                                        <th style="text-align:right;">% S1</th>
+                                        <th style="text-align:right;">% S2</th>
+                                        <th style="text-align:right;">% S3</th>
+                                        <th style="text-align:right;">% S4</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4006,8 +4057,48 @@
                             <td style="text-align:right; color:var(--text-primary); font-weight:600;">${row.avg_rs}</td>
                             <td style="text-align:right; color:${row.pct_above_50sma > 50 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_above_50sma}%</td>
                             <td style="text-align:right; color:${row.pct_above_200sma > 50 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_above_200sma}%</td>
-                            <td style="text-align:right; color:${row.pct_stage2 > 30 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_stage2}%</td>
                             <td style="text-align:right; color:${row.pct_pos_1m > 50 ? 'var(--green)' : 'var(--red)'};">${row.pct_pos_1m}%</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage1}%</td>
+                            <td style="text-align:right; color:${row.pct_stage2 > 30 ? 'var(--accent)' : 'var(--text-secondary)'};">${row.pct_stage2}%</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage3}%</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage4}%</td>
+                        </tr>
+                    `;
+                }
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Industry Breakdown Table -->
+                    <div class="sp-stat-box">
+                        <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Industry Stage Statistics</div>
+                        <div class="universe-table-wrapper" style="max-height: 500px;">
+                            <table class="universe-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Industry</th>
+                                        <th style="text-align:right;">Count</th>
+                                        <th style="text-align:right;">% Stage 1</th>
+                                        <th style="text-align:right;">% Stage 2</th>
+                                        <th style="text-align:right;">% Stage 3</th>
+                                        <th style="text-align:right;">% Stage 4</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                for (const row of data.industries) {
+                    html += `
+                        <tr>
+                            <td style="font-weight:600; color:var(--text-primary); cursor:pointer;" onclick="runThemes('Industry'); setTimeout(()=>drillIntoSector('${row.industry.replace(/'/g, "\\'")}'), 300)">${row.industry}</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.total}</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage1}%</td>
+                            <td style="text-align:right; color:${row.pct_stage2 > 30 ? 'var(--accent)' : 'var(--text-secondary)'};">${row.pct_stage2}%</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage3}%</td>
+                            <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage4}%</td>
                         </tr>
                     `;
                 }
