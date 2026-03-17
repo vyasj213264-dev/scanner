@@ -34,6 +34,12 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
+# ---------------------------------------------------------------------------
+# Email allowlist — only these emails may log in
+# ---------------------------------------------------------------------------
+ALLOWED_EMAILS: set[str] = {
+    "vyasj213264@gmail.com",
+}
 
 # ---------------------------------------------------------------------------
 # Dependency: get current user from Bearer token
@@ -118,6 +124,12 @@ async def google_callback(code: str, request: Request):
         )
         profile = profile_resp.json()
 
+    # ── Email allowlist check ─────────────────────────────────────────────
+    user_email = profile.get("email", "").lower().strip()
+    if user_email not in ALLOWED_EMAILS:
+        # Reject access — redirect back to frontend with an error flag
+        return RedirectResponse(f"/?auth_error=access_denied&email={user_email}")
+
     user = get_or_create_user(
         google_id=profile["id"],
         email=profile["email"],
@@ -133,6 +145,9 @@ async def google_callback(code: str, request: Request):
 @router.get("/me", response_model=User, summary="Get current user profile")
 async def get_me(user: User = Depends(require_user)):
     """Returns the currently authenticated user's profile."""
+    # Enforce allowlist for existing sessions too
+    if user.email.lower().strip() not in ALLOWED_EMAILS:
+        raise HTTPException(status_code=403, detail="Access restricted")
     return user
 
 

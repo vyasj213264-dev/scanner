@@ -1764,7 +1764,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
 
     <!-- Auth Overlay -->
-    <div id="auth-overlay" class="auth-overlay" style="display: none !important;">
+    <div id="auth-overlay" class="auth-overlay">
         <div class="auth-card">
             <div class="auth-logo">TradersChart</div>
             <div class="auth-sub">Sign in to access professional scanners, custom screeners, and watchlists.</div>
@@ -2198,8 +2198,15 @@
         let authToken = localStorage.getItem('cm_token');
 
         async function checkAuth() {
-            // Check URL for token (redirect from Google callback)
+            // Check URL for access denied (non-whitelisted Google account)
             const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auth_error') === 'access_denied') {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                showMaintenancePage();
+                return false;
+            }
+
+            // Check URL for token (redirect from Google callback)
             const tokenFromUrl = urlParams.get('token');
             if (tokenFromUrl) {
                 authToken = tokenFromUrl;
@@ -2216,6 +2223,13 @@
                 const res = await fetch(`/auth/me`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
+                // 403 = email not on allowlist — show maintenance page
+                if (res.status === 403) {
+                    localStorage.removeItem('cm_token');
+                    authToken = null;
+                    showMaintenancePage();
+                    return false;
+                }
                 if (!res.ok) throw new Error('Invalid token');
 
                 currentUser = await res.json();
@@ -2233,6 +2247,24 @@
                 logout();
                 return false;
             }
+        }
+
+        function showMaintenancePage() {
+            // Overwrite the auth overlay content with a maintenance message
+            const overlay = document.getElementById('auth-overlay');
+            overlay.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;text-align:center;padding:40px;">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <div style="font-size:1.6rem;font-weight:700;color:var(--text-primary);">Website Under Maintenance</div>
+                    <div style="font-size:1rem;color:var(--text-muted);max-width:380px;line-height:1.6;">
+                        We're currently making improvements. Please check back soon.
+                    </div>
+                </div>
+            `;
+            overlay.style.display = 'flex';
         }
 
         function showLogin() {
