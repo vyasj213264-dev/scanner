@@ -3365,6 +3365,7 @@
                                     <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
                                     <th data-ksort="momentum_1m" class="sortable">1M</th>
                                     <th data-ksort="momentum_1d" class="sortable">1D</th>
+                                    ${['minervini-cheat','tight-setup','htf'].includes(activeScanner) ? '<th style="color:#10b981;min-width:72px;" title="Suggested trigger entry price">Trigger</th><th style="color:#f43f5e;min-width:64px;" title="Suggested stop loss price">Stop</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
@@ -3398,6 +3399,22 @@
                                     <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
                                     <td>${fmtPct(s.momentum_1m)}</td>
                                     <td>${fmtPct(s.momentum_1d)}</td>
+                                    ${['minervini-cheat','tight-setup','htf'].includes(activeScanner) ? (function(){
+                                        const c = s.close || 0;
+                                        let trigger, stop;
+                                        if (activeScanner === 'minervini-cheat') {
+                                            trigger = c * 1.005;
+                                            stop = Math.min(s.sma_10 || c, s.sma_20 || c) * 0.97;
+                                        } else if (activeScanner === 'tight-setup') {
+                                            trigger = c * 1.005;
+                                            stop = c * (1 - 2 * (s.adr_20 || 3) / 100);
+                                        } else {
+                                            trigger = c * 1.01;
+                                            stop = c * 0.90;
+                                        }
+                                        return '<td style="color:#10b981;font-weight:600;">$' + trigger.toFixed(2) + '</td>'
+                                             + '<td style="color:#f43f5e;font-weight:600;">$' + stop.toFixed(2) + '</td>';
+                                    })() : ''}
                                 </tr>`;
             }
             html += `</tbody></table></div>`;
