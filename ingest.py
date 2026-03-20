@@ -387,13 +387,29 @@ def main():
         return
 
     # ---------------------------------------------------------
-    # 2b. Download Sector ETF OHLCV Data (for Themes chart view)
+    # 2b. Download Sector ETF & Lev ETF Underlying OHLCV Data
     # ---------------------------------------------------------
-    # These ETFs represent sectors in the Themes UI but are NOT part of the stock 
-    # universe, so their OHLCV data wouldn't otherwise be in daily_ohlcv.
+    # These ETFs represent sectors in the Themes UI, or are underlying tickers
+    # used by the Leveraged ETF scanner. They are NOT part of the stock
+    # universe, so their OHLCV + indicator data wouldn't otherwise be computed.
     sector_etf_tickers = [
+        # Sector ETFs (for Themes UI)
         'XLK', 'XLV', 'XLY', 'XLF', 'XLI', 'XLP', 'XLE', 'XLRE',
-        'XLB', 'XLU', 'XLC', 'XTL', 'IYM', 'SPY'
+        'XLB', 'XLU', 'XLC', 'XTL', 'IYM', 'SPY',
+        # Broad market ETFs (lev ETF underlyings)
+        'QQQ', 'IWM', 'DIA', 'MDY', 'RSP', 'SLY',
+        # Sector ETFs (lev ETF underlyings not already above)
+        'SOXX', 'IBB', 'CIBR', 'SKYY', 'XRT',
+        # Commodity ETFs
+        'GLD', 'SLV', 'USO', 'UNG',
+        # Fixed Income ETFs
+        'TLT', 'IEF', 'HYG',
+        # Crypto ETFs
+        'IBIT', 'ETHA',
+        # International ETFs
+        'EEM', 'EFA', 'FXI', 'EWJ', 'EWZ',
+        # Currency ETFs
+        'FXY', 'FXE',
     ]
     
     # Filter out any ETFs that happen to already be in the universe
@@ -426,7 +442,54 @@ def main():
                             _safe_float(row_data['Volume'])
                         ))
                         etf_count += 1
-                    print(f"  {etf_ticker}: {etf_count} days", flush=True)
+                    
+                    # ALSO compute indicators and add to screen_data (needed for Lev ETF scanner)
+                    if len(df_etf) >= 5:
+                        last_etf = calculate_indicators(df_etf)
+                        if last_etf is not None:
+                            rs_raw_etf = calculate_rs_rating(df_etf, spy_data)
+                            rs_raw_clean_etf = None if (rs_raw_etf is None or pd.isna(rs_raw_etf)) else float(rs_raw_etf)
+                            
+                            etf_record = (
+                                etf_ticker,
+                                str(last_etf.name),
+                                _nan_to_none(last_etf['Close']),
+                                _nan_to_none(last_etf['Volume']),
+                                _nan_to_none(last_etf['SMA_5']),
+                                _nan_to_none(last_etf['SMA_9']),
+                                _nan_to_none(last_etf['SMA_10']),
+                                _nan_to_none(last_etf['SMA_20']),
+                                _nan_to_none(last_etf['SMA_21']),
+                                _nan_to_none(last_etf['SMA_50']),
+                                _nan_to_none(last_etf['SMA_100']),
+                                _nan_to_none(last_etf['SMA_200']),
+                                _nan_to_none(last_etf['RVOL']),
+                                _nan_to_none(last_etf['ADR_20']),
+                                _nan_to_none(last_etf['Pct_From_52W_High']),
+                                _safe_bool(last_etf['In_Stage_2']),
+                                _safe_bool(last_etf['Tight_Setup']),
+                                _safe_bool(last_etf['Near_Horizontal_Resistance']),
+                                rs_raw_clean_etf,
+                                _safe_bool(last_etf['Inside_Bar']),
+                                _safe_bool(last_etf['Golden_Crossover']),
+                                _safe_bool(last_etf['Gap_Up']),
+                                _safe_bool(last_etf['Gap_Down']),
+                                _safe_bool(last_etf['VCP_Approximation']),
+                                _nan_to_none(last_etf['Momentum_1D']),
+                                _nan_to_none(last_etf['Momentum_1W']),
+                                _nan_to_none(last_etf['Momentum_1M']),
+                                _nan_to_none(last_etf['Momentum_3M']),
+                                _nan_to_none(last_etf['Momentum_6M']),
+                                _nan_to_none(last_etf['Momentum_1Y']),
+                                0.0, # Placeholder for RS_Rating
+                                'ETF', # Sector
+                                'ETF', # Industry
+                                0, # Market Cap
+                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None
+                            )
+                            all_data.append(etf_record)
+                            
+                    print(f"  {etf_ticker}: {etf_count} days + indicators", flush=True)
                 except Exception as etf_err:
                     print(f"  Warning: Failed to get OHLCV for {etf_ticker}: {etf_err}", flush=True)
         except Exception as etf_batch_err:

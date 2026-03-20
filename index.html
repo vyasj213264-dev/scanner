@@ -1906,6 +1906,10 @@
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🏭 Industry Ranks</span>
                 </button>
                 <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-lev-etf" onclick="runLevEtf()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">⚡ Lev ETFs</span>
+                </button>
+                <div style="height: 4px;"></div>
                 <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">⚙️ Custom Screener</span>
                 </button>
@@ -2095,6 +2099,9 @@
         let selectedIndustry = null;
         let themeStockData = [];       // cached stock data for resort
         let themesViewMode = 'table';  // 'table' | 'chart'
+
+        // Lev ETF State
+        let levEtfData = [];  // cached leveraged ETF scan results
 
         const sectorEtfMap = {
             'Technology': 'XLK',
@@ -2372,6 +2379,8 @@
             // Re-render current view to update TradingView widgets
             if (themesCategory && (document.getElementById('results-title').textContent.includes('Sector') || document.getElementById('results-title').textContent.includes('Industry'))) {
                 runThemes(themesCategory);
+            } else if (activeScanner === 'lev-etf') {
+                runLevEtf(true);
             } else if (activeScanner) {
                 runScanner(activeScanner, document.getElementById('results-title').textContent, true);
             } else if (document.getElementById('results-title').textContent === 'Custom Screener Builder') {
@@ -2740,6 +2749,11 @@
         function executeSort() {
             if (activeScanner === 'universe') {
                 renderUniverseTable();
+                return;
+            }
+            if (activeScanner === 'lev-etf' && levEtfData.length) {
+                if (scannerViewMode === 'table') renderLevEtfTable(levEtfData);
+                else renderLevEtfCharts(levEtfData);
                 return;
             }
             if (themesLevel === 'stocks' && themeStockData.length) {
@@ -3307,6 +3321,12 @@
             document.getElementById('scvw-chart').classList.toggle('active', mode === 'chart');
             document.getElementById('scvw-table').classList.toggle('active', mode === 'table');
 
+            if (activeScanner === 'lev-etf' && levEtfData.length) {
+                if (mode === 'table') renderLevEtfTable(levEtfData);
+                else renderLevEtfCharts(levEtfData);
+                return;
+            }
+
             if (themesLevel === 'stocks' && themeStockData.length) {
                 renderThemeStocks();
                 return;
@@ -3429,6 +3449,175 @@
                 currentTh.dataset.dir = activeSortDir;
                 currentTh.classList.add('active-sort');
             }
+        }
+
+        // ── Leveraged ETF Scanner ─────────────────────────────────
+        async function runLevEtf(force = false) {
+            if (!force && activeScanner === 'lev-etf') return;
+            activeScanner = 'lev-etf';
+            activeWatchlist = null;
+            themesCategory = null;
+            themesLevel = 'top';
+
+            // Update sidebar active state
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-lev-etf');
+            if (btn) btn.classList.add('active');
+
+            document.getElementById('results-title').textContent = '⚡ Leveraged ETFs';
+            document.getElementById('results-meta').innerHTML = '';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'none';
+
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            showSkeletons(8);
+            logEvent('run_scanner', { scanner: 'lev-etf' });
+
+            try {
+                const res = await fetchApi('/lev-etf/scan');
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                const json = await res.json();
+                levEtfData = json.data;
+
+                document.getElementById('results-meta').innerHTML = `
+                    <span class="results-count-pill">${json.count} ETFs</span>
+                    <span style="color:var(--text-muted)">· Signals from underlying ticker data</span>
+                `;
+
+                if (scannerViewMode === 'table') {
+                    renderLevEtfTable(levEtfData);
+                } else {
+                    renderLevEtfCharts(levEtfData);
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('grid-area').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">Failed to load Leveraged ETFs</div>
+                        <div class="empty-sub">${err.message}</div>
+                    </div>`;
+            }
+        }
+
+        function renderLevEtfCharts(data) {
+            // Use standard chart-grid — chart is for the LEV ETF ticker itself
+            const area = document.getElementById('grid-area');
+            const grid = document.createElement('div');
+            grid.className = 'chart-grid';
+            area.innerHTML = '';
+            area.appendChild(grid);
+
+            for (const etf of data) {
+                // Build a synthetic stock-like object for createChartCard
+                const pseudo = {
+                    ticker: etf.ticker,
+                    rs_rating: etf.rs_rating,
+                    rvol: etf.rvol,
+                    momentum_1y: null,
+                    momentum_1m: etf.momentum_1m,
+                    momentum_1d: etf.momentum_1d,
+                    pct_from_52w_high: etf.pct_from_52w_high,
+                    close: etf.close,
+                    in_stage_2: etf.in_stage_2,
+                    gap_up: false,
+                    gap_down: false,
+                };
+                createChartCard(pseudo, grid);
+            }
+        }
+
+        function renderLevEtfTable(data) {
+            const area = document.getElementById('grid-area');
+
+            const check = (v) => v
+                ? '<span style="color:#4ade80;font-size:1rem;">✓</span>'
+                : '<span style="color:var(--text-muted);font-size:0.8rem;">—</span>';
+
+            const stagePill = (stage) => {
+                if (stage == null) return '<span style="color:var(--text-muted)">—</span>';
+                const colors = { 1: '#60a5fa', 2: '#4ade80', 3: '#fb923c', 4: '#f87171' };
+                const c = colors[stage] || 'var(--text-muted)';
+                return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:700;font-size:0.82rem;color:${c};border:1px solid ${c}33;">${stage}</span>`;
+            };
+
+            const fmtMcap = (val) => {
+                if (!val) return '—';
+                if (val >= 1e9) return '$' + (val / 1e9).toFixed(1) + 'B';
+                if (val >= 1e6) return '$' + (val / 1e6).toFixed(0) + 'M';
+                return '$' + val.toFixed(0);
+            };
+
+            const objColor = (obj) => {
+                if (!obj) return 'var(--text-secondary)';
+                if (obj.startsWith('-')) return '#f87171';
+                return '#4ade80';
+            };
+
+            let html = `
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width:70px;">Ticker</th>
+                            <th style="min-width:190px;">Fund Name</th>
+                            <th style="min-width:80px;">Underlying</th>
+                            <th style="min-width:60px;" title="Daily Leverage Objective">Obj</th>
+                            <th style="min-width:80px;">Net Assets</th>
+                            <th style="min-width:50px;" title="Stage 1-4 based on 50 DMA slope">Stage</th>
+                            <th style="min-width:44px;" title="Pullback to 5 DMA">Pb5</th>
+                            <th style="min-width:44px;" title="Pullback to 10 DMA">Pb10</th>
+                            <th style="min-width:44px;" title="Pullback to 21 DMA">Pb21</th>
+                            <th style="min-width:44px;" title="Pullback to 50 DMA">Pb50</th>
+                            <th style="min-width:44px;" title="High Tight Flag">HTF</th>
+                            <th style="min-width:54px;" title="Tight Setup (price range < 2% over 4 days)">Tight</th>
+                            <th style="min-width:56px;" title="Near Horizontal Resistance">Horiz</th>
+                            <th style="min-width:80px;" title="Minervini Low Cheat Entry (VCP near 10/20 DMA, low volume)">Low Cheat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const etf of data) {
+                const setupTotal = (etf.pullback_5 ? 1 : 0) + (etf.pullback_10 ? 1 : 0) +
+                    (etf.pullback_21 ? 1 : 0) + (etf.pullback_50 ? 1 : 0) +
+                    (etf.htf ? 1 : 0) + (etf.tight_setup ? 1 : 0) +
+                    (etf.horizontal_resistance ? 1 : 0) + (etf.minervini_cheat ? 1 : 0);
+
+                const rowHighlight = setupTotal >= 3
+                    ? 'background: rgba(74,222,128,0.04);'
+                    : setupTotal >= 2
+                        ? 'background: rgba(251,191,36,0.03);'
+                        : '';
+
+                html += `<tr style="${rowHighlight}">
+                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.ticker}')"
+                        style="color:var(--accent);text-decoration:none;font-weight:700;">${etf.ticker}</a></td>
+                    <td style="color:var(--text-secondary);font-size:0.82rem;">${etf.fund_name}</td>
+                    <td style="font-size:0.82rem;"><a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.underlying}')"
+                        style="color:var(--text-muted);text-decoration:none;" title="View underlying ticker">${etf.underlying}</a></td>
+                    <td style="color:${objColor(etf.objective)};font-weight:600;font-size:0.82rem;">${etf.objective || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${fmtMcap(etf.net_assets)}</td>
+                    <td style="text-align:center;">${stagePill(etf.stage)}</td>
+                    <td style="text-align:center;">${check(etf.pullback_5)}</td>
+                    <td style="text-align:center;">${check(etf.pullback_10)}</td>
+                    <td style="text-align:center;">${check(etf.pullback_21)}</td>
+                    <td style="text-align:center;">${check(etf.pullback_50)}</td>
+                    <td style="text-align:center;">${check(etf.htf)}</td>
+                    <td style="text-align:center;">${check(etf.tight_setup)}</td>
+                    <td style="text-align:center;">${check(etf.horizontal_resistance)}</td>
+                    <td style="text-align:center;">${check(etf.minervini_cheat)}</td>
+                </tr>`;
+            }
+
+            html += `</tbody></table></div>`;
+
+            if (!data.length) {
+                html = `<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">No ETF data</div></div>`;
+            }
+            area.innerHTML = html;
         }
 
         // ── Chart Card ───────────────────────────────────────────
