@@ -66,10 +66,12 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
     if len(found_etfs) < 5:
         # Fallback query
         agg_rows = fetch_all("""
-            SELECT Sector, AVG(Momentum_1W) as Avg_Mom
+            SELECT Sector, AVG(Momentum_1W) as Avg_Mom, COUNT(*) as count
             FROM screen_data
-            WHERE Sector != 'Unknown' AND Sector != 'ETF' AND Momentum_1W IS NOT NULL
+            WHERE Sector IS NOT NULL AND Sector != ''
+                  AND Momentum_1W IS NOT NULL
             GROUP BY Sector
+            HAVING COUNT(*) >= 5
         """)
         
         # Mappings from our DB sectors to standard names
@@ -132,7 +134,7 @@ def get_growth_opportunities(leaderboard: List[Dict]) -> List[Dict[str, Any]]:
             FROM screen_data
             WHERE Sector = ? AND Momentum_1W IS NOT NULL AND Stage IN (2, 3)
             GROUP BY Industry
-            HAVING count >= 5
+            HAVING COUNT(*) >= 5
             ORDER BY Avg_Mom DESC
             LIMIT 1
         """, (db_sector_match,))
