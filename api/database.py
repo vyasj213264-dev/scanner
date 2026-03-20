@@ -49,6 +49,25 @@ def get_user_db():
         finally:
             conn.close()
 
+COL_MAP = {
+    'ticker': 'Ticker', 'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 
+    'close': 'Close', 'volume': 'Volume',
+    'sma_5': 'SMA_5', 'sma_9': 'SMA_9', 'sma_10': 'SMA_10', 'sma_20': 'SMA_20',
+    'sma_21': 'SMA_21', 'sma_50': 'SMA_50', 'sma_100': 'SMA_100', 'sma_200': 'SMA_200',
+    'rvol': 'RVOL', 'adr_20': 'ADR_20', 'pct_from_52w_high': 'Pct_From_52W_High',
+    'in_stage_2': 'In_Stage_2', 'tight_setup': 'Tight_Setup', 
+    'near_horizontal_resistance': 'Near_Horizontal_Resistance',
+    'rs_raw': 'RS_Raw', 'inside_bar': 'Inside_Bar', 'golden_crossover': 'Golden_Crossover',
+    'gap_up': 'Gap_Up', 'gap_down': 'Gap_Down', 'vcp_approximation': 'VCP_Approximation',
+    'momentum_1d': 'Momentum_1D', 'momentum_1w': 'Momentum_1W', 'momentum_1m': 'Momentum_1M',
+    'momentum_3m': 'Momentum_3M', 'momentum_6m': 'Momentum_6M', 'momentum_1y': 'Momentum_1Y',
+    'rs_rating': 'RS_Rating', 'sector': 'Sector', 'industry': 'Industry',
+    'market_cap': 'Market_Cap', 'stage': 'Stage',
+    'avg_mom': 'Avg_Mom', 'count': 'count'
+}
+
+def _map_row(row):
+    return {COL_MAP.get(k.lower(), k): v for k, v in dict(row).items()}
 
 def fetch_all(sql: str, params: Tuple = ()) -> List[dict]:
     """Execute a SELECT query and return all rows as a list of dicts."""
@@ -57,7 +76,7 @@ def fetch_all(sql: str, params: Tuple = ()) -> List[dict]:
         if DATABASE_URL and DATABASE_URL.startswith("postgres"):
             sql = sql.replace('?', '%s')
         cursor.execute(sql, params)
-        return [dict(row) for row in cursor.fetchall()]
+        return [_map_row(row) for row in cursor.fetchall()]
 
 
 def fetch_one(sql: str, params: Tuple = ()) -> Optional[dict]:
@@ -68,7 +87,7 @@ def fetch_one(sql: str, params: Tuple = ()) -> Optional[dict]:
             sql = sql.replace('?', '%s')
         cursor.execute(sql, params)
         row = cursor.fetchone()
-        return dict(row) if row else None
+        return _map_row(row) if row else None
 
 
 def get_last_updated() -> Optional[str]:
