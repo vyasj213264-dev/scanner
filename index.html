@@ -1910,6 +1910,10 @@
                     <span class="btn-label" style="font-weight: 600; color: #fff;">⚡ Lev ETFs</span>
                 </button>
                 <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-trade-portal" onclick="runTradePortal()">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">🤖 AI Trade Portal</span>
+                </button>
+                <div style="height: 4px;"></div>
                 <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">⚙️ Custom Screener</span>
                 </button>
@@ -3448,6 +3452,319 @@
             if (currentTh) {
                 currentTh.dataset.dir = activeSortDir;
                 currentTh.classList.add('active-sort');
+            }
+        }
+
+        // ── AI Trade Portal ───────────────────────────────────────
+        async function runTradePortal(force = false) {
+            if (!force && activeScanner === 'trade-portal') return;
+            activeScanner = 'trade-portal';
+            activeWatchlist = null;
+            themesCategory = null;
+            themesLevel = 'top';
+
+            // Update sidebar active state
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-trade-portal');
+            if (btn) btn.classList.add('active');
+
+            document.getElementById('results-title').textContent = '🤖 AI Trade Portal';
+            document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">Daily deterministic swing trade analysis</span>';
+            document.getElementById('sort-controls').style.display = 'none'; // No standard sorting needed here
+            document.getElementById('filter-bar').style.display = 'none';
+
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Generating quantitative market read...</div></div>';
+            
+            logEvent('run_scanner', { scanner: 'trade-portal' });
+
+            try {
+                const res = await fetchApi('/trade-portal/daily-read');
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                const json = await res.json();
+                const data = json.data;
+
+                // Render Substack-style article
+                
+                let html = `
+                <style>
+                    .portal-article {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px 40px 60px;
+                        font-family: 'Inter', system-ui, sans-serif;
+                        color: var(--text-primary);
+                        line-height: 1.6;
+                    }
+                    .portal-article h2 {
+                        font-size: 1.5rem;
+                        font-weight: 700;
+                        margin-top: 40px;
+                        margin-bottom: 16px;
+                        color: var(--accent);
+                        border-bottom: 1px solid var(--border-light);
+                        padding-bottom: 8px;
+                    }
+                    .portal-article p {
+                        margin-bottom: 16px;
+                        font-size: 1.05rem;
+                        color: var(--text-secondary);
+                    }
+                    .portal-article strong {
+                        color: var(--text-primary);
+                        font-weight: 600;
+                    }
+                    .portal-rank-list {
+                        list-style-type: none;
+                        padding: 0;
+                        margin-bottom: 24px;
+                        background: var(--bg-card);
+                        border: 1px solid var(--border-light);
+                        border-radius: 12px;
+                        overflow: hidden;
+                    }
+                    .portal-rank-item {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 12px 20px;
+                        border-bottom: 1px solid var(--border-light);
+                    }
+                    .portal-rank-item:last-child {
+                        border-bottom: none;
+                    }
+                    .portal-rank-item .rank {
+                        font-weight: 700;
+                        color: var(--text-muted);
+                        width: 30px;
+                    }
+                    .portal-rank-item .name {
+                        flex-grow: 1;
+                        font-weight: 600;
+                    }
+                    .portal-rank-item .ticker {
+                        color: var(--accent);
+                        margin-right: 15px;
+                        width: 45px;
+                    }
+                    .portal-rank-item .perf {
+                        width: 80px;
+                        text-align: right;
+                        font-family: monospace;
+                    }
+                    .portal-rank-item .char {
+                        width: 80px;
+                        text-align: right;
+                        font-size: 0.85rem;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    }
+                    .char-Leading { color: #4ade80; font-weight: 700; }
+                    .char-Neutral { color: var(--text-muted); }
+                    .char-Lagging { color: #f87171; }
+                    
+                    .portal-opps {
+                        margin-bottom: 30px;
+                    }
+                    .portal-opp {
+                        background: var(--bg-card);
+                        border-left: 4px solid var(--accent);
+                        padding: 15px 20px;
+                        margin-bottom: 15px;
+                        border-radius: 0 8px 8px 0;
+                    }
+                    .portal-opp h4 {
+                        margin: 0 0 8px 0;
+                        font-size: 1.1rem;
+                    }
+                    .portal-opp p {
+                        font-size: 0.95rem;
+                        margin-bottom: 8px;
+                    }
+                    .portal-opp p:last-child {
+                        margin-bottom: 0;
+                    }
+                    
+                    .portal-trade {
+                        background: var(--bg-card);
+                        border: 1px solid var(--border-light);
+                        border-radius: 12px;
+                        padding: 24px;
+                        margin-bottom: 20px;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    }
+                    .portal-trade-header {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 16px;
+                    }
+                    .portal-trade-ticker {
+                        font-size: 1.6rem;
+                        font-weight: 800;
+                        color: var(--accent);
+                        margin-right: 12px;
+                        cursor: pointer;
+                    }
+                    .portal-trade-industry {
+                        font-size: 0.9rem;
+                        padding: 3px 8px;
+                        background: rgba(255,255,255,0.05);
+                        border-radius: 4px;
+                        color: var(--text-muted);
+                    }
+                    .portal-trade-rs {
+                        margin-left: auto;
+                        font-weight: 700;
+                        color: #60a5fa;
+                    }
+                    .portal-trade-stats {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin-bottom: 20px;
+                        padding: 15px;
+                        background: rgba(0,0,0,0.2);
+                        border-radius: 8px;
+                    }
+                    [data-theme="light"] .portal-trade-stats {
+                        background: rgba(0,0,0,0.03);
+                    }
+                    .portal-stat {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .portal-stat-label {
+                        font-size: 0.75rem;
+                        text-transform: uppercase;
+                        color: var(--text-muted);
+                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                    }
+                    .portal-stat-val {
+                        font-size: 1.2rem;
+                        font-weight: 700;
+                        font-family: monospace;
+                    }
+                    .val-entry { color: #60a5fa; }
+                    .val-stop { color: #f87171; }
+                    .val-size { color: #fb923c; }
+                    
+                    .portal-trade p {
+                        font-size: 0.95rem;
+                        margin-bottom: 10px;
+                    }
+                    
+                    @media (max-width: 600px) {
+                        .portal-article { padding: 15px; }
+                        .portal-trade-stats { grid-template-columns: 1fr; }
+                    }
+                </style>
+                <div class="portal-article">
+                    <h2>1. Overall Market Bias</h2>
+                    <p>${data.market_bias.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>
+                    
+                    <h2>2. Sector Leaderboard</h2>
+                    <div style="color:var(--text-muted); font-size: 0.85rem; margin-bottom:10px;">Ranked by 1-Week Performance.</div>
+                    <ul class="portal-rank-list">
+                `;
+                
+                data.sector_leaderboard.forEach(s => {
+                    const color = s.pct_1w >= 0 ? '#4ade80' : '#f87171';
+                    html += `
+                        <li class="portal-rank-item">
+                            <span class="rank">${s.rank}</span>
+                            <span class="ticker">${s.ticker}</span>
+                            <span class="name">${s.name}</span>
+                            <span class="perf" style="color:${color}">${s.pct_1w > 0 ? '+' : ''}${s.pct_1w.toFixed(1)}%</span>
+                            <span class="char char-${s.characterization}">${s.characterization}</span>
+                        </li>
+                    `;
+                });
+                
+                html += `
+                    </ul>
+                    
+                    <h2>3. Growth Stock Opportunities This Week</h2>
+                    <div class="portal-opps">
+                `;
+                
+                data.growth_opportunities.forEach(o => {
+                    html += `
+                        <div class="portal-opp">
+                            <h4>${o.sector}</h4>
+                            <p><strong>Why:</strong> ${o.interest_reason}</p>
+                            <p><strong>Focus:</strong> ${o.watch_type.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')}</p>
+                            <p><strong>Validation:</strong> <span style="color:var(--text-muted)">${o.validation}</span></p>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    
+                    <h2>4. Weekly Bias Statement</h2>
+                    <p style="font-size: 1.15rem; font-weight: 500; font-style: italic; border-left: 3px solid var(--text-muted); padding-left: 15px;">
+                        ${data.weekly_statement.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+                    </p>
+                    
+                    <h2>5. Top Swing Trade Ideas</h2>
+                `;
+                
+                if (data.swing_trades && data.swing_trades.length > 0) {
+                    data.swing_trades.forEach(t => {
+                        html += `
+                            <div class="portal-trade">
+                                <div class="portal-trade-header">
+                                    <div class="portal-trade-ticker" onclick="fetchStockDetail('${t.ticker}')">${t.ticker}</div>
+                                    <div class="portal-trade-industry">${t.industry}</div>
+                                    <div class="portal-trade-rs">RS ${t.rs_rating}</div>
+                                </div>
+                                
+                                <div class="portal-trade-stats">
+                                    <div class="portal-stat">
+                                        <span class="portal-stat-label">Entry Trigger</span>
+                                        <span class="portal-stat-val val-entry">$${t.entry.toFixed(2)}</span>
+                                    </div>
+                                    <div class="portal-stat">
+                                        <span class="portal-stat-label">Stop Loss</span>
+                                        <span class="portal-stat-val val-stop">$${t.stoploss.toFixed(2)}</span>
+                                    </div>
+                                    <div class="portal-stat">
+                                        <span class="portal-stat-label">Max Pos Size</span>
+                                        <span class="portal-stat-val val-size">${t.position_size_pct.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                                
+                                <p><strong>Setup Logic:</strong> ${t.reason}</p>
+                                <p><strong>Trade Management:</strong> ${t.exit_plan}</p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `
+                        <div class="portal-trade" style="text-align:center; padding: 40px;">
+                            <div style="font-size:2rem; margin-bottom:15px;">🛡️</div>
+                            <h3 style="margin:0 0 10px 0;">No High-Quality Setups Found</h3>
+                            <p style="color:var(--text-muted); margin:0;">In current market conditions, no stocks met the stringent criteria for isolated Stage 2 swing setups. Capital preservation is priority.</p>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                </div>
+                `;
+                
+                area.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('grid-area').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">Failed to load AI Trade Portal</div>
+                        <div class="empty-sub">${err.message}</div>
+                    </div>`;
             }
         }
 
