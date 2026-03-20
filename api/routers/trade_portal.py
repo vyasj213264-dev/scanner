@@ -4,7 +4,7 @@ from api.database import fetch_all
 
 router = APIRouter(prefix="/api/v1/trade-portal", tags=["Trade Portal"])
 
-def get_market_bias() -> str:
+def get_market_bias() -> Dict[str, Any]:
     # 1. Overall Market Bias
     rows = fetch_all("""
         SELECT Ticker, Close, SMA_20, SMA_50, SMA_200 
@@ -12,7 +12,7 @@ def get_market_bias() -> str:
         WHERE Ticker IN ('SPY', 'QQQ', 'IWM')
     """)
     if not rows:
-        return "Neutral. Insufficient data to determine market bias."
+        return {"bias": "Neutral", "exposure_pct": 50, "text": "Neutral. Insufficient data to determine market bias."}
     
     data = {r['Ticker']: dict(r) for r in rows}
     spy = data.get('SPY')
@@ -20,7 +20,7 @@ def get_market_bias() -> str:
     iwm = data.get('IWM')
     
     if not spy or not qqq:
-        return "Neutral. Missing SPY or QQQ data."
+        return {"bias": "Neutral", "exposure_pct": 50, "text": "Neutral. Missing SPY or QQQ data."}
         
     spy_above_50 = spy['Close'] > spy['SMA_50'] if spy['SMA_50'] else False
     spy_above_20 = spy['Close'] > spy['SMA_20'] if spy['SMA_20'] else False
@@ -36,12 +36,24 @@ def get_market_bias() -> str:
         iwm_text = f" Small-caps (IWM) are {'also leading' if iwm_above_50 else 'lagging'}, trading {iwm_pct_50:+.1f}% from their 50-day."
 
     if spy_above_50 and qqq_above_50 and spy_above_20:
-        return f"**Risk-On.** The broad market remains in a confirmed uptrend with both SPY and QQQ holding firmly above their key short-term moving averages. SPY is currently {spy_pct_50:+.1f}% from its 50-day moving average, signaling healthy institutional support. Tech leadership continues to drive the indices higher.{iwm_text}"
+        return {
+            "bias": "Risk-On", 
+            "exposure_pct": 100, 
+            "text": f"**Risk-On.** The broad market remains in a confirmed uptrend with both SPY and QQQ holding firmly above their key short-term moving averages. SPY is currently {spy_pct_50:+.1f}% from its 50-day moving average, signaling healthy institutional support. Tech leadership continues to drive the indices higher.{iwm_text}"
+        }
     elif not spy_above_50 and not qqq_above_50:
         spy_pct_200 = ((spy['Close'] - spy['SMA_200']) / spy['SMA_200'] * 100) if spy['SMA_200'] else 0
-        return f"**Risk-Off.** The market has broken significant support structures, with both major indices trading below their 50-day moving averages. SPY is {spy_pct_50:+.1f}% below its 50-day, indicating a shift in character toward distribution. Defensive posture is warranted until SPY reclaims its moving averages.{iwm_text}"
+        return {
+            "bias": "Risk-Off", 
+            "exposure_pct": 25, 
+            "text": f"**Risk-Off.** The market has broken significant support structures, with both major indices trading below their 50-day moving averages. SPY is {spy_pct_50:+.1f}% below its 50-day, indicating a shift in character toward distribution. Defensive posture is warranted until SPY reclaims its moving averages.{iwm_text}"
+        }
     else:
-        return f"**Neutral.** The market is exhibiting mixed signals or choppy consolidation. SPY is {spy_pct_50:+.1f}% from its 50-day, while QQQ is {qqq_pct_50:+.1f}% from its 50-day. This divergence often precedes a larger directional move, but currently favors highly selective trading rather than aggressive exposure.{iwm_text}"
+        return {
+            "bias": "Neutral", 
+            "exposure_pct": 50, 
+            "text": f"**Neutral.** The market is exhibiting mixed signals or choppy consolidation. SPY is {spy_pct_50:+.1f}% from its 50-day, while QQQ is {qqq_pct_50:+.1f}% from its 50-day. This divergence often precedes a larger directional move, but currently favors highly selective trading rather than aggressive exposure.{iwm_text}"
+        }
 
 def get_sector_leaderboard() -> List[Dict[str, Any]]:
     # 2. Sector Leaderboard
@@ -150,81 +162,127 @@ def get_growth_opportunities(leaderboard: List[Dict]) -> List[Dict[str, Any]]:
         
     return opps
 
-def get_weekly_bias_statement(market_bias_text: str) -> str:
+def get_weekly_bias_statement(bias_dict: Dict[str, Any]) -> str:
     # 4. Weekly Bias Statement
-    if "Risk-On" in market_bias_text:
-        return "Given the clear Risk-On environment, growth stock traders should maintain an **aggressive but structured posture**. Capital should be deployed into the strongest breakouts in the leading top-3 sectors. The single most important thing to watch is the broader market's ability to hold the 20-day moving average; any high-volume distribution days closing below this level would warrant immediate defensive trailing stops."
-    elif "Risk-Off" in market_bias_text:
-        return "In this Risk-Off environment, growth stock traders must remain **defensive and highly highly selective**. Cash is a position. Breakouts are prone to failure, so any new exposure should be small and purely tactical. The single most important thing to watch is the formation of a tradable bottom or a reclaim of the 10-day moving average by the QQQ."
-    else:
-        return "With the market in a Neutral configuration, growth stock traders should be **highly selective and tactical**. Wait for high-quality, idiosyncratic setups rather than relying on a rising tide to lift all boats. The single most important thing to watch is the resolution of current index consolidations—either a decisive breakout above recent highs or a heavy structural breakdown."
-
-def get_swing_trades() -> List[Dict[str, Any]]:
-    # 5. Top 5 Swing Trades
-    # Prefer Stage 2, high RS, tight or minervini setups
-    rows = fetch_all("""
-        SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar
-        FROM screen_data
-        WHERE Stage = 2
-          AND Close >= 10
-          AND Volume >= 500000
-          AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE OR Inside_Bar = TRUE)
-        ORDER BY RS_Rating DESC, Pct_From_52W_High ASC
-        LIMIT 50
-    """)
+    bias = bias_dict.get("bias", "Neutral")
+    exp = bias_dict.get("exposure_pct", 50)
     
+    if bias == "Risk-On":
+        return f"Given the clear Risk-On environment, growth stock traders should maintain an **aggressive but structured posture** with **{exp}% exposure/margin allowed**. Capital should be deployed into the strongest breakouts in the leading top-3 sectors. Watch the broader market's ability to hold the 20-day moving average; rapid distribution below this warrants tighter trailing stops."
+    elif bias == "Risk-Off":
+        return f"In this Risk-Off environment, growth stock traders must remain **highly defensive** with **maximum {exp}% gross exposure**. Cash is a solid positional anchor. Look to deploy capital tactically strictly into well-defined **Short** setups in lagging Stage 4 sectors. The single most important thing to watch is the formation of a tradable bottom or a reclaim of the 10-day moving average by the major averages to invalidate the downtrend."
+    else:
+        return f"With the market in a Neutral configuration, growth stock traders should run **balanced portfolios** targeting **around {exp}% exposure**. Rather than relying on a rising tide to lift all boats, adopt a market-neutral approach scaling into the absolute best high-RS Stage 2 longs and hedging with Stage 4 breakdown shorts."
+
+def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
+    # 5. Top 5 Swing Trades (Long/Short Mix based on Bias)
     trades = []
     seen_industries = set()
     
-    for r in rows:
-        if len(trades) >= 5:
-            break
+    def fetch_trades(direction: str, limit: int):
+        if direction == "Long":
+            sql = """
+                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
+                FROM screen_data
+                WHERE Stage IN (2, 3)
+                  AND Close >= 10
+                  AND Volume >= 500000
+                  AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE OR Inside_Bar = TRUE)
+                ORDER BY RS_Rating DESC, Pct_From_52W_High ASC
+                LIMIT 50
+            """
+        else: # Short
+            sql = """
+                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
+                FROM screen_data
+                WHERE Stage = 4
+                  AND Close >= 20
+                  AND Volume >= 500000
+                  AND (Tight_Setup = TRUE OR Inside_Bar = TRUE OR Gap_Down = TRUE)
+                ORDER BY RS_Rating ASC, Pct_From_52W_High ASC
+                LIMIT 50
+            """
             
-        # Try to diversify industries
-        ind = r['Industry']
-        if ind in seen_industries and len(trades) < 4:
-             continue
-             
-        seen_industries.add(ind)
+        rows = fetch_all(sql)
+        added = 0
         
-        close = r['Close']
-        adr = r['ADR_20'] if r['ADR_20'] else (close * 0.03) # Fallback 3%
-        
-        # Calculate Entry & Exit
-        # Logical entry: Just above current close
-        entry = close * 1.01
-        
-        # Logical stoploss: 1 ATR below or structural
-        stoploss = close - adr
-        
-        # Position sizing: 1% account risk
-        # Risk amount = Entry - Stoploss
-        risk_per_share = entry - stoploss
-        if risk_per_share <= 0: continue
-        
-        risk_pct = risk_per_share / entry
-        # If risking 1% total cap, pos size % = 1% / risk_pct
-        pos_size_pct = 0.01 / risk_pct
-        # Cap at 25% max position
-        pos_size_pct = min(0.25, pos_size_pct)
-        
-        setup_names = []
-        if r['VCP_Approximation']: setup_names.append("Minervini Low Cheat")
-        if r['Tight_Setup']: setup_names.append("Tight Consolidation")
-        if r['Inside_Bar']: setup_names.append("Inside Bar")
-        
-        setup_reasons = " and ".join(setup_names) if setup_names else "Stage 2 Uptrend"
-        
-        trades.append({
-            "ticker": r['Ticker'],
-            "industry": ind,
-            "rs_rating": r['RS_Rating'] or 0,
-            "entry": round(entry, 2),
-            "stoploss": round(stoploss, 2),
-            "position_size_pct": round(pos_size_pct * 100, 1),
-            "reason": f"Stock is exhibiting a {setup_reasons} structure within a confirmed Stage 2 uptrend (RS: {round(r['RS_Rating'] or 0)}). It sits in the {ind} group, attracting volume.",
-            "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}."
-        })
+        for r in rows:
+            if added >= limit:
+                break
+                
+            ind = r['Industry']
+            if ind in seen_industries and added < limit - 1:
+                 continue
+                 
+            seen_industries.add(ind)
+            
+            close = r['Close']
+            adr = r['ADR_20'] if r['ADR_20'] else (close * 0.03) # Fallback 3%
+            
+            if direction == "Long":
+                entry = close * 1.01
+                stoploss = close - adr
+                risk_per_share = entry - stoploss
+                if risk_per_share <= 0: continue
+                
+                risk_pct = risk_per_share / entry
+                pos_size_pct = min(0.25, 0.01 / risk_pct)
+                
+                setup_names = []
+                if r['VCP_Approximation']: setup_names.append("Minervini Low Cheat")
+                if r['Tight_Setup']: setup_names.append("Tight Consolidation")
+                if r.get('Inside_Bar'): setup_names.append("Inside Bar")
+                
+                setup_reasons = " and ".join(setup_names) if setup_names else "Stage 2 Uptrend"
+                
+                trades.append({
+                    "ticker": r['Ticker'],
+                    "type": "LONG",
+                    "industry": ind,
+                    "rs_rating": r['RS_Rating'] or 0,
+                    "entry": round(entry, 2),
+                    "stoploss": round(stoploss, 2),
+                    "position_size_pct": round(pos_size_pct * 100, 1),
+                    "reason": f"Stock is exhibiting a {setup_reasons} structure within a confirmed Stage 2/3 uptrend (RS: {round(r['RS_Rating'] or 0)}). Institutional accumulation evident in {ind}.",
+                    "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}."
+                })
+                added += 1
+            else:
+                entry = close * 0.99
+                stoploss = close + adr
+                risk_per_share = stoploss - entry
+                if risk_per_share <= 0: continue
+                
+                risk_pct = risk_per_share / entry
+                pos_size_pct = min(0.25, 0.01 / risk_pct)
+                
+                setup_names = []
+                if r.get('Tight_Setup'): setup_names.append("Tight Consolidation (Bear Flag)")
+                if r.get('Inside_Bar'): setup_names.append("Inside Bar")
+                if r.get('Gap_Down'): setup_names.append("Gap Down Continuation")
+                
+                setup_reasons = " and ".join(setup_names) if setup_names else "Stage 4 Downtrend"
+                
+                trades.append({
+                    "ticker": r['Ticker'],
+                    "type": "SHORT",
+                    "industry": ind,
+                    "rs_rating": r['RS_Rating'] or 0,
+                    "entry": round(entry, 2),
+                    "stoploss": round(stoploss, 2),
+                    "position_size_pct": round(pos_size_pct * 100, 1),
+                    "reason": f"Stock is exhibiting a {setup_reasons} breakdown structure within a confirmed Stage 4 macro downtrend (RS: {round(r['RS_Rating'] or 0)}). Institutional distribution evident in {ind}.",
+                    "exit_plan": f"Cover 1/2 size at {round(entry - (risk_per_share * 2), 2)} (+2R). Trail remaining half via a close above the 10 DMA or break of {round(stoploss, 2)}."
+                })
+                added += 1
+
+    if bias == "Risk-On":
+        fetch_trades("Long", 5)
+    elif bias == "Risk-Off":
+        fetch_trades("Short", 5)
+    else:
+        fetch_trades("Long", 3)
+        fetch_trades("Short", 2)
         
     return trades
 
@@ -232,16 +290,17 @@ def get_swing_trades() -> List[Dict[str, Any]]:
 def get_daily_read():
     """Returns the synthetically generated deterministic AI market read."""
     try:
-        bias_text = get_market_bias()
+        bias_dict = get_market_bias()
         leaderboard = get_sector_leaderboard()
         opps = get_growth_opportunities(leaderboard)
-        weekly_bias = get_weekly_bias_statement(bias_text)
-        trades = get_swing_trades()
+        weekly_bias = get_weekly_bias_statement(bias_dict)
+        trades = get_swing_trades(bias_dict.get("bias", "Neutral"))
         
         return {
             "status": "success",
             "data": {
-                "market_bias": bias_text,
+                "market_bias": bias_dict.get("text"),
+                "exposure_pct": bias_dict.get("exposure_pct"),
                 "sector_leaderboard": leaderboard,
                 "growth_opportunities": opps,
                 "weekly_statement": weekly_bias,

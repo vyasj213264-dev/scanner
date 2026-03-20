@@ -3663,6 +3663,10 @@
                 </style>
                 <div class="portal-article">
                     <h2>1. Overall Market Bias</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(128,128,128,0.1); padding: 12px 18px; border-radius: 8px; border-left: 4px solid ${data.exposure_pct >= 75 ? '#4ade80' : data.exposure_pct <= 25 ? '#f87171' : '#fbbf24'}">
+                        <span style="font-size: 1.1rem; font-weight: 600;">Recommended Strategy:</span>
+                        <span style="font-size: 1.2rem; font-weight: 800; color: ${data.exposure_pct >= 75 ? '#4ade80' : data.exposure_pct <= 25 ? '#f87171' : '#fbbf24'}">${data.exposure_pct}% Gross Exposure</span>
+                    </div>
                     <p>${data.market_bias.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>
                     
                     <h2>2. Sector Leaderboard</h2>
@@ -3718,6 +3722,8 @@
                             <div class="portal-trade">
                                 <div class="portal-trade-header">
                                     <div class="portal-trade-ticker" onclick="fetchStockDetail('${t.ticker}')">${t.ticker}</div>
+                                    <div style="font-size: 0.8rem; font-weight: 800; letter-spacing: 0.5px; padding: 4px 8px; border-radius: 4px; color: #fff; background: ${t.type === 'SHORT' ? '#f87171' : '#4ade80'}; margin-right: 12px;">${t.type || 'LONG'}</div>
+                                    <div class="portal-trade-industry">${t.industry}</div>
                                     <div class="portal-trade-industry">${t.industry}</div>
                                     <div class="portal-trade-rs">RS ${t.rs_rating}</div>
                                 </div>
@@ -3747,7 +3753,7 @@
                         <div class="portal-trade" style="text-align:center; padding: 40px;">
                             <div style="font-size:2rem; margin-bottom:15px;">🛡️</div>
                             <h3 style="margin:0 0 10px 0;">No High-Quality Setups Found</h3>
-                            <p style="color:var(--text-muted); margin:0;">In current market conditions, no stocks met the stringent criteria for isolated Stage 2 swing setups. Capital preservation is priority.</p>
+                            <p style="color:var(--text-muted); margin:0;">In current market conditions, no stocks met the stringent criteria for isolated Stage 2 setups or Stage 4 breakdowns. Capital preservation is priority.</p>
                         </div>
                     `;
                 }
