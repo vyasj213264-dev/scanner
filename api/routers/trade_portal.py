@@ -168,7 +168,7 @@ def get_swing_trades() -> List[Dict[str, Any]]:
         WHERE Stage = 2
           AND Close >= 10
           AND Volume >= 500000
-          AND (Tight_Setup = 1 OR VCP_Approximation = 1 OR Inside_Bar = 1)
+          AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE OR Inside_Bar = TRUE)
         ORDER BY RS_Rating DESC, Pct_From_52W_High ASC
         LIMIT 50
     """)
