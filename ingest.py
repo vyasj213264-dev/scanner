@@ -370,6 +370,7 @@ def run_ingest(market='US'):
                 rs_raw_clean = None if (rs_raw is None or pd.isna(rs_raw)) else float(rs_raw)
                 
                 try:
+                    # Map indicators to the canonical order for screen_data
                     record = (
                         ticker,
                         str(last.name),
@@ -405,7 +406,8 @@ def run_ingest(market='US'):
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
                         _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap')),
-                        int(last['Stage']) if pd.notna(last['Stage']) else None
+                        int(last['Stage']) if pd.notna(last['Stage']) else None,
+                        market # Include market directly in tuple for robustness
                     )
                     all_data.append(record)
                     
@@ -588,7 +590,6 @@ def run_ingest(market='US'):
     cursor.execute(f'''
         CREATE TABLE screen_data (
             Ticker {sql_types["TEXT PRIMARY KEY"]},
-            Market {sql_types["TEXT"]} DEFAULT 'US',
             Date {sql_types["TEXT"]},
             Close {sql_types["REAL"]},
             Volume {sql_types["REAL"]},
@@ -622,21 +623,30 @@ def run_ingest(market='US'):
             Sector {sql_types["TEXT"]},
             Industry {sql_types["TEXT"]},
             Market_Cap {sql_types["REAL"]},
-            Stage {sql_types["INTEGER"]}
+            Stage {sql_types["INTEGER"]},
+            Market {sql_types["TEXT"]}
         )
     ''')
     
     # Defensive schema migration for PostgreSQL to append missing Market column dynamically
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        # Check if Market column exists in industry_ranks
         try:
-            cursor.execute("ALTER TABLE industry_ranks ADD COLUMN Market VARCHAR(255) DEFAULT 'US'")
-            cursor.execute("ALTER TABLE industry_ranks DROP CONSTRAINT industry_ranks_pkey")
-            cursor.execute("ALTER TABLE industry_ranks ADD PRIMARY KEY (Date, Market, Category, Name)")
-            conn.commit()
-            print("Successfully migrated Postgres industry_ranks schema to include Market PK.", flush=True)
+            cursor.execute("SELECT Market FROM industry_ranks LIMIT 1")
         except Exception:
-            conn.rollback() # If already exists, ignore safely
-            pass
+            conn.rollback()
+            print("Migrating industry_ranks to include Market column...", flush=True)
+            try:
+                cursor.execute("ALTER TABLE industry_ranks ADD COLUMN Market VARCHAR(255) DEFAULT 'US'")
+                cursor.execute("ALTER TABLE industry_ranks DROP CONSTRAINT IF EXISTS industry_ranks_pkey")
+                cursor.execute("ALTER TABLE industry_ranks ADD PRIMARY KEY (Date, Market, Category, Name)")
+                conn.commit()
+                print("Successfully migrated Postgres industry_ranks schema.", flush=True)
+            except Exception as e:
+                conn.rollback()
+                print(f"Warning: industry_ranks migration failed: {e}. Dropping and recreating.", flush=True)
+                cursor.execute("DROP TABLE IF EXISTS industry_ranks")
+                conn.commit()
 
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS industry_ranks (
@@ -696,21 +706,23 @@ def run_ingest(market='US'):
         cursor.execute("PRAGMA synchronous = OFF")
         cursor.execute("PRAGMA journal_mode = MEMORY")
 
-    # ---------------------------------------------------------
-    # 4. Final Batch Insertions
-    # ---------------------------------------------------------
+    # Column list exactly matching the tuple creation for screen_data
+    SCREEN_DATA_COLS = [
+        "Ticker", "Date", "Close", "Volume", "SMA_5", "SMA_9", "SMA_10", "SMA_20", "SMA_21", "SMA_50", "SMA_100", "SMA_200",
+        "RVOL", "ADR_20", "Pct_From_52W_High", "In_Stage_2", "Tight_Setup", "Near_Horizontal_Resistance", 
+        "RS_Raw", "Inside_Bar", "Golden_Crossover", "Gap_Up", "Gap_Down", "VCP_Approximation", 
+        "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", "RS_Rating",
+        "Sector", "Industry", "Market_Cap", "Stage", "Market"
+    ]
+    col_str = ", ".join(SCREEN_DATA_COLS)
+    placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
+
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     batch_size = 500
     for i in range(0, len(all_data), batch_size):
         batch = all_data[i:i + batch_size]
         cursor.executemany(f'''
-            INSERT INTO screen_data (
-                Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
-                RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
-                RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
-                Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
-                Sector, Industry, Market_Cap, Stage, Market
-            ) VALUES ({full_placeholders}, '{market}')
+            INSERT INTO screen_data ({col_str}) VALUES ({placeholders})
         ''', batch)
         conn.commit()  # Periodically commit to keep transactions small
         print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
