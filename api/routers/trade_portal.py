@@ -307,6 +307,13 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                 })
                 added += 1
 
+    # Indian market: only Long trades when environment favors
+    if market == 'IN':
+        if bias in ('Risk-On', 'Neutral'):
+            fetch_trades("Long", 5)
+        # Risk-Off: no trades for Indian market (no shorting culture)
+        return trades
+    
     if bias == "Risk-On":
         fetch_trades("Long", 5)
     elif bias == "Risk-Off":
@@ -321,23 +328,35 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
 def get_daily_read(market: str = Query("US", description="US or IN")):
     """Returns the synthetically generated deterministic AI market read."""
     try:
-        bias_dict = get_market_bias(market.upper())
-        leaderboard = get_sector_leaderboard(market.upper())
-        opps = get_growth_opportunities(leaderboard, market.upper())
-        weekly_bias = get_weekly_bias_statement(bias_dict)
-        trades = get_swing_trades(bias_dict.get("bias", "Neutral"), market.upper())
+        market_up = market.upper()
+        bias_dict = get_market_bias(market_up)
+        trades = get_swing_trades(bias_dict.get("bias", "Neutral"), market_up)
         
-        return {
+        result = {
             "status": "success",
             "data": {
                 "market_bias": bias_dict.get("text"),
                 "exposure_pct": bias_dict.get("exposure_pct"),
-                "sector_leaderboard": leaderboard,
-                "growth_opportunities": opps,
-                "weekly_statement": weekly_bias,
                 "swing_trades": trades
             }
         }
+        
+        # Only include sector/industry data for US market
+        if market_up == 'US':
+            leaderboard = get_sector_leaderboard(market_up)
+            opps = get_growth_opportunities(leaderboard, market_up)
+            weekly_bias = get_weekly_bias_statement(bias_dict)
+            result["data"]["sector_leaderboard"] = leaderboard
+            result["data"]["growth_opportunities"] = opps
+            result["data"]["weekly_statement"] = weekly_bias
+        else:
+            # Indian market: simplified output
+            result["data"]["sector_leaderboard"] = []
+            result["data"]["growth_opportunities"] = []
+            weekly_bias = get_weekly_bias_statement(bias_dict)
+            result["data"]["weekly_statement"] = weekly_bias
+        
+        return result
     except Exception as e:
         print(f"Error in trade portal: {e}")
         raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")
