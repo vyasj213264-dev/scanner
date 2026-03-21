@@ -187,17 +187,23 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
                 WHERE Stage IN (2, 3)
                   AND Close >= 10
                   AND Volume >= 500000
-                  AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE OR Inside_Bar = TRUE)
+                  AND RS_Rating >= 97
+                  AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE)
+                  AND (
+                      (Close >= SMA_10 AND Close <= SMA_10 * 1.05) OR 
+                      (Close >= SMA_20 AND Close <= SMA_20 * 1.05) OR 
+                      (Close >= SMA_50 AND Close <= SMA_50 * 1.05)
+                  )
                 ORDER BY RS_Rating DESC, Pct_From_52W_High ASC
                 LIMIT 50
             """
-        else: # Short
+        else: # Short extreme high prob ETFs / Mega caps
             sql = """
                 SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
                 WHERE Stage = 4
-                  AND Close >= 20
-                  AND Volume >= 500000
+                  AND Volume >= 1000000
+                  AND (Sector = 'ETF' OR Ticker IN ('SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL', 'AVGO', 'AMD', 'COIN'))
                   AND (Tight_Setup = TRUE OR Inside_Bar = TRUE OR Gap_Down = TRUE)
                 ORDER BY RS_Rating ASC, Pct_From_52W_High ASC
                 LIMIT 50
@@ -233,7 +239,7 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
                 if r['Tight_Setup']: setup_names.append("Tight Consolidation")
                 if r.get('Inside_Bar'): setup_names.append("Inside Bar")
                 
-                setup_reasons = " and ".join(setup_names) if setup_names else "Stage 2 Uptrend"
+                setup_reasons = " and ".join(setup_names) if setup_names else "Stage 2 Breakout Uptrend"
                 
                 trades.append({
                     "ticker": r['Ticker'],
@@ -243,7 +249,7 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
-                    "reason": f"Stock is exhibiting a {setup_reasons} structure within a confirmed Stage 2/3 uptrend (RS: {round(r['RS_Rating'] or 0)}). Institutional accumulation evident in {ind}.",
+                    "reason": f"Stock is exhibiting an extreme high-probability {setup_reasons} near a key moving average. Unprecedented relative strength (RS: {round(r['RS_Rating'] or 0)} > 97) flags massive institutional accumulation.",
                     "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}."
                 })
                 added += 1
@@ -271,7 +277,7 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
-                    "reason": f"Stock is exhibiting a {setup_reasons} breakdown structure within a confirmed Stage 4 macro downtrend (RS: {round(r['RS_Rating'] or 0)}). Institutional distribution evident in {ind}.",
+                    "reason": f"High liquidity underlying asset is printing a {setup_reasons} breakdown pattern embedded in a structural Stage 4 macro downtrend. Valid for Leveraged Inverse ETF proxies or direct shorting.",
                     "exit_plan": f"Cover 1/2 size at {round(entry - (risk_per_share * 2), 2)} (+2R). Trail remaining half via a close above the 10 DMA or break of {round(stoploss, 2)}."
                 })
                 added += 1
