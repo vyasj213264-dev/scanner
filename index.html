@@ -5533,7 +5533,7 @@
                                             backgroundColor: '#131926',
                                             gridColor: '#1e2a40',
                                             studies: [
-                                                { id: "MAExp@tv-basicstudies", inputs: { length: 9 } }
+                                                { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
                                             ]
                                         });
                                     } catch (err) {
@@ -5791,44 +5791,45 @@
             }
 
             if (isSmallGrid) {
-                // ── Advanced Chart (grid card, no toolbar) ──────────
-                const wrapper = document.createElement('div');
-                wrapper.className = 'tradingview-widget-container';
-                wrapper.style.cssText = 'height:100%;width:100%;overflow:hidden;';
+                // ── tv.js Chart (grid card, no toolbar) ──────────
+                const uniqueGridId = 'tv_grid_' + tvSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + (tvWidgetCount++);
+                const chartDiv = document.createElement('div');
+                chartDiv.id = uniqueGridId;
+                chartDiv.style.cssText = 'height:100%;width:100%;';
+                container.appendChild(chartDiv);
 
-                const widgetDiv = document.createElement('div');
-                widgetDiv.className = 'tradingview-widget-container__widget';
-                widgetDiv.style.cssText = 'height:100%;width:100%;';
-                wrapper.appendChild(widgetDiv);
+                const instantiateGrid = () => {
+                    new TradingView.widget({
+                        autosize: true,
+                        symbol: tvSymbol,
+                        interval: 'D',
+                        timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
+                        theme: theme,
+                        style: '1',
+                        locale: 'en',
+                        range: '3M',
+                        enable_publishing: false,
+                        hide_top_toolbar: true,
+                        hide_legend: true,
+                        hide_side_toolbar: true,
+                        allow_symbol_change: false,
+                        save_image: false,
+                        calendar: false,
+                        studies: [
+                            { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
+                        ],
+                        container_id: uniqueGridId
+                    });
+                };
 
-                container.appendChild(wrapper);
-
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-                script.async = true;
-                script.innerHTML = JSON.stringify({
-                    width:  '100%',
-                    height: '100%',
-                    symbol: tvSymbol,
-                    interval: 'D',
-                    timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
-                    theme: theme,
-                    style: '1',            // candlestick
-                    locale: 'en',
-                    range: '3M',
-                    hide_top_toolbar: true,
-                    hide_legend: true,     // no labels
-                    hide_side_toolbar: true,
-                    allow_symbol_change: false,
-                    save_image: false,
-                    calendar: false,
-                    support_host: 'https://www.tradingview.com',
-                    studies: [
-                        { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
-                    ]
-                });
-                wrapper.appendChild(script);
+                if (window.TradingView && window.TradingView.widget) {
+                    instantiateGrid();
+                } else {
+                    const s = document.createElement('script');
+                    s.src = 'https://s3.tradingview.com/tv.js';
+                    s.onload = instantiateGrid;
+                    document.head.appendChild(s);
+                }
             } else {
                 // ── Advanced Chart (stock detail panel) ────────────
                 const uniqueId = 'tv_adv_' + tvSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
