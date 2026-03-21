@@ -3531,6 +3531,11 @@
                         justify-content: space-between;
                         padding: 12px 20px;
                         border-bottom: 1px solid var(--border-light);
+                        cursor: pointer;
+                        transition: background-color 0.2s;
+                    }
+                    .portal-rank-item:hover {
+                        background: rgba(128,128,128,0.05);
                     }
                     .portal-rank-item:last-child {
                         border-bottom: none;
@@ -3677,7 +3682,7 @@
                 data.sector_leaderboard.forEach(s => {
                     const color = s.pct_1w >= 0 ? '#4ade80' : '#f87171';
                     html += `
-                        <li class="portal-rank-item">
+                        <li class="portal-rank-item" onclick="fetchStockDetail('${s.ticker}')" title="View Chart for ${s.ticker}">
                             <span class="rank">${s.rank}</span>
                             <span class="ticker">${s.ticker}</span>
                             <span style="font-size:0.75rem; font-weight:700; padding:2px 6px; background:rgba(128,128,128,0.2); border-radius:4px; margin-right:12px; color:var(--text-muted); display:inline-flex; align-items:center;">Stage ${s.stage != null ? Math.round(s.stage) : '?'}</span>
