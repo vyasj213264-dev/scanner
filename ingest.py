@@ -586,9 +586,9 @@ def run_ingest(market='US'):
     
     # Drop and re-create schema to ensure freshness
     print("Re-initializing database schema...", flush=True)
-    cursor.execute('DROP TABLE IF EXISTS screen_data')
+    
     cursor.execute(f'''
-        CREATE TABLE screen_data (
+        CREATE TABLE IF NOT EXISTS screen_data (
             Ticker {sql_types["TEXT PRIMARY KEY"]},
             Date {sql_types["TEXT"]},
             Close {sql_types["REAL"]},
@@ -665,9 +665,17 @@ def run_ingest(market='US'):
         )
     ''')
     
-    cursor.execute('DROP TABLE IF EXISTS daily_ohlcv')
+    # Defensive migration for market breadth
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        try:
+            cursor.execute("ALTER TABLE market_breadth_history DROP CONSTRAINT IF EXISTS market_breadth_history_pkey CASCADE")
+            cursor.execute("ALTER TABLE market_breadth_history ADD PRIMARY KEY (Date, Market)")
+            conn.commit()
+        except:
+            conn.rollback()
+
     cursor.execute(f'''
-        CREATE TABLE daily_ohlcv (
+        CREATE TABLE IF NOT EXISTS daily_ohlcv (
             Ticker {sql_types["TEXT"]},
             Market {sql_types["TEXT"]} DEFAULT 'US',
             Date {sql_types["TEXT"]},
@@ -680,25 +688,24 @@ def run_ingest(market='US'):
         )
     ''')
     
-    cursor.execute('DROP TABLE IF EXISTS scanner_results')
     cursor.execute(f'''
-        CREATE TABLE scanner_results (
+        CREATE TABLE IF NOT EXISTS scanner_results (
             scanner_id {sql_types["TEXT"]},
             Ticker {sql_types["TEXT"]},
             Market {sql_types["TEXT"]} DEFAULT 'US',
-            UNIQUE(scanner_id, Ticker)
+            UNIQUE(scanner_id, Ticker, Market)
         )
     ''')
     
-    cursor.execute('DROP TABLE IF EXISTS market_breadth_history')
     cursor.execute(f'''
-        CREATE TABLE market_breadth_history (
-            Date {sql_types["TEXT PRIMARY KEY"]},
+        CREATE TABLE IF NOT EXISTS market_breadth_history (
+            Date {sql_types["TEXT"]},
             Market {sql_types["TEXT"]} DEFAULT 'US',
             Stage_1 {sql_types["INTEGER"]},
             Stage_2 {sql_types["INTEGER"]},
             Stage_3 {sql_types["INTEGER"]},
-            Stage_4 {sql_types["INTEGER"]}
+            Stage_4 {sql_types["INTEGER"]},
+            PRIMARY KEY (Date, Market)
         )
     ''')
 
@@ -716,6 +723,14 @@ def run_ingest(market='US'):
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
+
+    # Before inserting, selectively clear existing data for the current market
+    print(f"[{market}] Clearing existing target database records...", flush=True)
+    cursor.execute(f"DELETE FROM screen_data WHERE Market = '{market}'")
+    cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
+    cursor.execute(f"DELETE FROM scanner_results WHERE Market = '{market}'")
+    cursor.execute(f"DELETE FROM market_breadth_history WHERE Market = '{market}'")
+    conn.commit()
 
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     batch_size = 500
