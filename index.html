@@ -3009,14 +3009,21 @@
             if (industryId) {
                 themesCategory = themeId || 'Sector';
                 selectedSector = sectorId;
-                drillIntoIndustry(industryId);
+                drillIntoIndustry(industryId, true);
             } else if (sectorId) {
                 themesCategory = themeId || 'Sector';
-                drillIntoSector(sectorId);
+                drillIntoSector(sectorId, true);
             } else if (themeId) {
-                runThemes(themeId);
+                runThemes(themeId, true);
             } else if (scannerId === 'universe') {
                 runUniverse();
+            } else if (scannerId === 'trade-portal') {
+                runTradePortal(true);
+            } else if (scannerId === 'lev-etf') {
+                runLevEtf(true);
+            } else if (scannerId && scannerId.startsWith('wl-')) {
+                const wlId = parseInt(scannerId.replace('wl-', ''));
+                if (!isNaN(wlId)) runWatchlist(wlId);
             } else if (scannerId) {
                 const btn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
                 const label = btn?.querySelector('.btn-label')?.textContent || scannerId;
@@ -3463,6 +3470,8 @@
             themesCategory = null;
             themesLevel = 'top';
 
+            if (!force) pushScannerToHistory('trade-portal');
+
             // Update sidebar active state
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             const btn = document.getElementById('btn-trade-portal');
@@ -3787,6 +3796,8 @@
             activeWatchlist = null;
             themesCategory = null;
             themesLevel = 'top';
+
+            if (!force) pushScannerToHistory('lev-etf');
 
             // Update sidebar active state
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
