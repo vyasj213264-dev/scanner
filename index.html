@@ -2375,6 +2375,30 @@
             if (pLabel && pLabel.tagName === 'LABEL') {
                 pLabel.innerHTML = `Price &ge; `;
             }
+
+            // Update Market Cap Dropdown based on market
+            const mcapSelect = document.getElementById('f-mcap');
+            if (mcapSelect) {
+                if (market === 'IN') {
+                    // INR Classifications: Smallcap (~5k Cr), Midcap (~20k Cr), Largecap (~50k Cr)
+                    mcapSelect.innerHTML = `
+                        <option value="">Any</option>
+                        <option value="5000000000">&ge; Smallcap (₹500Cr+)</option>
+                        <option value="50000000000">&ge; Midcap (₹5,000Cr+)</option>
+                        <option value="200000000000">&ge; Largecap (₹20,000Cr+)</option>
+                        <option value="500000000000">Mega (₹50,000Cr+)</option>
+                    `;
+                } else {
+                    mcapSelect.innerHTML = `
+                        <option value="">Any</option>
+                        <option value="300000000">$300M+</option>
+                        <option value="1000000000">$1B+</option>
+                        <option value="10000000000">$10B+</option>
+                        <option value="50000000000">$50B+</option>
+                        <option value="200000000000">$200B+</option>
+                    `;
+                }
+            }
         }
 
         async function setMarket(market) {
@@ -2517,7 +2541,12 @@
                 const res = await fetchApi(`/stock/${ticker}`);
                 const d = await res.json();
 
-                document.getElementById('sp-company').textContent = d.industry ? `${d.sector} • ${d.industry}` : 'US Equity';
+                // Exclude sector/industry for Indian market
+                if (currentMarket === 'IN') {
+                    document.getElementById('sp-company').textContent = 'Indian Equity';
+                } else {
+                    document.getElementById('sp-company').textContent = d.industry ? `${d.sector} • ${d.industry}` : 'US Equity';
+                }
                 document.getElementById('sp-price').textContent = fmtPrice(d.close);
 
                 const chg = d.momentum_1d;
@@ -3544,8 +3573,9 @@
                                             trigger = c * 1.01;
                                             stop = c * 0.90;
                                         }
-                                        return '<td style="color:#10b981;font-weight:600;">$' + trigger.toFixed(2) + '</td>'
-                                             + '<td style="color:#f43f5e;font-weight:600;">$' + stop.toFixed(2) + '</td>';
+                                        const prefix = currentMarket === 'IN' ? '₹' : '$';
+                                        return '<td style="color:#10b981;font-weight:600;">' + prefix + trigger.toFixed(2) + '</td>'
+                                             + '<td style="color:#f43f5e;font-weight:600;">' + prefix + stop.toFixed(2) + '</td>';
                                     })() : ''}
                                 </tr>`;
             }
@@ -4918,7 +4948,10 @@
 
         function renderScreenerBuilder() {
             const area = document.getElementById('grid-area');
-            let fieldsOpts = Object.keys(screenerFields).map(k => `<option value="${k}">${screenerFields[k]}</option>`).join('');
+            let fieldsOpts = Object.keys(screenerFields).map(k => {
+                if (currentMarket === 'IN' && (k === 'sector' || k === 'industry')) return '';
+                return `<option value="${k}">${screenerFields[k]}</option>`;
+            }).join('');
 
             let html = `
             <div style="max-width: 1000px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
