@@ -300,7 +300,7 @@ def run_ingest(market='US'):
 
     print(f"Running on FULL UNIVERSE: {len(tickers)} unique stocks (Note: recently IPO'd stocks < 200 days old will be bypassed due to 200-SMA requirement).", flush=True)
     
-    if 'SPY' not in tickers:
+    if market == 'US' and 'SPY' not in tickers:
         tickers.append('SPY')
 
     # ---------------------------------------------------------
