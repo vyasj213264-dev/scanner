@@ -541,8 +541,9 @@ def run_ingest(market='US'):
                                 0.0, # Placeholder for RS_Rating
                                 'ETF', # Sector
                                 'ETF', # Industry
-                                0, # Market Cap
-                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None
+                                0.0, # Market Cap
+                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None,
+                                market
                             )
                             all_data.append(etf_record)
                             
