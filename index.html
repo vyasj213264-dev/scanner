@@ -2309,8 +2309,10 @@
             }
             
             let finalPath = path;
-            const marketRoutes = ['/scan', '/scanners', '/universe', '/themes', '/trade-portal', '/health', '/breadth'];
-            if (marketRoutes.some(route => path.startsWith(route) || path.startsWith('/api/v1' + route))) {
+            // Auto-inject market= on ALL data API routes (skip auth/watchlist-mgmt/events)
+            const skipMarketRoutes = ['/auth', '/events', '/login', '/google'];
+            const isSkipped = skipMarketRoutes.some(r => path.includes(r));
+            if (!isSkipped && !path.includes('market=')) {
                 const separator = finalPath.includes('?') ? '&' : '?';
                 finalPath = `${finalPath}${separator}market=${currentMarket}`;
             }

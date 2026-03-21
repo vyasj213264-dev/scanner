@@ -12,7 +12,7 @@ from api.models.user import User
 from api.routers.auth import require_user
 from api.database import fetch_all, fetch_one, get_db
 from api.models.scanner import StockResult
-from api.services.scanner_service import BASELINE_FILTER
+from api.services.scanner_service import BASELINE_FILTER, get_baseline_filter
 from api.config import DATABASE_URL
 
 router = APIRouter(prefix="/api/v1/screener", tags=["Custom Screener"])
@@ -82,9 +82,10 @@ ALLOWED_FIELDS = {
     "industry": "Industry"
 }
 
-def build_sql(payload: ScreenPayload) -> tuple[str, list]:
-    where_clauses = [BASELINE_FILTER]
-    params = []
+def build_sql(payload: ScreenPayload, market: str = "US") -> tuple[str, list]:
+    baseline = get_baseline_filter(market)
+    where_clauses = [baseline, f"Market = ?"]
+    params = [market]
     
     for cond in payload.conditions:
         if cond.field not in ALLOWED_FIELDS:
@@ -134,8 +135,8 @@ def build_sql(payload: ScreenPayload) -> tuple[str, list]:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/run", summary="Run a custom screen dynamically")
-def run_custom_screen(payload: ScreenPayload): # Open endpoint, free to run unless we paywall
-    sql, params = build_sql(payload)
+def run_custom_screen(payload: ScreenPayload, market: str = "US"): # Open endpoint, free to run unless we paywall
+    sql, params = build_sql(payload, market=market.upper())
     rows = fetch_all(sql, params)
     results = [StockResult.model_validate(r) for r in rows if r.get("Ticker")]
     return {

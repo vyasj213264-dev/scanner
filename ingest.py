@@ -286,6 +286,25 @@ def run_ingest(market='US'):
         in_tickers, in_meta = fetch_indian_tickers()
         tickers.extend(in_tickers)
         ticker_meta.update(in_meta)
+        
+        # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
+        import concurrent.futures
+        print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
+        actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
+        
+        def _fetch_mc(t):
+            try:
+                import yfinance as yf
+                return t, yf.Ticker(t).fast_info.get('marketCap')
+            except:
+                return t, None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            for t, mc in executor.map(_fetch_mc, actual_stocks):
+                if mc:
+                    ticker_meta[t]['market_cap'] = mc
+                    
+        print("Indian Market Cap fetch complete.", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
