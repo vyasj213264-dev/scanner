@@ -473,7 +473,7 @@ def run_ingest(market='US'):
     existing_tickers = set(r[0] for r in all_ohlcv)  # ticker is first element of tuple
     etfs_to_download = [t for t in sector_etf_tickers if t not in existing_tickers]
     
-    if etfs_to_download:
+    if market == 'US' and etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
         try:
             etf_data = yf.download(etfs_to_download, period='1y', group_by='ticker', threads=True)
