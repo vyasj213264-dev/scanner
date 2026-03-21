@@ -693,12 +693,12 @@ def run_ingest(market='US'):
         batch = all_data[i:i + batch_size]
         cursor.executemany(f'''
             INSERT INTO screen_data (
-                Ticker, Market, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
+                Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
                 RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
                 RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
                 Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
-                Sector, Industry, Market_Cap, Stage
-            ) VALUES ({full_placeholders}, 'US')
+                Sector, Industry, Market_Cap, Stage, Market
+            ) VALUES ({full_placeholders}, '{market}')
         ''', batch)
         conn.commit()  # Periodically commit to keep transactions small
         print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
@@ -720,8 +720,8 @@ def run_ingest(market='US'):
     if history_records:
         history_placeholders = ', '.join(['%s' if DATABASE_URL and DATABASE_URL.startswith("postgres") else '?'] * 5)
         cursor.executemany(f'''
-            INSERT INTO market_breadth_history (Date, Market, Stage_1, Stage_2, Stage_3, Stage_4) 
-            VALUES ({"%s, 'US', " if DATABASE_URL and DATABASE_URL.startswith("postgres") else "?, 'US', "}{', '.join(history_placeholders.split(', ')[1:])})
+            INSERT INTO market_breadth_history (Date, Stage_1, Stage_2, Stage_3, Stage_4, Market) 
+            VALUES ({(("%s, " if DATABASE_URL and DATABASE_URL.startswith("postgres") else "?, ") + ', '.join(history_placeholders.split(', ')[1:]))}, '{market}')
         ''', history_records)
         conn.commit()
         print(f"Successfully inserted {len(history_records)} historical breadth records.", flush=True)
@@ -735,7 +735,7 @@ def run_ingest(market='US'):
     if is_pg:
         from psycopg2.extras import execute_values
         sql = '''
-            INSERT INTO daily_ohlcv (Ticker, Market, Date, Open, High, Low, Close, Volume) 
+            INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
             VALUES %s 
             ON CONFLICT (Ticker, Date) DO UPDATE SET 
                 Market = EXCLUDED.Market,
@@ -744,16 +744,16 @@ def run_ingest(market='US'):
         '''
         for i in range(0, len(all_ohlcv), ohlcv_batch_size):
             batch = all_ohlcv[i:i + ohlcv_batch_size]
-            batch_with_market = [(r[0], 'US', r[1], r[2], r[3], r[4], r[5], r[6]) for r in batch]
+            batch_with_market = [(r[0], r[1], r[2], r[3], r[4], r[5], r[6], market) for r in batch]
             execute_values(cursor, sql, batch_with_market, page_size=ohlcv_batch_size)
             if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
                 conn.commit()
                 print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
         conn.commit()  # final commit
     else:
-        sql = '''
-            INSERT OR IGNORE INTO daily_ohlcv (Ticker, Market, Date, Open, High, Low, Close, Volume) 
-            VALUES (?, 'US', ?, ?, ?, ?, ?, ?)
+        sql = f'''
+            INSERT OR IGNORE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, '{market}')
         '''
         for i in range(0, len(all_ohlcv), ohlcv_batch_size):
             batch = all_ohlcv[i:i + ohlcv_batch_size]
@@ -837,9 +837,9 @@ def run_ingest(market='US'):
         for i in range(0, len(cache_records), batch_size):
             batch = cache_records[i:i + batch_size]
             if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-                cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (%s, %s)", batch)
+                cursor.executemany(f"INSERT INTO scanner_results (scanner_id, Ticker, Market) VALUES (%s, %s, '{market}')", batch)
             else:
-                cursor.executemany("INSERT INTO scanner_results (scanner_id, Ticker) VALUES (?, ?)", batch)
+                cursor.executemany(f"INSERT INTO scanner_results (scanner_id, Ticker, Market) VALUES (?, ?, '{market}')", batch)
             conn.commit()
             
         print(f"Pre-computed and cached {len(cache_records)} cross-reference matches across {len(filters)} scanners.", flush=True)
@@ -884,7 +884,7 @@ def run_ingest(market='US'):
             for _, r in grouped.iterrows():
                 rank_data.append((
                     latest_date,
-                    'US',
+                    market,
                     category_name,
                     str(r[group_col]),
                     int(r['Ticker']),
