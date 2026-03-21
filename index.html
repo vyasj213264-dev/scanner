@@ -2304,7 +2304,7 @@
             }
             
             let finalPath = path;
-            const marketRoutes = ['/scan', '/scanners', '/universe', '/themes', '/trade-portal', '/health'];
+            const marketRoutes = ['/scan', '/scanners', '/universe', '/themes', '/trade-portal', '/health', '/breadth'];
             if (marketRoutes.some(route => path.startsWith(route) || path.startsWith('/api/v1' + route))) {
                 const separator = finalPath.includes('?') ? '&' : '?';
                 finalPath = `${finalPath}${separator}market=${currentMarket}`;
@@ -4535,7 +4535,7 @@
             history.pushState({}, '', buildCleanUrl());
 
             document.getElementById('results-title').textContent = 'Market Breadth Dashboard';
-            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of US Equities health</span>`;
+            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of ${currentMarket === 'IN' ? 'Indian' : 'US'} Equities health</span>`;
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
 
@@ -4556,7 +4556,7 @@
                     <!-- Top KPIs -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
                         <div class="sp-stat-box" style="text-align: center;">
-                            <div class="sp-stat-label">Total Stocks &ge; $5</div>
+                            <div class="sp-stat-label">Total Stocks${currentMarket === 'US' ? ' &ge; $5' : ''}</div>
                             <div class="sp-stat-val" style="font-size:1.8rem; color:var(--text-primary);">${data.total_stocks}</div>
                         </div>
                         <div class="sp-stat-box" style="text-align: center;">
@@ -4760,7 +4760,7 @@
                 if (data.history && data.history.length > 0) {
                     const chartArea = document.getElementById('stage-history-chart');
                     const chart = LightweightCharts.createChart(chartArea, {
-                        layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
+                        layout: { background: { color: 'transparent' }, textColor: currentTheme === 'dark' ? '#9ca3af' : '#6b7280' },
                         grid: { vertLines: { visible: false }, horzLines: { visible: false } },
                         rightPriceScale: { borderVisible: false },
                         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
@@ -4773,11 +4773,18 @@
                         handleScale: false
                     });
 
-                    const baselineLine = chart.addLineSeries({ color: '#9ca3af', lineWidth: 1, crosshairMarkerVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed });
-                    const s1Line = chart.addLineSeries({ color: '#9ca3af', lineWidth: 2 });
-                    const s2Line = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2 });
-                    const s3Line = chart.addLineSeries({ color: '#facc15', lineWidth: 2 });
-                    const s4Line = chart.addLineSeries({ color: '#ec4899', lineWidth: 2 });
+                    const isDark = currentTheme === 'dark';
+                    const s1Color = isDark ? '#94a3b8' : '#64748b';  // slate
+                    const s2Color = isDark ? '#60a5fa' : '#2563eb';  // blue
+                    const s3Color = isDark ? '#fbbf24' : '#d97706';  // amber
+                    const s4Color = isDark ? '#f472b6' : '#db2777';  // pink
+                    const textColor = isDark ? '#9ca3af' : '#6b7280';
+
+                    const baselineLine = chart.addLineSeries({ color: textColor, lineWidth: 1, crosshairMarkerVisible: false, lineStyle: LightweightCharts.LineStyle.Dashed });
+                    const s1Line = chart.addLineSeries({ color: s1Color, lineWidth: 2 });
+                    const s2Line = chart.addLineSeries({ color: s2Color, lineWidth: 2 });
+                    const s3Line = chart.addLineSeries({ color: s3Color, lineWidth: 2 });
+                    const s4Line = chart.addLineSeries({ color: s4Color, lineWidth: 2 });
                     
                     const formatTime = (dStr) => {
                         const [y, m, d] = dStr.split('-');

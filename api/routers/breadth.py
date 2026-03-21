@@ -2,58 +2,63 @@
 Market Breadth router — GET /api/v1/breadth
 Computes breadth metrics from screen_data in real time.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from api.database import fetch_all, fetch_val
 
 router = APIRouter(prefix="/api/v1", tags=["Market Breadth"])
 
 
 @router.get("/breadth", summary="Get market breadth indicators")
-def get_breadth():
+def get_breadth(market: str = Query("US", description="US or IN")):
     """
-    Returns market-wide and sector-level breadth indicators computed from screen_data.
+    Returns market-wide and sector-level breadth indicators computed from screen_data,
+    filtered by market (US or IN).
     """
+    market = market.upper()
+    # Indian stocks are priced in INR, so $5 filter doesn't apply
+    price_filter = "Close >= 5" if market == "US" else "Close > 0"
+    
     try:
-        total = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5") or 1
+        total = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter}") or 1
 
         def pct(val):
             return round((val / total) * 100, 1) if total > 0 else 0
 
         above_50 = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND SMA_50 IS NOT NULL AND Close > SMA_50"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND SMA_50 IS NOT NULL AND Close > SMA_50"
         ) or 0
         above_200 = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND SMA_200 IS NOT NULL AND Close > SMA_200"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND SMA_200 IS NOT NULL AND Close > SMA_200"
         ) or 0
         stage2 = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND In_Stage_2"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND In_Stage_2"
         ) or 0
         
         # New: Stan Weinstein 50-day SMA Stages
-        stage1_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 1") or 0
-        stage2_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 2") or 0
-        stage3_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 3") or 0
-        stage4_count = fetch_val("SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Stage = 4") or 0
+        stage1_count = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Stage = 1") or 0
+        stage2_count = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Stage = 2") or 0
+        stage3_count = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Stage = 3") or 0
+        stage4_count = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Stage = 4") or 0
         pos_1m = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Momentum_1M > 0"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Momentum_1M > 0"
         ) or 0
         pos_3m = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Momentum_3M > 0"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Momentum_3M > 0"
         ) or 0
         pos_6m = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Momentum_6M > 0"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Momentum_6M > 0"
         ) or 0
         # New highs: within 5% of 52W high proxy (pct_from_52w_high > -5)
         near_highs = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Pct_From_52W_High >= -5"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Pct_From_52W_High >= -5"
         ) or 0
         near_lows = fetch_val(
-            "SELECT COUNT(*) FROM screen_data WHERE Close >= 5 AND Pct_From_52W_High <= -40"
+            f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {price_filter} AND Pct_From_52W_High <= -40"
         ) or 0
 
         # Sector-level breakdown
         sector_rows = fetch_all(
-            """
+            f"""
             SELECT 
                 Sector,
                 COUNT(*) as total,
@@ -67,7 +72,7 @@ def get_breadth():
                 SUM(CASE WHEN Stage = 4 THEN 1 ELSE 0 END) as sw_stage4,
                 AVG(RS_Rating) as avg_rs
             FROM screen_data
-            WHERE Close >= 5 AND Sector IS NOT NULL AND Sector != ''
+            WHERE Market = '{market}' AND {price_filter} AND Sector IS NOT NULL AND Sector != ''
             GROUP BY Sector
             ORDER BY avg_rs DESC
             """
@@ -92,7 +97,7 @@ def get_breadth():
             
         # Industry-level breakdown (for SW Stages only)
         industry_rows = fetch_all(
-            """
+            f"""
             SELECT 
                 Industry,
                 COUNT(*) as total,
@@ -101,7 +106,7 @@ def get_breadth():
                 SUM(CASE WHEN Stage = 3 THEN 1 ELSE 0 END) as sw_stage3,
                 SUM(CASE WHEN Stage = 4 THEN 1 ELSE 0 END) as sw_stage4
             FROM screen_data
-            WHERE Close >= 5 AND Industry IS NOT NULL AND Industry != ''
+            WHERE Market = '{market}' AND {price_filter} AND Industry IS NOT NULL AND Industry != ''
             GROUP BY Industry
             ORDER BY total DESC
             """
@@ -119,9 +124,9 @@ def get_breadth():
                 "pct_stage4": round((r.get("sw_stage4") or 0) / t * 100, 1),
             })
             
-        # Global Stage History
+        # Global Stage History (filtered by market)
         history_rows = fetch_all(
-            "SELECT Date, Stage_1, Stage_2, Stage_3, Stage_4 FROM market_breadth_history ORDER BY Date ASC"
+            f"SELECT Date, Stage_1, Stage_2, Stage_3, Stage_4 FROM market_breadth_history WHERE Market = '{market}' ORDER BY Date ASC"
         )
         history = []
         for r in history_rows:
@@ -134,6 +139,7 @@ def get_breadth():
             })
 
         return {
+            "market": market,
             "total_stocks": total,
             "pct_above_50sma": pct(above_50),
             "pct_above_200sma": pct(above_200),

@@ -166,9 +166,15 @@ _FILTERS: dict = {
 # Baseline filter — applied to EVERY scanner query as a global pre-processor.
 # Stocks that fail these checks are kept in the DB but never surfaced in results.
 # ---------------------------------------------------------------------------
-BASELINE_FILTER = "Close >= 5"  # exclude penny stocks (price < $5)
+def get_baseline_filter(market: str = "US") -> str:
+    """Returns the baseline price filter for the given market."""
+    if market == "IN":
+        return "Close > 0"  # INR-denominated, no $5 filter
+    return "Close >= 5"  # USD penny stock filter
 
-SortField = Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m"]
+BASELINE_FILTER = "Close >= 5"  # default for backward compat
+
+SortField = Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m", "ticker"]
 SortOrder = Literal["asc", "desc"]
 
 _SORT_COLUMN_MAP: dict = {
@@ -177,6 +183,7 @@ _SORT_COLUMN_MAP: dict = {
     "close":            "Close",
     "pct_from_52w_high": "Pct_From_52W_High",
     "momentum_1m":      "Momentum_1M",
+    "ticker":           "Ticker",
 }
 
 
@@ -207,6 +214,7 @@ def run_scan(
     if scanner_id not in _FILTERS:
         raise ValueError(f"Unknown scanner ID: '{scanner_id}'")
 
+    baseline = get_baseline_filter(market)
     sort_col = _SORT_COLUMN_MAP.get(sort_by, "RS_Rating")
     sort_dir = "DESC" if order == "desc" else "ASC"
 
@@ -262,7 +270,7 @@ def run_scan(
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
-        f"WHERE r.scanner_id = ? AND d.Market = '{market}' AND d.{BASELINE_FILTER}{extra_where} "
+        f"WHERE r.scanner_id = ? AND d.Market = '{market}' AND d.{baseline}{extra_where} "
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
     )
@@ -271,7 +279,7 @@ def run_scan(
     rows = fetch_all(sql, tuple(params))
     results = [StockResult.model_validate(row) for row in rows]
 
-    universe = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {BASELINE_FILTER}") or 0
+    universe = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}' AND {baseline}") or 0
     last_updated = get_last_updated(market)
 
     return results, universe, last_updated
@@ -339,7 +347,7 @@ def get_universe(
         f"FROM screen_data d "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
-        f"WHERE d.Market = '{market}' AND d.{BASELINE_FILTER}{extra_where}"
+        f"WHERE d.Market = '{market}' AND d.{get_baseline_filter(market)}{extra_where}"
     )
     rows = fetch_all(sql, tuple(params))
     last_updated = get_last_updated(market)

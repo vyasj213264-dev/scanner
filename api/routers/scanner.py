@@ -100,7 +100,7 @@ def get_full_universe(
 def run_scanner(
     scanner_type: str,
     limit: int = Query(DEFAULT_SCAN_LIMIT, ge=1, le=MAX_SCAN_LIMIT, description="Max results to return"),
-    sort_by: Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m"] = Query(
+    sort_by: Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m", "ticker"] = Query(
         "rs_rating", description="Field to sort by"
     ),
     order: Literal["asc", "desc"] = Query("desc", description="Sort direction"),

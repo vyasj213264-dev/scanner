@@ -312,7 +312,9 @@ def run_ingest(market='US'):
     all_ohlcv = []
     chunk_size = 100
     
-    spy_data = yf.download('SPY', period='2y', progress=False)
+    benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
+    print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
+    benchmark_data = yf.download(benchmark_ticker, period='2y', progress=False)
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
@@ -365,7 +367,7 @@ def run_ingest(market='US'):
             last = calculate_indicators(df)
             if last is not None:
                 success_count += 1
-                rs_raw = calculate_rs_rating(df, spy_data)
+                rs_raw = calculate_rs_rating(df, benchmark_data)
                 # Convert NaN to None so PostgreSQL stores it as NULL (not NaN)
                 rs_raw_clean = None if (rs_raw is None or pd.isna(rs_raw)) else float(rs_raw)
                 
@@ -504,7 +506,7 @@ def run_ingest(market='US'):
                     if len(df_etf) >= 5:
                         last_etf = calculate_indicators(df_etf)
                         if last_etf is not None:
-                            rs_raw_etf = calculate_rs_rating(df_etf, spy_data)
+                            rs_raw_etf = calculate_rs_rating(df_etf, benchmark_data)
                             rs_raw_clean_etf = None if (rs_raw_etf is None or pd.isna(rs_raw_etf)) else float(rs_raw_etf)
                             
                             etf_record = (
