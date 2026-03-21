@@ -4646,7 +4646,10 @@
                     </div>
 
                     <!-- Sector Heatmap (US only) -->
-                    ${currentMarket === 'US' ? `<div class="sp-stat-box">
+                `;
+                if (currentMarket === 'US') {
+                    html += `
+                    <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Heatmap (% Stage 2)</div>
                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                 `;
@@ -4679,9 +4682,13 @@
 
                 html += `
                         </div>
-                    </div>` : ''}
+                    </div>
+                    `;
+                }
 
-                    ${currentMarket === 'US' ? `<!-- Sector Breakdown Table -->
+                if (currentMarket === 'US') {
+                    html += `
+                    <!-- Sector Breakdown Table -->
                     <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Statistics</div>
                         <div class="universe-table-wrapper" style="max-height: 500px;">
@@ -4724,9 +4731,13 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>` : ''}
+                    </div>
+                    `;
+                }
 
-                    ${currentMarket === 'US' ? `<!-- Industry Breakdown Table -->
+                if (currentMarket === 'US') {
+                    html += `
+                    <!-- Industry Breakdown Table -->
                     <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Industry Stage Statistics</div>
                         <div class="universe-table-wrapper" style="max-height: 500px;">
@@ -4761,7 +4772,11 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>` : ''}
+                    </div>
+                    `;
+                }
+                
+                html += `
                 </div>
                 `;
 
