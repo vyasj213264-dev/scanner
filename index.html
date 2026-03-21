@@ -2026,11 +2026,11 @@
                         <label>Price ≥</label>
                         <input type="number" id="f-price" placeholder="$" step="1" min="0" style="width:60px">
                     </div>
-                    <div class="filter-group">
+                    <div class="filter-group" id="f-group-sector">
                         <button class="sort-btn" onclick="openFilterModal('Sector')" id="btn-f-sector"
                             style="padding: 4px 10px; font-size: 0.8rem;">Sector: Any</button>
                     </div>
-                    <div class="filter-group">
+                    <div class="filter-group" id="f-group-industry">
                         <button class="sort-btn" onclick="openFilterModal('Industry')" id="btn-f-industry"
                             style="padding: 4px 10px; font-size: 0.8rem;">Industry: Any</button>
                     </div>
@@ -2341,15 +2341,7 @@
             }
         }
         
-        async function setMarket(market) {
-            if (currentMarket === market) return;
-            currentMarket = market;
-            
-            const url = new URL(window.location);
-            url.searchParams.set('market', market);
-            window.history.replaceState({}, '', url);
-            
-            // UI Toggle
+        function updateMarketUI(market) {
             const btnUS = document.getElementById('btn-market-us');
             const btnIN = document.getElementById('btn-market-in');
             if (market === 'US') {
@@ -2366,16 +2358,32 @@
                 document.getElementById('market-label').textContent = 'IN';
             }
             
-            // Hide/show market-specific sidebar buttons
-            const usOnlyButtons = ['btn-breadth', 'btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry'];
+            const usOnlyButtons = ['btn-breadth', 'btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry', 'f-group-sector', 'f-group-industry'];
             usOnlyButtons.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = market === 'US' ? '' : 'none';
-                // Also hide adjacent spacer div
-                if (el && el.nextElementSibling && el.nextElementSibling.style) {
+                if (el && el.nextElementSibling && el.nextElementSibling.style && el.nextElementSibling.tagName !== 'BUTTON') {
                     el.nextElementSibling.style.display = market === 'US' ? '' : 'none';
                 }
             });
+            const pInput = document.getElementById('f-price');
+            if (pInput) pInput.placeholder = market === 'IN' ? '₹' : '$';
+            
+            const pLabel = pInput ? pInput.previousElementSibling : null;
+            if (pLabel && pLabel.tagName === 'LABEL') {
+                pLabel.innerHTML = `Price &ge; `;
+            }
+        }
+
+        async function setMarket(market) {
+            if (currentMarket === market) return;
+            currentMarket = market;
+            
+            const url = new URL(window.location);
+            url.searchParams.set('market', market);
+            window.history.replaceState({}, '', url);
+            
+            updateMarketUI(market);
             
             // Clear current chart if one is open
             if (window.mainChart) {
