@@ -66,19 +66,19 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
     
     placeholders = ','.join(['?']*len(sector_etfs))
     rows = fetch_all(f"""
-        SELECT Ticker, Momentum_1W 
+        SELECT Ticker, Momentum_1W, Stage 
         FROM screen_data 
         WHERE Ticker IN ({placeholders})
     """, tuple(sector_etfs.keys()))
     
     leaderboard = []
-    found_etfs = {r['Ticker']: r['Momentum_1W'] for r in rows if r['Momentum_1W'] is not None}
+    found_etfs = {r['Ticker']: {'mom': r['Momentum_1W'], 'stage': r['Stage']} for r in rows if r['Momentum_1W'] is not None}
     
     # Fallback to computing from constituents if ETF data is missing (e.g. before ingest update runs)
     if len(found_etfs) < 5:
         # Fallback query
         agg_rows = fetch_all("""
-            SELECT Sector, AVG(Momentum_1W) as Avg_Mom, COUNT(*) as count
+            SELECT Sector, AVG(Momentum_1W) as Avg_Mom, round(AVG(Stage)) as Avg_Stage, COUNT(*) as count
             FROM screen_data
             WHERE Sector IS NOT NULL AND Sector != ''
                   AND Momentum_1W IS NOT NULL
@@ -100,16 +100,19 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
             db_sector = r['Sector']
             if db_sector in sector_mapping:
                 ticker, display_name = sector_mapping[db_sector]
-                found_etfs[ticker] = r['Avg_Mom']
+                found_etfs[ticker] = {'mom': r['Avg_Mom'], 'stage': r['Avg_Stage'] or 0}
                 sector_etfs[ticker] = display_name
                 
     # Sort and characterize
-    sorted_etfs = sorted(found_etfs.items(), key=lambda x: x[1], reverse=True)
+    sorted_etfs = sorted(found_etfs.items(), key=lambda x: x[1]['mom'], reverse=True)
     
-    for rank, (ticker, mom) in enumerate(sorted_etfs, 1):
-        if rank <= 3:
+    for rank, (ticker, data) in enumerate(sorted_etfs, 1):
+        mom = data['mom']
+        stage = data['stage']
+        
+        if rank <= 3 and mom > 0:
             char = "Leading"
-        elif rank >= len(sorted_etfs) - 2:
+        elif mom < 0 and (rank >= len(sorted_etfs) - 2 or mom < -0.02):
             char = "Lagging"
         else:
             char = "Neutral"
@@ -119,6 +122,7 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
             "name": sector_etfs.get(ticker, ticker),
             "ticker": ticker,
             "pct_1w": mom * 100,
+            "stage": stage,
             "characterization": char
         })
         

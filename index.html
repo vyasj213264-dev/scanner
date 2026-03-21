@@ -3680,6 +3680,7 @@
                         <li class="portal-rank-item">
                             <span class="rank">${s.rank}</span>
                             <span class="ticker">${s.ticker}</span>
+                            <span style="font-size:0.75rem; font-weight:700; padding:2px 6px; background:rgba(128,128,128,0.2); border-radius:4px; margin-right:12px; color:var(--text-muted); display:inline-flex; align-items:center;">Stage ${s.stage != null ? Math.round(s.stage) : '?'}</span>
                             <span class="name">${s.name}</span>
                             <span class="perf" style="color:${color}">${s.pct_1w > 0 ? '+' : ''}${s.pct_1w.toFixed(1)}%</span>
                             <span class="char char-${s.characterization}">${s.characterization}</span>
