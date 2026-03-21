@@ -807,7 +807,7 @@ def run_ingest(market='US'):
     
     
     print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)
-    cursor.execute("SELECT Ticker, RS_Raw FROM screen_data WHERE RS_Raw IS NOT NULL")
+    cursor.execute(f"SELECT Ticker, RS_Raw FROM screen_data WHERE Market = '{market}' AND RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
     # Handle list of tuples directly (default for both sqlite3 and psycopg2 without DictRow)
     df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
@@ -865,7 +865,7 @@ def run_ingest(market='US'):
     for scanner_id, condition in filters.items():
         print(f"  Calculating matches for scanner: {scanner_id}...", flush=True)
         # SQLite uses 1/0 for booleans, Postgres correctly parses true/false mapping natively using psycopg2
-        cursor.execute(f"SELECT Ticker FROM screen_data WHERE {baseline} AND ({condition})")
+        cursor.execute(f"SELECT Ticker FROM screen_data WHERE Market = '{market}' AND {baseline} AND ({condition})")
         matching = cursor.fetchall()
         for row in matching:
             # handle both sqlite.Row and psycopg2.extras.DictRow
@@ -895,7 +895,7 @@ def run_ingest(market='US'):
     if latest_date_tuple and latest_date_tuple[0]:
         latest_date = latest_date_tuple[0]
         # Load all momentums with their Sector/Industry
-        cursor.execute("SELECT Ticker, Sector, Industry, Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y FROM screen_data")
+        cursor.execute(f"SELECT Ticker, Sector, Industry, Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y FROM screen_data WHERE Market = '{market}'")
         theme_rows = cursor.fetchall()
         
         # Direct conversion to pandas. Handles both SQLite tuples and psycopg2 DictRows efficiently.
