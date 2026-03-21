@@ -2497,7 +2497,14 @@
             logEvent('view_stock_detail', { ticker: ticker });
 
             // Set Loading state
-            document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${ticker}" target="_blank" style="color:inherit;text-decoration:none;" title="Open in TradingView">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
+            // Map ticker to TradingView-compatible symbol for external link
+            let tvLinkSymbol = ticker;
+            if (currentMarket === 'IN') {
+                if (ticker === '^NSEI') tvLinkSymbol = 'BSE:SENSEX';
+                else if (ticker.endsWith('.NS')) tvLinkSymbol = 'BSE:' + ticker.replace('.NS', '');
+                else if (ticker.endsWith('.BO')) tvLinkSymbol = 'BSE:' + ticker.replace('.BO', '');
+            }
+            document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${tvLinkSymbol}" target="_blank" style="color:inherit;text-decoration:none;" title="Open in TradingView">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
             document.getElementById('sp-company').textContent = "Loading...";
             ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'].forEach(id => {
                 document.getElementById(id).textContent = "--";
