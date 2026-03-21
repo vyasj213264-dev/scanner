@@ -1,9 +1,9 @@
-name: Daily Data Ingestion (US Market)
+name: Daily Data Ingestion (US & IN)
 
 on:
   schedule:
-    # Run daily at 4:00 PM Pacific Time (23:00 UTC / 7:00 PM EST)
-    - cron: '0 23 * * 1-5'
+    # Run daily at 3:00 PM Seattle Time (22:00 UTC during PDT / 23:00 UTC during PST)
+    - cron: '0 22 * * 1-5'
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
@@ -28,4 +28,4 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          python ingest.py US
+          python ingest.py BOTH
