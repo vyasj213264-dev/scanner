@@ -626,6 +626,18 @@ def run_ingest(market='US'):
         )
     ''')
     
+    # Defensive schema migration for PostgreSQL to append missing Market column dynamically
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        try:
+            cursor.execute("ALTER TABLE industry_ranks ADD COLUMN Market VARCHAR(255) DEFAULT 'US'")
+            cursor.execute("ALTER TABLE industry_ranks DROP CONSTRAINT industry_ranks_pkey")
+            cursor.execute("ALTER TABLE industry_ranks ADD PRIMARY KEY (Date, Market, Category, Name)")
+            conn.commit()
+            print("Successfully migrated Postgres industry_ranks schema to include Market PK.", flush=True)
+        except Exception:
+            conn.rollback() # If already exists, ignore safely
+            pass
+
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS industry_ranks (
             Date {sql_types["TEXT"]},
