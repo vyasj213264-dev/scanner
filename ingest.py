@@ -161,76 +161,131 @@ def calculate_indicators(df):
 
     return last_row
 
-def main():
-    print("Loading ticker universe...", flush=True)
-    tickers = []
-    ticker_meta = {} # Dict to store {ticker: {'sector': '...', 'industry': '...'}}
+def fetch_indian_tickers():
+    import pandas as pd
+    import requests
+    import io
+    print("Fetching Indian Tickers from NSE CSVs...", flush=True)
+    urls = [
+        "https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv",
+        "https://nsearchives.nseindia.com/content/indices/ind_niftymicrocap250_list.csv",
+        "https://nsearchives.nseindia.com/content/indices/ind_niftysmeemerge_list.csv",
+        "https://nsearchives.nseindia.com/content/indices/ind_niftysmallcap250list.csv"
+    ]
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    tickers_meta = {}
+    valid_tickers = []
     
-    # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
-    try:
-        import requests
-        print("Dynamically fetching and pre-filtering all US equity tickers from Nasdaq Screener API...", flush=True)
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
-        
-        url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true'
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        rows = data['data']['rows']
-        print(f"Successfully fetched {len(rows)} raw tickers from Nasdaq API.", flush=True)
-        
-        valid_dynamic = []
-        for row in rows:
-            try:
-                # Pre-filter: only keep stocks with last sale >= $5.00
-                price_str = str(row['lastsale']).replace('$', '').replace(',', '').strip()
-                if price_str and float(price_str) >= 5.0:
-                    symbol = str(row['symbol']).replace('.', '-').upper().strip()
-                    # Filter out preferred shares (^), warrants, and dual-class shares (/) incompatible with yfinance
-                    if '^' not in symbol and '/' not in symbol and '~' not in symbol:
-                        if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
-                            valid_dynamic.append(symbol)
-                            # Save Sector and Industry for thematic ranking later
-                            sector = str(row.get('sector', '')).strip()
-                            industry = str(row.get('industry', '')).strip()
-                            ticker_meta[symbol] = {
-                                'sector': sector if sector else 'Unknown',
-                                'industry': industry if industry else 'Unknown',
-                                'market_cap': row.get('marketCap', None)
-                            }
-            except:
-                pass
-                
-        tickers.extend(valid_dynamic)
-        print(f"Successfully pre-filtered universe down to {len(valid_dynamic)} stocks trading >= $5.00.", flush=True)
-    except Exception as e:
-        print(f"Warning: Failed to dynamically fetch Nasdaq index: {e}", flush=True)
-        print("Falling back to SEC company tickers list...", flush=True)
+    for url in urls:
         try:
-            sec_url = 'https://www.sec.gov/files/company_tickers.json'
-            r = requests.get(sec_url, headers={'User-Agent': 'TradersChart admin@traderschart.com'}, timeout=10)
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                df = pd.read_csv(io.StringIO(r.text))
+                for _, row in df.iterrows():
+                    sym = str(row['Symbol']).strip()
+                    if sym and len(sym) <= 15 and '^' not in sym:
+                        ns_sym = f"{sym}.NS"
+                        if ns_sym not in tickers_meta:
+                            valid_tickers.append(ns_sym)
+                            tickers_meta[ns_sym] = {
+                                'sector': str(row.get('Industry', 'Unknown')).strip(),
+                                'industry': str(row.get('Industry', 'Unknown')).strip(),
+                                'market_cap': None
+                            }
+        except Exception as e:
+            print(f"Failed to fetch NSE list {url}: {e}", flush=True)
+            
+    # Inject core Indian Index Proxies for Trade Portal
+    in_proxies = ['^NSEI', '^CRSMA', 'BANKNIFTY.NS', '^CNXAUTO', '^CNXIT', '^CNXMETAL', '^CNXPHARMA', '^CNXFMCG', '^CNXREALTY', '^CNXPSUBANK']
+    for p in in_proxies:
+        if p not in tickers_meta:
+            valid_tickers.append(p)
+            tickers_meta[p] = {'sector': 'Index', 'industry': 'Index', 'market_cap': None}
+            
+    return valid_tickers, tickers_meta
+
+def run_ingest(market='US'):
+    print(f"Loading {market} ticker universe...", flush=True)
+    tickers = []
+    ticker_meta = {}
+    
+    if market == 'US':
+        # Inject core US Index Proxies for Trade Portal
+        us_proxies = ['SPY', 'QQQ', 'IWM', 'DIA', 'XLK', 'XLF', 'XLY', 'XLV', 'XLE', 'XLI', 'XLC', 'XLU', 'XLP', 'XLRE', 'XLB']
+        for p in us_proxies:
+            tickers.append(p)
+            ticker_meta[p] = {'sector': 'Index', 'industry': 'Index', 'market_cap': None}
+        
+        # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
+        try:
+            import requests
+            print("Dynamically fetching and pre-filtering all US equity tickers from Nasdaq Screener API...", flush=True)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+            
+            url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true'
+            r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             data = r.json()
-            # Returns dict like: {"0":{"cik_str":320193,"ticker":"AAPL","title":"Apple Inc."}}
-            valid_fallback = []
-            for item in data.values():
-                symbol = str(item.get('ticker', '')).replace('.', '-').upper().strip()
-                if symbol and '^' not in symbol and '/' not in symbol and '~' not in symbol:
-                    if len(symbol) <= 6 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
-                        valid_fallback.append(symbol)
-                        ticker_meta[symbol] = {
-                            'sector': 'Unknown',
-                            'industry': 'Unknown',
-                            'market_cap': None
-                        }
-            tickers.extend(valid_fallback)
-            print(f"Successfully loaded {len(valid_fallback)} symbols from SEC fallback.", flush=True)
-        except Exception as sec_e:
-            print(f"Error: SEC fallback also failed: {sec_e}", flush=True)
+            rows = data['data']['rows']
+            print(f"Successfully fetched {len(rows)} raw tickers from Nasdaq API.", flush=True)
+            
+            valid_dynamic = []
+            for row in rows:
+                try:
+                    # Pre-filter: only keep stocks with last sale >= $5.00
+                    price_str = str(row['lastsale']).replace('$', '').replace(',', '').strip()
+                    if price_str and float(price_str) >= 5.0:
+                        symbol = str(row['symbol']).replace('.', '-').upper().strip()
+                        # Filter out preferred shares (^), warrants, and dual-class shares (/) incompatible with yfinance
+                        if '^' not in symbol and '/' not in symbol and '~' not in symbol:
+                            if len(symbol) <= 10 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
+                                valid_dynamic.append(symbol)
+                                # Save Sector and Industry for thematic ranking later
+                                sector = str(row.get('sector', '')).strip()
+                                industry = str(row.get('industry', '')).strip()
+                                ticker_meta[symbol] = {
+                                    'sector': sector if sector else 'Unknown',
+                                    'industry': industry if industry else 'Unknown',
+                                    'market_cap': row.get('marketCap', None)
+                                }
+                except:
+                    pass
+            tickers.extend(valid_dynamic)
+        except Exception as e:
+            print(f"Nasdaq API failed: {e}. Falling back to SEC company tickers list...", flush=True)
+            try:
+                import requests
+                url = 'https://www.sec.gov/files/company_tickers.json'
+                headers = {'User-Agent': 'TradersChart Admin contact@example.com'}
+                r = requests.get(url, headers=headers, timeout=10)
+                r.raise_for_status()
+                data = r.json()
+                # Returns dict like: {"0":{"cik_str":320193,"ticker":"AAPL","title":"Apple Inc."}}
+                valid_fallback = []
+                for item in data.values():
+                    symbol = str(item.get('ticker', '')).replace('.', '-').upper().strip()
+                    if symbol and '^' not in symbol and '/' not in symbol and '~' not in symbol:
+                        if len(symbol) <= 6 and symbol not in ('-', 'CASH', 'OTHER', 'USD'):
+                            valid_fallback.append(symbol)
+                            ticker_meta[symbol] = {
+                                'sector': 'Unknown',
+                                'industry': 'Unknown',
+                                'market_cap': None
+                            }
+                tickers.extend(valid_fallback)
+                print(f"Successfully loaded {len(valid_fallback)} symbols from SEC fallback.", flush=True)
+            except Exception as sec_e:
+                print(f"Error: SEC fallback also failed: {sec_e}", flush=True)
+                
+    elif market == 'IN':
+        print("Fetching Indian Tickers (NSE/BSE)...", flush=True)
+        in_tickers, in_meta = fetch_indian_tickers()
+        tickers.extend(in_tickers)
+        ticker_meta.update(in_meta)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
@@ -533,6 +588,7 @@ def main():
     cursor.execute(f'''
         CREATE TABLE screen_data (
             Ticker {sql_types["TEXT PRIMARY KEY"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
             Date {sql_types["TEXT"]},
             Close {sql_types["REAL"]},
             Volume {sql_types["REAL"]},
@@ -573,6 +629,7 @@ def main():
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS industry_ranks (
             Date {sql_types["TEXT"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
             Category {sql_types["TEXT"]},
             Name {sql_types["TEXT"]},
             Stock_Count INTEGER,
@@ -582,7 +639,7 @@ def main():
             Rank_3M INTEGER,
             Rank_6M INTEGER,
             Rank_1Y INTEGER,
-            PRIMARY KEY (Date, Category, Name)
+            PRIMARY KEY (Date, Market, Category, Name)
         )
     ''')
     
@@ -590,6 +647,7 @@ def main():
     cursor.execute(f'''
         CREATE TABLE daily_ohlcv (
             Ticker {sql_types["TEXT"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
             Date {sql_types["TEXT"]},
             Open {sql_types["REAL"]},
             High {sql_types["REAL"]},
@@ -605,6 +663,7 @@ def main():
         CREATE TABLE scanner_results (
             scanner_id {sql_types["TEXT"]},
             Ticker {sql_types["TEXT"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
             UNIQUE(scanner_id, Ticker)
         )
     ''')
@@ -613,6 +672,7 @@ def main():
     cursor.execute(f'''
         CREATE TABLE market_breadth_history (
             Date {sql_types["TEXT PRIMARY KEY"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
             Stage_1 {sql_types["INTEGER"]},
             Stage_2 {sql_types["INTEGER"]},
             Stage_3 {sql_types["INTEGER"]},
@@ -633,12 +693,12 @@ def main():
         batch = all_data[i:i + batch_size]
         cursor.executemany(f'''
             INSERT INTO screen_data (
-                Ticker, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
+                Ticker, Market, Date, Close, Volume, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50, SMA_100, SMA_200,
                 RVOL, ADR_20, Pct_From_52W_High, In_Stage_2, Tight_Setup, Near_Horizontal_Resistance, 
                 RS_Raw, Inside_Bar, Golden_Crossover, Gap_Up, Gap_Down, VCP_Approximation, 
                 Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y, RS_Rating,
                 Sector, Industry, Market_Cap, Stage
-            ) VALUES ({full_placeholders})
+            ) VALUES ({full_placeholders}, 'US')
         ''', batch)
         conn.commit()  # Periodically commit to keep transactions small
         print(f"  ...inserted batch {i//batch_size + 1}", flush=True)
@@ -660,8 +720,8 @@ def main():
     if history_records:
         history_placeholders = ', '.join(['%s' if DATABASE_URL and DATABASE_URL.startswith("postgres") else '?'] * 5)
         cursor.executemany(f'''
-            INSERT INTO market_breadth_history (Date, Stage_1, Stage_2, Stage_3, Stage_4) 
-            VALUES ({history_placeholders})
+            INSERT INTO market_breadth_history (Date, Market, Stage_1, Stage_2, Stage_3, Stage_4) 
+            VALUES ({"%s, 'US', " if DATABASE_URL and DATABASE_URL.startswith("postgres") else "?, 'US', "}{', '.join(history_placeholders.split(', ')[1:])})
         ''', history_records)
         conn.commit()
         print(f"Successfully inserted {len(history_records)} historical breadth records.", flush=True)
@@ -675,27 +735,29 @@ def main():
     if is_pg:
         from psycopg2.extras import execute_values
         sql = '''
-            INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
+            INSERT INTO daily_ohlcv (Ticker, Market, Date, Open, High, Low, Close, Volume) 
             VALUES %s 
             ON CONFLICT (Ticker, Date) DO UPDATE SET 
-            Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
-            Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
+                Market = EXCLUDED.Market,
+                Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
+                Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
         '''
         for i in range(0, len(all_ohlcv), ohlcv_batch_size):
             batch = all_ohlcv[i:i + ohlcv_batch_size]
-            execute_values(cursor, sql, batch, page_size=ohlcv_batch_size)
+            batch_with_market = [(r[0], 'US', r[1], r[2], r[3], r[4], r[5], r[6]) for r in batch]
+            execute_values(cursor, sql, batch_with_market, page_size=ohlcv_batch_size)
             if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
                 conn.commit()
                 print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
         conn.commit()  # final commit
     else:
-        ohlcv_placeholders = ', '.join(['?'] * 7)
+        sql = '''
+            INSERT OR IGNORE INTO daily_ohlcv (Ticker, Market, Date, Open, High, Low, Close, Volume) 
+            VALUES (?, 'US', ?, ?, ?, ?, ?, ?)
+        '''
         for i in range(0, len(all_ohlcv), ohlcv_batch_size):
             batch = all_ohlcv[i:i + ohlcv_batch_size]
-            cursor.executemany(f'''
-                INSERT OR REPLACE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume) 
-                VALUES ({ohlcv_placeholders})
-            ''', batch)
+            cursor.executemany(sql, batch)
             if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
                 conn.commit()
                 print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
@@ -822,6 +884,7 @@ def main():
             for _, r in grouped.iterrows():
                 rank_data.append((
                     latest_date,
+                    'US',
                     category_name,
                     str(r[group_col]),
                     int(r['Ticker']),
@@ -845,10 +908,10 @@ def main():
                 if DATABASE_URL and DATABASE_URL.startswith("postgres"):
                     cursor.executemany('''
                         INSERT INTO industry_ranks (
-                            Date, Category, Name, Stock_Count, 
+                            Date, Market, Category, Name, Stock_Count, 
                             Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (Date, Category, Name) DO UPDATE SET
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (Date, Market, Category, Name) DO UPDATE SET
                             Stock_Count = EXCLUDED.Stock_Count,
                             Rank_1D = EXCLUDED.Rank_1D, Rank_1W = EXCLUDED.Rank_1W,
                             Rank_1M = EXCLUDED.Rank_1M, Rank_3M = EXCLUDED.Rank_3M,
@@ -857,9 +920,9 @@ def main():
                 else:
                     cursor.executemany('''
                         INSERT OR REPLACE INTO industry_ranks (
-                            Date, Category, Name, Stock_Count, 
+                            Date, Market, Category, Name, Stock_Count, 
                             Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', batch)
                 conn.commit()
             print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.", flush=True)
@@ -869,22 +932,35 @@ def main():
     # ---------------------------------------------------------
     print("Running database retention cleanup...", flush=True)
     # Delete any Industry Ranks data older than the 5 most recent trading days
-    cursor.execute('''
+    cursor.execute(f'''
         DELETE FROM industry_ranks 
-        WHERE Date NOT IN (
+        WHERE Market = '{market}' AND Date NOT IN (
             SELECT DISTINCT Date 
             FROM industry_ranks 
+            WHERE Market = '{market}'
             ORDER BY Date DESC 
             LIMIT 5
         )
     ''')
-    print("Database cleanup complete. Historical data pruned to 5 days.", flush=True)
+    print(f"[{market}] Database cleanup complete. Historical data pruned to 5 days.", flush=True)
 
     conn.commit()
     if conn:
         conn.close()
-        print("Database connection closed.", flush=True)
-    print("Ingestion complete. Database rebuilt securely with dual backend support + full pre-computation cache.", flush=True)
+        print(f"[{market}] Database connection closed.", flush=True)
+    print(f"[{market}] Ingestion complete.", flush=True)
+
+def main():
+    import sys
+    target_market = sys.argv[1].upper() if len(sys.argv) > 1 else 'BOTH'
+    
+    if target_market in ['US', 'BOTH']:
+        print("\n=== STARTING US MARKET INGESTION ===", flush=True)
+        run_ingest(market='US')
+        
+    if target_market in ['IN', 'BOTH']:
+        print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
+        run_ingest(market='IN')
 
 if __name__ == "__main__":
     main()

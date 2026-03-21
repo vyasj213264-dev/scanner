@@ -1,26 +1,35 @@
 from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+import traceback
 from api.database import fetch_all
 
 router = APIRouter(prefix="/api/v1/trade-portal", tags=["Trade Portal"])
 
-def get_market_bias() -> Dict[str, Any]:
+def get_market_bias(market: str = "US") -> Dict[str, Any]:
+    if market == "US":
+        s_tic, q_tic, i_tic = 'SPY', 'QQQ', 'IWM'
+        s_txt, q_txt, i_txt = 'SPY', 'QQQ', 'Small-caps (IWM)'
+    else:
+        s_tic, q_tic, i_tic = '^NSEI', 'BANKNIFTY.NS', '^CRSMA'
+        s_txt, q_txt, i_txt = 'Nifty 50', 'Bank Nifty', 'Mid-caps (Nifty Midcap 100)'
+
     # 1. Overall Market Bias
-    rows = fetch_all("""
+    rows = fetch_all(f"""
         SELECT Ticker, Close, SMA_20, SMA_50, SMA_200 
         FROM screen_data 
-        WHERE Ticker IN ('SPY', 'QQQ', 'IWM')
-    """)
+        WHERE Market = ? AND Ticker IN (?, ?, ?)
+    """, (market, s_tic, q_tic, i_tic))
+    
     if not rows:
-        return {"bias": "Neutral", "exposure_pct": 50, "text": "Neutral. Insufficient data to determine market bias."}
+        return {"bias": "Neutral", "exposure_pct": 50, "text": f"Neutral. Insufficient data to determine {market} market bias."}
     
     data = {r['Ticker']: dict(r) for r in rows}
-    spy = data.get('SPY')
-    qqq = data.get('QQQ')
-    iwm = data.get('IWM')
+    spy = data.get(s_tic)
+    qqq = data.get(q_tic)
+    iwm = data.get(i_tic)
     
     if not spy or not qqq:
-        return {"bias": "Neutral", "exposure_pct": 50, "text": "Neutral. Missing SPY or QQQ data."}
+        return {"bias": "Neutral", "exposure_pct": 50, "text": f"Neutral. Missing {s_txt} or {q_txt} data."}
         
     spy_above_50 = spy['Close'] > spy['SMA_50'] if spy['SMA_50'] else False
     spy_above_20 = spy['Close'] > spy['SMA_20'] if spy['SMA_20'] else False
@@ -33,43 +42,51 @@ def get_market_bias() -> Dict[str, Any]:
     if iwm and iwm['SMA_50']:
         iwm_above_50 = iwm['Close'] > iwm['SMA_50']
         iwm_pct_50 = ((iwm['Close'] - iwm['SMA_50']) / iwm['SMA_50'] * 100)
-        iwm_text = f" Small-caps (IWM) are {'also leading' if iwm_above_50 else 'lagging'}, trading {iwm_pct_50:+.1f}% from their 50-day."
+        iwm_text = f" {i_txt} are {'also leading' if iwm_above_50 else 'lagging'}, trading {iwm_pct_50:+.1f}% from their 50-day."
 
     if spy_above_50 and qqq_above_50 and spy_above_20:
         return {
             "bias": "Risk-On", 
             "exposure_pct": 100, 
-            "text": f"**Risk-On.** The broad market remains in a confirmed uptrend with both SPY and QQQ holding firmly above their key short-term moving averages. SPY is currently {spy_pct_50:+.1f}% from its 50-day moving average, signaling healthy institutional support. Tech leadership continues to drive the indices higher.{iwm_text}"
+            "text": f"**Risk-On.** The broad market remains in a confirmed uptrend with both {s_txt} and {q_txt} holding firmly above their key short-term moving averages. {s_txt} is currently {spy_pct_50:+.1f}% from its 50-day moving average, signaling healthy institutional support. Tech leadership continues to drive the indices higher.{iwm_text}"
         }
     elif not spy_above_50 and not qqq_above_50:
         spy_pct_200 = ((spy['Close'] - spy['SMA_200']) / spy['SMA_200'] * 100) if spy['SMA_200'] else 0
         return {
             "bias": "Risk-Off", 
             "exposure_pct": 25, 
-            "text": f"**Risk-Off.** The market has broken significant support structures, with both major indices trading below their 50-day moving averages. SPY is {spy_pct_50:+.1f}% below its 50-day, indicating a shift in character toward distribution. Defensive posture is warranted until SPY reclaims its moving averages.{iwm_text}"
+            "text": f"**Risk-Off.** The market has broken significant support structures, with both major indices trading below their 50-day moving averages. {s_txt} is {spy_pct_50:+.1f}% below its 50-day, indicating a shift in character toward distribution. Defensive posture is warranted until {s_txt} reclaims its moving averages.{iwm_text}"
         }
     else:
         return {
             "bias": "Neutral", 
             "exposure_pct": 50, 
-            "text": f"**Neutral.** The market is exhibiting mixed signals or choppy consolidation. SPY is {spy_pct_50:+.1f}% from its 50-day, while QQQ is {qqq_pct_50:+.1f}% from its 50-day. This divergence often precedes a larger directional move, but currently favors highly selective trading rather than aggressive exposure.{iwm_text}"
+            "text": f"**Neutral.** The market is exhibiting mixed signals or choppy consolidation. {s_txt} is {spy_pct_50:+.1f}% from its 50-day, while {q_txt} is {qqq_pct_50:+.1f}% from its 50-day. This divergence often precedes a larger directional move, but currently favors highly selective trading rather than aggressive exposure.{iwm_text}"
         }
 
-def get_sector_leaderboard() -> List[Dict[str, Any]]:
+def get_sector_leaderboard(market: str = "US") -> List[Dict[str, Any]]:
     # 2. Sector Leaderboard
-    sector_etfs = {
-        'XLK': 'Technology', 'XLY': 'Consumer Discretionary', 'XLC': 'Communication Services',
-        'XLV': 'Health Care', 'XLF': 'Financials', 'XLI': 'Industrials', 
-        'XLE': 'Energy', 'XLB': 'Materials', 'XLRE': 'Real Estate', 
-        'XLU': 'Utilities', 'XLP': 'Consumer Staples'
-    }
+    if market == "US":
+        sector_etfs = {
+            'XLK': 'Technology', 'XLY': 'Consumer Discretionary', 'XLC': 'Communication Services',
+            'XLV': 'Health Care', 'XLF': 'Financials', 'XLI': 'Industrials', 
+            'XLE': 'Energy', 'XLB': 'Materials', 'XLRE': 'Real Estate', 
+            'XLU': 'Utilities', 'XLP': 'Consumer Staples'
+        }
+    else:
+        sector_etfs = {
+            '^CNXIT': 'Technology', '^CNXAUTO': 'Automobile and Auto Components', 
+            '^CNXMETAL': 'Metals & Mining', '^CNXPHARMA': 'Healthcare', 
+            '^CNXFMCG': 'Fast Moving Consumer Goods', '^CNXREALTY': 'Realty', 
+            '^CNXPSUBANK': 'Financial Services', 'BANKNIFTY.NS': 'Financial Services'
+        }
     
     placeholders = ','.join(['?']*len(sector_etfs))
     rows = fetch_all(f"""
         SELECT Ticker, Momentum_1W, Stage 
         FROM screen_data 
-        WHERE Ticker IN ({placeholders})
-    """, tuple(sector_etfs.keys()))
+        WHERE Market = ? AND Ticker IN ({placeholders})
+    """, (market, *sector_etfs.keys()))
     
     leaderboard = []
     found_etfs = {r['Ticker']: {'mom': r['Momentum_1W'], 'stage': r['Stage']} for r in rows if r['Momentum_1W'] is not None}
@@ -80,11 +97,11 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
         agg_rows = fetch_all("""
             SELECT Sector, AVG(Momentum_1W) as Avg_Mom, round(AVG(Stage)) as Avg_Stage, COUNT(*) as count
             FROM screen_data
-            WHERE Sector IS NOT NULL AND Sector != ''
+            WHERE Market = ? AND Sector IS NOT NULL AND Sector != ''
                   AND Momentum_1W IS NOT NULL
             GROUP BY Sector
             HAVING COUNT(*) >= 5
-        """)
+        """, (market,))
         
         # Mappings from our DB sectors to standard names
         sector_mapping = {
@@ -128,7 +145,7 @@ def get_sector_leaderboard() -> List[Dict[str, Any]]:
         
     return leaderboard
 
-def get_growth_opportunities(leaderboard: List[Dict]) -> List[Dict[str, Any]]:
+def get_growth_opportunities(leaderboard: List[Dict], market: str = "US") -> List[Dict[str, Any]]:
     # 3. Growth Stock Opportunities
     top_3_sectors = [s['name'] for s in leaderboard[:3]]
     if not top_3_sectors:
@@ -148,12 +165,12 @@ def get_growth_opportunities(leaderboard: List[Dict]) -> List[Dict[str, Any]]:
         ind_rows = fetch_all("""
             SELECT Industry, COUNT(*) as count, AVG(Momentum_1W) as Avg_Mom
             FROM screen_data
-            WHERE Sector = ? AND Momentum_1W IS NOT NULL AND Stage IN (2, 3)
+            WHERE Market = ? AND Sector LIKE ? AND Momentum_1W IS NOT NULL AND Stage IN (2, 3)
             GROUP BY Industry
             HAVING COUNT(*) >= 5
             ORDER BY Avg_Mom DESC
             LIMIT 1
-        """, (db_sector_match,))
+        """, (market, f"%{db_sector_match}%"))
         
         top_industry = ind_rows[0]['Industry'] if ind_rows else "Broad leadership"
         
@@ -178,17 +195,17 @@ def get_weekly_bias_statement(bias_dict: Dict[str, Any]) -> str:
     else:
         return f"With the market in a Neutral configuration, growth stock traders should run **balanced portfolios** targeting **around {exp}% exposure**. Rather than relying on a rising tide to lift all boats, adopt a market-neutral approach scaling into the absolute best high-RS Stage 2 longs and hedging with Stage 4 breakdown shorts."
 
-def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
+def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
     # 5. Top 5 Swing Trades (Long/Short Mix based on Bias)
     trades = []
     seen_industries = set()
     
     def fetch_trades(direction: str, limit: int):
         if direction == "Long":
-            sql = """
+            sql = f"""
                 SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
-                WHERE Stage IN (2, 3)
+                WHERE Market = '{market}' AND Stage IN (2, 3)
                   AND Close >= 10
                   AND Volume >= 500000
                   AND RS_Rating >= 97
@@ -202,12 +219,16 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
                 LIMIT 50
             """
         else: # Short extreme high prob ETFs / Mega caps
-            sql = """
+            large_caps = "'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL', 'AVGO', 'AMD', 'COIN'"
+            if market == 'IN':
+                large_caps = "'^NSEI', 'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'ITC.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'LT.NS'"
+                
+            sql = f"""
                 SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
-                WHERE Stage = 4
+                WHERE Market = '{market}' AND Stage = 4
                   AND Volume >= 1000000
-                  AND (Sector = 'ETF' OR Ticker IN ('SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL', 'AVGO', 'AMD', 'COIN'))
+                  AND (Sector IN ('ETF', 'Index') OR Ticker IN ({large_caps}))
                   AND (Tight_Setup = TRUE OR Inside_Bar = TRUE OR Gap_Down = TRUE)
                 ORDER BY RS_Rating ASC, Pct_From_52W_High ASC
                 LIMIT 50
@@ -297,14 +318,14 @@ def get_swing_trades(bias: str) -> List[Dict[str, Any]]:
     return trades
 
 @router.get("/daily-read", summary="Get the AI Daily Trade Portal Read")
-def get_daily_read():
+def get_daily_read(market: str = Query("US", description="US or IN")):
     """Returns the synthetically generated deterministic AI market read."""
     try:
-        bias_dict = get_market_bias()
-        leaderboard = get_sector_leaderboard()
-        opps = get_growth_opportunities(leaderboard)
+        bias_dict = get_market_bias(market.upper())
+        leaderboard = get_sector_leaderboard(market.upper())
+        opps = get_growth_opportunities(leaderboard, market.upper())
         weekly_bias = get_weekly_bias_statement(bias_dict)
-        trades = get_swing_trades(bias_dict.get("bias", "Neutral"))
+        trades = get_swing_trades(bias_dict.get("bias", "Neutral"), market.upper())
         
         return {
             "status": "success",
@@ -319,4 +340,4 @@ def get_daily_read():
         }
     except Exception as e:
         print(f"Error in trade portal: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")

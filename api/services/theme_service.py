@@ -11,14 +11,14 @@ def _get(row, *keys):
     return None
 
 
-def get_themes() -> Tuple[List[ThemeRankRecord], str, Dict[str, List[str]]]:
+def get_themes(market: str = "US") -> Tuple[List[ThemeRankRecord], str, Dict[str, List[str]]]:
     """
     Fetches the Sector and Industry thematic rankings from the database.
     Also returns the sector→industry mapping for drill-down navigation.
     """
     # Find the two most recent ingestion dates
-    dates_sql = "SELECT DISTINCT Date FROM industry_ranks ORDER BY Date DESC LIMIT 2"
-    dates_rows = fetch_all(dates_sql)
+    dates_sql = "SELECT DISTINCT Date FROM industry_ranks WHERE Market = ? ORDER BY Date DESC LIMIT 2"
+    dates_rows = fetch_all(dates_sql, (market,))
     
     if not dates_rows:
         return [], "No Data", {}
@@ -26,22 +26,22 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str, Dict[str, List[str]]]:
     latest_date = _get(dates_rows[0], 'date', 'Date')
     
     # Build sector → industry mapping from screen_data
-    sector_map = get_sector_industry_map()
+    sector_map = get_sector_industry_map(market)
     
     if len(dates_rows) < 2:
-        today_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
-        today_rows = fetch_all(today_sql, (latest_date,))
+        today_sql = "SELECT * FROM industry_ranks WHERE Date = ? AND Market = ?"
+        today_rows = fetch_all(today_sql, (latest_date, market))
         results = [ThemeRankRecord.model_validate(row) for row in today_rows]
         return results, latest_date, sector_map
 
     # We have historical data to calculate Rank Movement (+/-)
     prev_date = _get(dates_rows[1], 'date', 'Date')
     
-    today_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
-    today_rows = fetch_all(today_sql, (latest_date,))
+    today_sql = "SELECT * FROM industry_ranks WHERE Date = ? AND Market = ?"
+    today_rows = fetch_all(today_sql, (latest_date, market))
     
-    prev_sql = "SELECT * FROM industry_ranks WHERE Date = ?"
-    prev_rows = fetch_all(prev_sql, (prev_date,))
+    prev_sql = "SELECT * FROM industry_ranks WHERE Date = ? AND Market = ?"
+    prev_rows = fetch_all(prev_sql, (prev_date, market))
     
     prev_dict = {}
     for r in prev_rows:
@@ -77,13 +77,13 @@ def get_themes() -> Tuple[List[ThemeRankRecord], str, Dict[str, List[str]]]:
     return results, latest_date, sector_map
 
 
-def get_sector_industry_map() -> Dict[str, List[str]]:
+def get_sector_industry_map(market: str = "US") -> Dict[str, List[str]]:
     """
     Returns a mapping of Sector -> list of Industry names from screen_data.
     Used for the drill-down navigation.
     """
-    sql = "SELECT DISTINCT Sector, Industry FROM screen_data WHERE Sector != 'Unknown' AND Industry != 'Unknown' ORDER BY Sector, Industry"
-    rows = fetch_all(sql)
+    sql = "SELECT DISTINCT Sector, Industry FROM screen_data WHERE Market = ? AND Sector != 'Unknown' AND Industry != 'Unknown' ORDER BY Sector, Industry"
+    rows = fetch_all(sql, (market,))
     
     mapping: Dict[str, List[str]] = {}
     for r in rows:
@@ -105,6 +105,7 @@ def get_themes_stocks(
     min_adr: Optional[float] = None,
     max_adr: Optional[float] = None,
     min_price: Optional[float] = None,
+    market: str = "US",
 ) -> Tuple[list, int, str]:
     """
     Fetches all stocks in a given Sector or Industry from screen_data with optional sub-filters.
@@ -128,7 +129,7 @@ def get_themes_stocks(
         extra_where += " AND Close >= ?"
         params.append(min_price)
 
-    latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
+    latest_date_query = f"(SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}')"
     sql = (
         f"SELECT d.*, "
         f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
@@ -136,21 +137,21 @@ def get_themes_stocks(
         f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
         f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
         f"FROM screen_data d "
-        f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query} "
-        f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query} "
-        f"WHERE d.{col} = ?{extra_where} "
+        f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
+        f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
+        f"WHERE d.{col} = ? AND d.Market = '{market}' {extra_where} "
         f"ORDER BY d.RS_Rating DESC NULLS LAST"
     )
     rows = fetch_all(sql, tuple(params))
     
-    universe_count = fetch_val("SELECT COUNT(*) FROM screen_data") or 0
-    last_updated_row = fetch_all("SELECT MAX(Date) as last_date FROM screen_data")
+    universe_count = fetch_val(f"SELECT COUNT(*) FROM screen_data WHERE Market = '{market}'") or 0
+    last_updated_row = fetch_all(f"SELECT MAX(Date) as last_date FROM screen_data WHERE Market = '{market}'")
     last_updated = _get(last_updated_row[0], 'last_date', 'max') if last_updated_row else None
     
     return rows, universe_count, last_updated
 
 
-def get_theme_proxies(category: str, name: str, limit: int = 10) -> List[str]:
+def get_theme_proxies(category: str, name: str, limit: int = 10, market: str = "US") -> List[str]:
     """
     Fetches up to `limit` highly liquid/weighted tickers for a given Sector or Industry.
     This is used to build arithmetic string charts (e.g. (AAPL+MSFT)/2) when no 
@@ -164,21 +165,21 @@ def get_theme_proxies(category: str, name: str, limit: int = 10) -> List[str]:
     sql = f"""
     SELECT Ticker 
     FROM screen_data 
-    WHERE {col} = ? 
+    WHERE Market = ? AND {col} = ? 
     ORDER BY (Close * RVOL) DESC NULLS LAST 
     LIMIT ?
     """
-    rows = fetch_all(sql, (name, limit))
+    rows = fetch_all(sql, (market, name, limit))
     
     # If the database structure makes (Close * RVOL) fail or yield nulls, fallback to RS_Rating
     if not rows:
         sql_fallback = f"""
         SELECT Ticker 
         FROM screen_data 
-        WHERE {col} = ? 
+        WHERE Market = ? AND {col} = ? 
         ORDER BY RS_Rating DESC NULLS LAST 
         LIMIT ?
         """
-        rows = fetch_all(sql_fallback, (name, limit))
+        rows = fetch_all(sql_fallback, (market, name, limit))
 
     return [_get(r, 'ticker', 'Ticker') for r in rows if _get(r, 'ticker', 'Ticker')]

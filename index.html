@@ -1841,9 +1841,13 @@
         <div class="header-divider"></div>
         <div class="live-dot"></div>
         <div class="header-meta">
-            Scanning <strong id="universe-count">—</strong> US Equities
+            Scanning <strong id="universe-count">—</strong> <span id="market-label">US</span> Equities
         </div>
         <div class="header-right">
+            <div class="market-toggle" style="display: flex; background: var(--border); border-radius: 20px; padding: 3px; margin-right: 12px; font-size: 0.75rem; font-weight: 600;">
+                <button id="btn-market-us" style="padding: 4px 12px; border: none; border-radius: 16px; background: var(--accent); color: white; cursor: pointer; transition: 0.2s;" onclick="setMarket('US')">🇺🇸 US</button>
+                <button id="btn-market-in" style="padding: 4px 12px; border: none; border-radius: 16px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: 0.2s;" onclick="setMarket('IN')">🇮🇳 IN</button>
+            </div>
             <button type="button" class="theme-btn" id="theme-toggle" onclick="event.preventDefault(); toggleTheme();"
                 title="Toggle Dark/Light Mode"
                 style="background:transparent; border:none; color:var(--text-primary); cursor:pointer; padding:7px; border-radius:50%; display:flex; align-items:center; transition:background 0.15s; flex-shrink:0;"
@@ -2080,6 +2084,7 @@
         let masterSectors = [];
         let masterIndustries = [];
         let currentModalType = ''; // 'Sector' or 'Industry'
+        let currentMarket = 'US';
         // cached for client-side resort
         let tvWidgetCount = 0;
         let scannerViewMode = 'chart'; // 'chart' | 'table'
@@ -2297,7 +2302,15 @@
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
-            const res = await fetch(`${API}${path}`, { ...options, headers });
+            
+            let finalPath = path;
+            const marketRoutes = ['/scan', '/scanners', '/universe', '/themes', '/trade-portal', '/health'];
+            if (marketRoutes.some(route => path.startsWith(route) || path.startsWith('/api/v1' + route))) {
+                const separator = finalPath.includes('?') ? '&' : '?';
+                finalPath = `${finalPath}${separator}market=${currentMarket}`;
+            }
+            
+            const res = await fetch(`${API}${finalPath}`, { ...options, headers });
             if (res.status === 401) {
                 logout();
                 throw new Error("Unauthorized");
@@ -2321,6 +2334,56 @@
             } catch (err) {
                 console.debug('Event logging error:', err);
             }
+        }
+        
+        async function setMarket(market) {
+            if (currentMarket === market) return;
+            currentMarket = market;
+            
+            // UI Toggle
+            const btnUS = document.getElementById('btn-market-us');
+            const btnIN = document.getElementById('btn-market-in');
+            if (market === 'US') {
+                btnUS.style.background = 'var(--accent)';
+                btnUS.style.color = 'white';
+                btnIN.style.background = 'transparent';
+                btnIN.style.color = 'var(--text-secondary)';
+                document.getElementById('market-label').textContent = 'US';
+            } else {
+                btnIN.style.background = 'var(--accent)';
+                btnIN.style.color = 'white';
+                btnUS.style.background = 'transparent';
+                btnUS.style.color = 'var(--text-secondary)';
+                document.getElementById('market-label').textContent = 'IN';
+            }
+            
+            // Clear current chart if one is open
+            if (window.mainChart) {
+                const chartDiv = document.getElementById('chart-container');
+                if (chartDiv) chartDiv.innerHTML = '';
+                window.mainChart = null;
+            }
+            
+            // Update the health universe count
+            try {
+                const healthRes = await fetchApi('/health');
+                const health = await healthRes.json();
+                document.getElementById('universe-count').textContent = health.universe_size.toLocaleString();
+            } catch (e) {
+                console.error("Health fetch failed on market switch", e);
+            }
+            
+            // Re-run the active view
+            const force = true;
+            if (activeScanner === 'universe') runUniverse(force);
+            else if (activeScanner === 'trade-portal') runTradePortal(force);
+            else if (activeScanner === 'lev-etf') runLevEtf(force);
+            else if (activeScanner === 'watchlist') runWatchlistView();
+            else if (activeScanner && activeScanner.startsWith('wl-')) runWatchlist(activeScanner.replace('wl-', ''));
+            else if (activeScanner) runScanner(activeScanner, document.getElementById('results-title').textContent, force);
+            else if (document.getElementById('themes-area') && document.getElementById('themes-area').style.display !== 'none') runThemes(typeof themesCategory !== 'undefined' ? themesCategory : 'Sector');
+            else if (document.getElementById('breadth-area') && document.getElementById('breadth-area').style.display !== 'none') runBreadth();
+            else if (document.getElementById('screener-area') && document.getElementById('screener-area').style.display !== 'none') runScreener();
         }
 
         // ── Boot ─────────────────────────────────────────────────
@@ -5657,8 +5720,20 @@
             // Strip proxy formula prefixes — TradingView only understands plain tickers
             // e.g. (AAPL+MSFT)/2 → use the first ticker for grid cards
             let tvSymbol = ticker;
-            const formulaMatch = ticker.match(/^\(([A-Za-z0-9]+)/);
+            const formulaMatch = ticker.match(/^\(([A-Za-z0-9.^]+)/);
             if (formulaMatch) tvSymbol = formulaMatch[1]; // best-effort fallback
+
+            // Format symbol based on Market rules for TradingView
+            if (currentMarket === 'IN') {
+                if (tvSymbol.endsWith('.NS')) tvSymbol = 'NSE:' + tvSymbol.replace('.NS', '');
+                else if (tvSymbol.endsWith('.BO')) tvSymbol = 'BSE:' + tvSymbol.replace('.BO', '');
+                else if (tvSymbol === '^NSEI') tvSymbol = 'NSE:NIFTY';
+                else if (tvSymbol === '^CRSMA') tvSymbol = 'NSE:CNXMIDCAP';
+                else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'NSE:' + tvSymbol.replace('^CNX', 'CNX');
+            } else {
+                if (tvSymbol === '^GSPC') tvSymbol = 'SP:SPX';
+                else if (tvSymbol === '^IXIC') tvSymbol = 'COMP';
+            }
 
             if (isSmallGrid) {
                 // ── Advanced Chart (grid card, no toolbar) ──────────

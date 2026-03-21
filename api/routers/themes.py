@@ -1,5 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
+import traceback
 from api.models.themes import ThemeResponse
 from api.models.scanner import ScanResponse, StockResult
 from api.services.theme_service import get_themes, get_themes_stocks
@@ -11,16 +12,16 @@ router = APIRouter(prefix="/api/v1", tags=["Themes"])
     response_model=ThemeResponse,
     summary="Get Industry and Sector Theme Ranks",
 )
-def fetch_themes():
+def fetch_themes(market: str = Query("US", description="US or IN")):
     """
     Returns the comprehensive rankings for all market sectors and industries 
     across 6 timeframes (1D, 1W, 1M, 3M, 6M, 1Y). 
     Includes real-time rank momentum and sector→industry mapping for drill-down.
     """
     try:
-        results, last_updated, sector_map = get_themes()
+        results, last_updated, sector_map = get_themes(market=market.upper())
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
 
     return ThemeResponse(
         as_of_date=last_updated,
@@ -41,6 +42,7 @@ def fetch_theme_stocks(
     min_adr: Optional[float] = Query(None, description="Minimum ADR% filter"),
     max_adr: Optional[float] = Query(None, description="Maximum ADR% filter"),
     min_price: Optional[float] = Query(None, description="Minimum price filter"),
+    market: str = Query("US", description="US or IN"),
 ):
     """
     Returns all stocks belonging to a given Sector or Industry,
@@ -54,10 +56,11 @@ def fetch_theme_stocks(
             min_adr=min_adr,
             max_adr=max_adr,
             min_price=min_price,
+            market=market.upper()
         )
         results = [StockResult.model_validate(row) for row in rows]
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
 
     return ScanResponse(
         scanner=f"{category.lower()}-{name.lower().replace(' ', '-')}",
@@ -78,6 +81,7 @@ def fetch_theme_proxies(
     category: str = Query(..., description="'Sector' or 'Industry'"),
     name: str = Query(..., description="Name of the sector or industry"),
     limit: int = Query(10, description="Max number of tickers to return"),
+    market: str = Query("US", description="US or IN"),
 ):
     """
     Returns a list of ticker symbols that are the most heavily weighted
@@ -86,7 +90,7 @@ def fetch_theme_proxies(
     """
     from api.services.theme_service import get_theme_proxies
     try:
-        tickers = get_theme_proxies(category, name, limit)
+        tickers = get_theme_proxies(category, name, limit, market=market.upper())
         return tickers
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")

@@ -5,6 +5,7 @@ Scanner router — GET /api/v1/scan/{scanner_type}
 """
 from typing import Literal, Optional, List
 from fastapi import APIRouter, HTTPException, Query
+import traceback
 
 from api.models.scanner import ScanResponse, ScannerCatalogueResponse, UniverseResponse, UniverseStockResult, StockResult
 from api.services.scanner_service import (
@@ -25,15 +26,20 @@ router = APIRouter(prefix="/api/v1", tags=["Scanner"])
     response_model=StockResult,
     summary="Get full metrics for a single ticker",
 )
-def get_stock_detail(ticker: str):
+def get_stock_detail(ticker: str, market: str = Query("US", description="US or IN")):
     """Returns all available metrics for a single stock ticker."""
-    rows = fetch_all(
-        "SELECT * FROM screen_data WHERE Ticker = ? LIMIT 1",
-        (ticker.upper(),),
-    )
-    if not rows:
-        raise HTTPException(status_code=404, detail=f"Ticker '{ticker}' not found")
-    return StockResult.model_validate(rows[0])
+    try:
+        rows = fetch_all(
+            "SELECT * FROM screen_data WHERE Ticker = ? AND Market = ? LIMIT 1",
+            (ticker.upper(), market.upper()),
+        )
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"Ticker '{ticker}' not found in {market} market.")
+        return StockResult.model_validate(rows[0])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
 
 
 @router.get(
@@ -60,6 +66,7 @@ def get_full_universe(
     exclude_sectors: Optional[List[str]] = Query(None, description="Sectors to exclude"),
     include_industries: Optional[List[str]] = Query(None, description="Industries to include"),
     exclude_industries: Optional[List[str]] = Query(None, description="Industries to exclude"),
+    market: str = Query("US", description="US or IN"),
 ):
     """Returns the performance metrics for the entire market universe > $5, with optional filters."""
     try:
@@ -72,10 +79,11 @@ def get_full_universe(
             exclude_sectors=exclude_sectors,
             include_industries=include_industries,
             exclude_industries=exclude_industries,
+            market=market.upper()
         )
         results = [UniverseStockResult.model_validate(row) for row in rows]
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
 
     return UniverseResponse(
         total_universe=universe_count,
@@ -104,6 +112,7 @@ def run_scanner(
     exclude_sectors: Optional[List[str]] = Query(None, description="Sectors to exclude"),
     include_industries: Optional[List[str]] = Query(None, description="Industries to include"),
     exclude_industries: Optional[List[str]] = Query(None, description="Industries to exclude"),
+    market: str = Query("US", description="US or IN"),
 ):
     """
     Execute a predefined scanner and return matching stocks with their indicator data.
@@ -131,9 +140,10 @@ def run_scanner(
             exclude_sectors=exclude_sectors,
             include_industries=include_industries,
             exclude_industries=exclude_industries,
+            market=market.upper()
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
 
     return ScanResponse(
         scanner=scanner_type,

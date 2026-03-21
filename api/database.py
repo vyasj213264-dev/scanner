@@ -90,10 +90,10 @@ def fetch_one(sql: str, params: Tuple = ()) -> Optional[dict]:
         return _map_row(row) if row else None
 
 
-def get_last_updated() -> Optional[str]:
+def get_last_updated(market: str = "US") -> Optional[str]:
     """Returns the most recent data date from the screen_data table."""
     try:
-        result = fetch_one("SELECT MAX(Date) as last_date FROM screen_data")
+        result = fetch_one("SELECT MAX(Date) as last_date FROM screen_data WHERE Market = ?", (market,))
         return result.get("last_date") if result else None
     except Exception:
         return None  # Handle empty fresh database
@@ -107,10 +107,10 @@ def fetch_val(sql: str, params: Tuple = ()) -> Any:
     return list(row.values())[0] if isinstance(row, dict) else tuple(row)[0]
 
 
-def get_universe_count_in_db() -> int:
+def get_universe_count_in_db(market: str = "US") -> int:
     """Returns the total number of tickers in the database."""
     try:
-        result = fetch_one("SELECT COUNT(*) as cnt FROM screen_data")
+        result = fetch_one("SELECT COUNT(*) as cnt FROM screen_data WHERE Market = ?", (market,))
         return result.get("cnt", 0) if result else 0
     except Exception:
         return 0

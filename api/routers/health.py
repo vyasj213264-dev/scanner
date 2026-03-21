@@ -1,7 +1,7 @@
 """
 Health check router — GET /api/v1/health
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from api.database import get_universe_count_in_db, get_last_updated
 from api.models.scanner import HealthResponse
@@ -11,11 +11,11 @@ router = APIRouter(prefix="/api/v1", tags=["System"])
 
 
 @router.get("/health", response_model=HealthResponse, summary="Service health check")
-def health_check():
+def health_check(market: str = Query("US", description="US or IN context")):
     """Returns DB connectivity, universe size, and last data update timestamp."""
     try:
-        universe_size = get_universe_count_in_db()
-        last_updated = get_last_updated()
+        universe_size = get_universe_count_in_db(market)
+        last_updated = get_last_updated(market)
         db_ok = universe_size > 0
     except Exception:
         universe_size = 0
