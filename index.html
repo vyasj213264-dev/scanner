@@ -2085,6 +2085,10 @@
         let masterIndustries = [];
         let currentModalType = ''; // 'Sector' or 'Industry'
         let currentMarket = 'US';
+        // Initialize market from URL immediately
+        if (new URLSearchParams(window.location.search).get('market') === 'IN') {
+            currentMarket = 'IN';
+        }
         // cached for client-side resort
         let tvWidgetCount = 0;
         let scannerViewMode = 'chart'; // 'chart' | 'table'
@@ -2340,6 +2344,10 @@
             if (currentMarket === market) return;
             currentMarket = market;
             
+            const url = new URL(window.location);
+            url.searchParams.set('market', market);
+            window.history.replaceState({}, '', url);
+            
             // UI Toggle
             const btnUS = document.getElementById('btn-market-us');
             const btnIN = document.getElementById('btn-market-in');
@@ -2358,7 +2366,7 @@
             }
             
             // Hide/show market-specific sidebar buttons
-            const usOnlyButtons = ['btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry'];
+            const usOnlyButtons = ['btn-breadth', 'btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry'];
             usOnlyButtons.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = market === 'US' ? '' : 'none';
@@ -3437,10 +3445,11 @@
             };
             const fmtMcap = (val) => {
                 if (val == null || isNaN(val)) return '—';
-                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)} T`;
-                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)} B`;
-                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)} M`;
-                return `$${val.toFixed(0)} `;
+                const prefix = currentMarket === 'IN' ? '₹' : '$';
+                if (val >= 1e12) return `${prefix}${(val / 1e12).toFixed(1)} T`;
+                if (val >= 1e9) return `${prefix}${(val / 1e9).toFixed(1)} B`;
+                if (val >= 1e6) return `${prefix}${(val / 1e6).toFixed(1)} M`;
+                return `${prefix}${val.toFixed(0)} `;
             };
 
             let html = `
@@ -3451,7 +3460,7 @@
                                     <th style="width: 40px;"></th>
                                     <th data-ksort="ticker" class="sortable">Ticker</th>
                                     <th data-ksort="close" class="sortable">Price</th>
-                                    <th data-ksort="sector" class="sortable">Sector</th>
+                                    ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
                                     <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
                                     <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
                                     <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
@@ -3462,7 +3471,7 @@
                                     <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
                                     <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
                                     <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
-                                    <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
+                                    <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                                     <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                                     <th data-ksort="adr_20" class="sortable">ATR%</th>
                                     <th data-ksort="rs_rating" class="sortable">RS</th>
@@ -3485,7 +3494,7 @@
                                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
                                     <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
                                     <td>${fmtPrice(s.close)}</td>
-                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                                    ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1w || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1m || '—'}</td>
@@ -3496,7 +3505,7 @@
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1w || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1m || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_3m || '—'}</td>
-                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>
+                                    <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>` : ''}
                                     <td>${fmtMcap(s.market_cap)}</td>
                                     <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                                     <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
@@ -4185,7 +4194,7 @@
                             <th data-ksort="ticker" class="sortable">Ticker</th>
                             <th data-ksort="rs_rating" class="sortable" title="Relative Strength Rating">RS</th>
                             <th data-ksort="close" class="sortable">Price</th>
-                            <th data-ksort="sector" class="sortable">Sector</th>
+                            ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
                             <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
                             <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
                             <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
@@ -4196,7 +4205,7 @@
                             <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
                             <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
                             <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
-                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
+                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable" title="Average Daily Range %">ATR%</th>
                             <th data-ksort="momentum_1d" class="sortable">1D</th>
@@ -4220,10 +4229,11 @@
 
             const fmtMcap = (val) => {
                 if (val == null || isNaN(val)) return '—';
-                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
-                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
-                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-                return `$${val.toFixed(0)}`;
+                const prefix = currentMarket === 'IN' ? '₹' : '$';
+                if (val >= 1e12) return `${prefix}${(val / 1e12).toFixed(1)}T`;
+                if (val >= 1e9) return `${prefix}${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `${prefix}${(val / 1e6).toFixed(1)}M`;
+                return `${prefix}${val.toFixed(0)}`;
             };
 
             const totalPages = Math.ceil(filteredData.length / UNIVERSE_PAGE_SIZE);
@@ -4240,7 +4250,7 @@
                     <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td style="color:${row.rs_rating >= 90 ? 'var(--pos)' : row.rs_rating >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating >= 90 ? '700' : '400'}">${row.rs_rating != null ? row.rs_rating.toFixed(0) : '—'}</td>
                     <td>${fmtPrice(row.close)}</td>
-                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
+                    ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1d || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1w || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1m || '—'}</td>
@@ -4251,7 +4261,7 @@
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_1w || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_1m || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_3m || '—'}</td>
-                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_6m || '—'}</td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;">${row.industry_rank_6m || '—'}</td>` : ''}
                     <td>${fmtMcap(row.market_cap)}</td>
                     <td>${row.adr_20 != null ? row.adr_20.toFixed(1) + '%' : '—'}</td>
                     <td>${fmtPct(row.momentum_1d)}</td>
@@ -5790,7 +5800,7 @@
                     height: '100%',
                     symbol: tvSymbol,
                     interval: 'D',
-                    timezone: 'America/New_York',
+                    timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
                     theme: theme,
                     style: '1',            // candlestick
                     locale: 'en',
@@ -5828,7 +5838,7 @@
                         autosize: true,
                         symbol: tvSymbol,
                         interval: 'D',
-                        timezone: 'America/New_York',
+                        timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
                         theme: theme,
                         style: '1',
                         locale: 'en',
