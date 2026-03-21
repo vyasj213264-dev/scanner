@@ -2141,7 +2141,8 @@
 
         function fmtPrice(val) {
             if (val == null || isNaN(val)) return '—';
-            return '$' + val.toFixed(2);
+            const prefix = currentMarket === 'IN' ? '₹' : '$';
+            return prefix + val.toFixed(2);
         }
 
         function showToast(msg, type = 'success') {
@@ -5628,7 +5629,7 @@
                             <th style="width: 40px;"></th>
                             <th data-ksort="ticker" class="sortable">Ticker</th>
                             <th data-ksort="close" class="sortable">Price</th>
-                            <th data-ksort="sector" class="sortable">Sector</th>
+                            ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
                             <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
                             <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
                             <th data-ksort="sector_rank_1m" class="sortable" title="Sector Rank 1M">sec1M</th>
@@ -5639,7 +5640,7 @@
                             <th data-ksort="industry_rank_1w" class="sortable" title="Industry Rank 1W">ind1W</th>
                             <th data-ksort="industry_rank_1m" class="sortable" title="Industry Rank 1M">ind1M</th>
                             <th data-ksort="industry_rank_3m" class="sortable" title="Industry Rank 3M">ind3M</th>
-                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>
+                            <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable">ATR%</th>
                             <th data-ksort="rs_rating" class="sortable">RS</th>
@@ -5662,7 +5663,7 @@
                             <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
                             <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
                             <td>${fmtPrice(s.close)}</td>
-                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
+                            ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1w || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1m || '—'}</td>
@@ -5673,7 +5674,7 @@
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1w || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1m || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_3m || '—'}</td>
-                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>
+                            <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>` : ''}
                             <td>${fmtMcap(s.market_cap)}</td>
                             <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                             <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
@@ -5768,11 +5769,12 @@
 
             // Format symbol based on Market rules for TradingView
             if (currentMarket === 'IN') {
-                if (tvSymbol.endsWith('.NS')) tvSymbol = 'NSE:' + tvSymbol.replace('.NS', '');
+                if (tvSymbol === '^NSEI') tvSymbol = 'BSE:SENSEX';
+                else if (tvSymbol === '^CRSMA') tvSymbol = 'BSE:BSEMIDCAP';
+                else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'BSE:BANKEX';
+                else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'BSE:BSE' + tvSymbol.replace('^CNX', '');
+                else if (tvSymbol.endsWith('.NS')) tvSymbol = 'BSE:' + tvSymbol.replace('.NS', '');
                 else if (tvSymbol.endsWith('.BO')) tvSymbol = 'BSE:' + tvSymbol.replace('.BO', '');
-                else if (tvSymbol === '^NSEI') tvSymbol = 'NSE:NIFTY';
-                else if (tvSymbol === '^CRSMA') tvSymbol = 'NSE:CNXMIDCAP';
-                else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'NSE:' + tvSymbol.replace('^CNX', 'CNX');
             } else {
                 if (tvSymbol === '^GSPC') tvSymbol = 'SP:SPX';
                 else if (tvSymbol === '^IXIC') tvSymbol = 'COMP';

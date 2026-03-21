@@ -478,7 +478,7 @@ def run_ingest(market='US'):
     if market == 'US' and etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
         try:
-            etf_data = yf.download(etfs_to_download, period='1y', group_by='ticker', threads=True)
+            etf_data = yf.download(etfs_to_download, period='2y', group_by='ticker', threads=True)
             
             for etf_ticker in etfs_to_download:
                 try:
