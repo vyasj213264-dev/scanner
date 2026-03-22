@@ -8,6 +8,22 @@ import concurrent.futures
 from api.database import fetch_all, get_db
 from api.config import DATABASE_URL
 
+def _to_python(val):
+    """Convert numpy scalars to native Python types so psycopg2 can serialize them."""
+    if val is None:
+        return None
+    try:
+        import numpy as np
+        if isinstance(val, (np.integer,)):
+            return int(val)
+        if isinstance(val, (np.floating,)):
+            return float(val)
+        if isinstance(val, (np.bool_,)):
+            return bool(val)
+    except ImportError:
+        pass
+    return val
+
 def fetch_fundamentals(ticker):
     """
     Fetches the PEG ratio and multi-year revenue growth directly from Yahoo Finance.
@@ -77,8 +93,8 @@ def run_fundamental_ingest(market='IN'):
             results.append((
                 res['ticker'],
                 market,
-                res['peg_ratio'],
-                res['revenue_growth_3y'],
+                _to_python(res['peg_ratio']),
+                _to_python(res['revenue_growth_3y']),
                 bool(res['revenue_doubled'])
             ))
 
