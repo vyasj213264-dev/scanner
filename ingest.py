@@ -617,6 +617,7 @@ def run_ingest(market='US'):
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS screen_data (
             Ticker {sql_types["TEXT PRIMARY KEY"]},
+            Market {sql_types["TEXT"]},
             Date {sql_types["TEXT"]},
             Close {sql_types["REAL"]},
             Volume {sql_types["REAL"]},
@@ -650,8 +651,7 @@ def run_ingest(market='US'):
             Sector {sql_types["TEXT"]},
             Industry {sql_types["TEXT"]},
             Market_Cap {sql_types["REAL"]},
-            Stage {sql_types["INTEGER"]},
-            Market {sql_types["TEXT"]}
+            Stage {sql_types["INTEGER"]}
         )
     ''')
     
