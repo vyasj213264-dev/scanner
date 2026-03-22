@@ -2761,6 +2761,12 @@
         async function createWatchlist() {
             const name = await showCustomPrompt("Enter watchlist name:");
             if (!name) return;
+            
+            if (watchlists.some(w => w.name.toLowerCase() === name.toLowerCase())) {
+                showToast("A watchlist with this name already exists", "error");
+                return;
+            }
+            
             try {
                 const res = await fetchApi('/watchlists', {
                     method: 'POST',
@@ -3444,17 +3450,41 @@
 
         function toggleWlDropdown(btn, event) {
             event.stopPropagation();
+            const menu = btn.nextElementSibling;
+            const isShowing = menu.classList.contains('show');
+
             // Close all others
             document.querySelectorAll('.wl-dropdown-menu').forEach(m => {
-                if (m !== btn.nextElementSibling) m.classList.remove('show');
+                m.classList.remove('show');
             });
-            btn.nextElementSibling.classList.toggle('show');
+
+            if (!isShowing) {
+                // Show it
+                menu.classList.add('show');
+                // Calculate position to prevent clipping by table overflow
+                const rect = btn.getBoundingClientRect();
+                menu.style.position = 'fixed';
+                menu.style.top = (rect.bottom + 4) + 'px';
+                
+                // Keep it from going off the right edge of the screen
+                const menuWidth = 160; // Approximate min-width from CSS
+                let leftPos = rect.left;
+                if (leftPos + menuWidth > window.innerWidth) {
+                    leftPos = window.innerWidth - menuWidth - 20;
+                }
+                menu.style.left = leftPos + 'px';
+            }
         }
 
         // Close dropdowns on click outside
         document.addEventListener('click', () => {
             document.querySelectorAll('.wl-dropdown-menu').forEach(m => m.classList.remove('show'));
         });
+
+        // Close dropdowns on scroll to prevent detached floating menus
+        window.addEventListener('scroll', () => {
+            document.querySelectorAll('.wl-dropdown-menu').forEach(m => m.classList.remove('show'));
+        }, true);
 
         async function addToWatchlist(ticker, watchlistId, event) {
             event.stopPropagation();
@@ -3521,6 +3551,14 @@
             event.stopPropagation();
             const name = await showCustomPrompt("Enter new watchlist name:");
             if (!name) return;
+
+            if (watchlists.some(w => w.name.toLowerCase() === name.toLowerCase())) {
+                showToast("A watchlist with this name already exists", "error");
+                // Menu remains open so they can retry or select another, but it's okay if they have to reopen it.
+                event.target.closest('.wl-dropdown-menu').classList.remove('show');
+                return;
+            }
+
             try {
                 // 1. Create WL
                 const resWl = await fetchApi('/watchlists', {
@@ -3676,6 +3714,7 @@
                                     <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                                     <th data-ksort="adr_20" class="sortable">ATR%</th>
                                     <th data-ksort="rs_rating" class="sortable">RS</th>
+                                    <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                                     <th data-ksort="rvol" class="sortable">RVOL</th>
                                     <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
                                     <th data-ksort="momentum_1m" class="sortable">1M</th>
@@ -3711,6 +3750,7 @@
                                     <td>${fmtMcap(s.market_cap)}</td>
                                     <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                                     <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
+                                    <td>${s.stage ? getStageBadge(s.stage) : '—'}</td>
                                     <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
                                     <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
                                     <td>${fmtPct(s.momentum_1m)}</td>
@@ -4397,6 +4437,7 @@
                             <th style="width: 40px;"></th>
                             <th data-ksort="ticker" class="sortable">Ticker</th>
                             <th data-ksort="rs_rating" class="sortable" title="Relative Strength Rating">RS</th>
+                            <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                             <th data-ksort="close" class="sortable">Price</th>
                             ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
                             <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
@@ -4453,6 +4494,7 @@
                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(row.ticker)}</td>
                     <td style="display:flex;align-items:center;">${getStageBadge(row.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td style="color:${row.rs_rating >= 90 ? 'var(--pos)' : row.rs_rating >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating >= 90 ? '700' : '400'}">${row.rs_rating != null ? row.rs_rating.toFixed(0) : '—'}</td>
+                    <td>${row.stage ? getStageBadge(row.stage) : '—'}</td>
                     <td>${fmtPrice(row.close)}</td>
                     ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
                     <td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector_rank_1d || '—'}</td>
@@ -5914,6 +5956,7 @@
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable">ATR%</th>
                             <th data-ksort="rs_rating" class="sortable">RS</th>
+                            <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                             <th data-ksort="rvol" class="sortable">RVOL</th>
                             <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
                             <th data-ksort="momentum_1m" class="sortable">1M</th>
@@ -5948,6 +5991,7 @@
                             <td>${localFmtMcap(s.market_cap)}</td>
                             <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                             <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
+                            <td>${s.stage ? getStageBadge(s.stage) : '—'}</td>
                             <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
                             <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
                             <td>${fmtPct(s.momentum_1m)}</td>

@@ -102,6 +102,8 @@ class UniverseStockResult(BaseModel):
     adr_20: Optional[float] = Field(None, validation_alias="ADR_20")
     peg_ratio: Optional[float] = Field(None, validation_alias="peg_ratio")
     revenue_growth_3y: Optional[float] = Field(None, validation_alias="revenue_growth_3y")
+    rs_rating: Optional[float] = Field(None, validation_alias="RS_Rating")
+    stage: Optional[int] = Field(None, validation_alias="Stage")
     momentum_1d: Optional[float] = Field(None, validation_alias="Momentum_1D")
     momentum_1w: Optional[float] = Field(None, validation_alias="Momentum_1W")
     momentum_1m: Optional[float] = Field(None, validation_alias="Momentum_1M")
