@@ -2091,6 +2091,13 @@
         let filterIndustries = {};
         let masterSectors = [];
         let masterIndustries = [];
+        let currentModalType = ''; // 'Sector' or 'Industry'
+        let currentMarket = 'US';
+        // Initialize market from URL immediately
+        if (new URLSearchParams(window.location.search).get('market') === 'IN') {
+            currentMarket = 'IN';
+        }
+
         function fmtCompact(val) {
             if (val == null || isNaN(val)) return '—';
             if (val >= 1e12) return (val / 1e12).toFixed(1) + 'T';
@@ -2109,10 +2116,6 @@
             if (stage === 3) color = '#facc15';
             if (stage === 4) color = '#ec4899';
             return `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${color};color:#fff;font-size:10px;font-weight:bold;margin-right:6px;" title="Stage ${stage}">${stage}</span>`;
-        }
-
-        async function fetchStockDetail(ticker) {
-            currentMarket = 'IN';
         }
         // cached for client-side resort
         let tvWidgetCount = 0;
