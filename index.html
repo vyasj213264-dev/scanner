@@ -1451,9 +1451,9 @@
                 color: var(--text-primary);
                 cursor: pointer;
                 position: absolute;
-                top: 20px;
-                right: 20px;
-                padding: 8px;
+                top: 16px;
+                right: 16px;
+                padding: 10px;
                 border-radius: 50%;
                 background: var(--surface);
                 border: 1px solid var(--border);
@@ -1484,22 +1484,23 @@
                 top: 0;
                 bottom: 0;
                 left: -300px;
-                /* Hide off-canvas */
                 width: 280px;
                 height: 100vh;
                 z-index: 1000;
                 background: var(--bg);
                 border-right: 1px solid var(--border);
                 flex-direction: column;
-                padding: 24px;
-                gap: 32px;
+                padding: 16px;
+                gap: 24px;
                 overflow-y: auto;
                 transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                resize: none; /* Disable resize on mobile */
+                min-width: auto;
+                max-width: none;
             }
 
             .sidebar.open {
                 left: 0;
-                /* Slide in */
             }
 
             .sidebar::-webkit-scrollbar {
@@ -1509,22 +1510,22 @@
             .sidebar-section {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 4px;
             }
 
             .sidebar-section-label {
                 display: block;
-                /* Restore category labels for vertical layout */
             }
 
             .scanner-btn {
                 width: 100%;
                 white-space: normal;
                 padding: 10px 14px;
+                min-height: 44px; /* Touch-friendly min height */
                 border-radius: 8px;
                 background: transparent;
                 border: 1px solid transparent;
-                font-size: 0.9rem;
+                font-size: 0.88rem;
                 justify-content: flex-start;
             }
 
@@ -1545,26 +1546,30 @@
                 display: none;
             }
 
-            /* Main Header adjustments */
+            /* Mobile header */
             .app-header {
-                padding: 0 16px;
+                padding: 0 12px;
+                height: 44px;
             }
 
             .last-updated-label {
                 display: none;
-                /* Hide date text to save space */
             }
 
             .logo {
-                font-size: 1.1rem;
+                font-size: 1rem;
+            }
+
+            .header-meta strong {
+                display: none;
             }
 
             /* Results area headers */
             .results-header {
                 flex-direction: column;
                 height: auto;
-                padding: 12px 16px;
-                gap: 12px;
+                padding: 8px 12px;
+                gap: 8px;
                 align-items: flex-start;
             }
 
@@ -1573,22 +1578,63 @@
                 width: 100%;
                 justify-content: flex-start;
                 flex-wrap: wrap;
-                gap: 8px;
+                gap: 6px;
             }
 
             .sort-buttons {
                 display: none;
-                /* Hide buttons on mobile */
             }
 
             .sort-select {
                 display: block;
-                /* Show dropdown on mobile */
             }
 
             .filter-bar {
                 width: 100%;
                 justify-content: flex-start;
+                gap: 8px;
+            }
+
+            /* Frozen ticker column for horizontal table scrolling */
+            .universe-table td:first-child,
+            .universe-table th:first-child {
+                position: sticky;
+                left: 0;
+                z-index: 5;
+                background: var(--surface);
+                box-shadow: 2px 0 4px rgba(0,0,0,0.15);
+            }
+
+            .universe-table th:first-child {
+                z-index: 15;
+                background: rgba(15, 23, 42, 0.95);
+            }
+
+            /* Compact stock panel on mobile */
+            .stock-panel {
+                width: 100vw;
+                max-width: 100vw;
+                right: -100vw;
+            }
+
+            .stock-panel.open {
+                right: 0;
+            }
+
+            .sp-ticker {
+                font-size: 1.2rem;
+            }
+
+            .sp-price {
+                font-size: 1.1rem;
+            }
+
+            .sp-chart {
+                height: 250px;
+            }
+
+            .grid-area {
+                padding: 8px 10px;
             }
         }
 
