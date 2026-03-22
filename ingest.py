@@ -535,6 +535,7 @@ def run_ingest(market='US'):
                             
                             etf_record = (
                                 etf_ticker,
+                                market,
                                 str(last_etf.name),
                                 _nan_to_none(last_etf['Close']),
                                 _nan_to_none(last_etf['Volume']),
@@ -568,8 +569,7 @@ def run_ingest(market='US'):
                                 'ETF', # Sector
                                 'ETF', # Industry
                                 0.0, # Market Cap
-                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None,
-                                market
+                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None
                             )
                             all_data.append(etf_record)
                             
