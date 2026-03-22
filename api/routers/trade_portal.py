@@ -214,15 +214,16 @@ def get_growth_opportunities(leaderboard: List[Dict], market: str = "US") -> Lis
             
     return opps
 
-def get_weekly_bias_statement(bias_dict: Dict[str, Any]) -> str:
+def get_weekly_bias_statement(bias_dict: Dict[str, Any], market: str = "US") -> str:
     # 4. Weekly Bias Statement
     bias = bias_dict.get("bias", "Neutral")
     exp = bias_dict.get("exposure_pct", 50)
+    group_term = "sectors" if market == 'US' else "custom indices"
     
     if bias == "Risk-On":
-        return f"Given the clear Risk-On environment, growth stock traders should maintain an **aggressive but structured posture** with **{exp}% exposure/margin allowed**. Capital should be deployed into the strongest breakouts in the leading top-3 sectors. Watch the broader market's ability to hold the 20-day moving average; rapid distribution below this warrants tighter trailing stops."
+        return f"Given the clear Risk-On environment, growth stock traders should maintain an **aggressive but structured posture** with **{exp}% exposure/margin allowed**. Capital should be deployed into the strongest breakouts in the leading top-3 {group_term}. Watch the broader market's ability to hold the 20-day moving average; rapid distribution below this warrants tighter trailing stops."
     elif bias == "Risk-Off":
-        return f"In this Risk-Off environment, growth stock traders must remain **highly defensive** with **maximum {exp}% gross exposure**. Cash is a solid positional anchor. Look to deploy capital tactically strictly into well-defined **Short** setups in lagging Stage 4 sectors. The single most important thing to watch is the formation of a tradable bottom or a reclaim of the 10-day moving average by the major averages to invalidate the downtrend."
+        return f"In this Risk-Off environment, growth stock traders must remain **highly defensive** with **maximum {exp}% gross exposure**. Cash is a solid positional anchor. Look to deploy capital tactically strictly into well-defined **Short** setups in lagging Stage 4 {group_term}. The single most important thing to watch is the formation of a tradable bottom or a reclaim of the 10-day moving average by the major averages to invalidate the downtrend."
     else:
         return f"With the market in a Neutral configuration, growth stock traders should run **balanced portfolios** targeting **around {exp}% exposure**. Rather than relying on a rising tide to lift all boats, adopt a market-neutral approach scaling into the absolute best high-RS Stage 2 longs and hedging with Stage 4 breakdown shorts."
 
@@ -376,20 +377,14 @@ def get_daily_read(market: str = Query("US", description="US or IN")):
             }
         }
         
-        # Only include sector/industry data for US market
-        if market_up == 'US':
-            leaderboard = get_sector_leaderboard(market_up)
-            opps = get_growth_opportunities(leaderboard, market_up)
-            weekly_bias = get_weekly_bias_statement(bias_dict)
-            result["data"]["sector_leaderboard"] = leaderboard
-            result["data"]["growth_opportunities"] = opps
-            result["data"]["weekly_statement"] = weekly_bias
-        else:
-            # Indian market: simplified output
-            result["data"]["sector_leaderboard"] = []
-            result["data"]["growth_opportunities"] = []
-            weekly_bias = get_weekly_bias_statement(bias_dict)
-            result["data"]["weekly_statement"] = weekly_bias
+        # Generate Sector/Index Leaderboard and Growth Opportunities
+        leaderboard = get_sector_leaderboard(market_up)
+        opps = get_growth_opportunities(leaderboard, market_up)
+        weekly_bias = get_weekly_bias_statement(bias_dict, market_up)
+        
+        result["data"]["sector_leaderboard"] = leaderboard
+        result["data"]["growth_opportunities"] = opps
+        result["data"]["weekly_statement"] = weekly_bias
         
         return result
     except Exception as e:

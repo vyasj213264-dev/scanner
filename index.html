@@ -3857,7 +3857,7 @@
                     </div>
                     <p>${data.market_bias.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>
                     
-                    <h2>2. Sector Leaderboard</h2>
+                    <h2>2. ${currentMarket === 'IN' ? 'Custom Index' : 'Sector'} Leaderboard</h2>
                     <div style="color:var(--text-muted); font-size: 0.85rem; margin-bottom:10px;">Ranked by 1-Week Performance.</div>
                     <ul class="portal-rank-list">
                 `;
@@ -4749,6 +4749,7 @@
                     <!-- Sector Heatmap -->
                 `;
 
+                if (currentMarket !== 'IN') {
                     html += `
                     <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Heatmap (% Stage 2)</div>
@@ -4785,7 +4786,9 @@
                         </div>
                     </div>
                     `;
+                }
 
+                if (currentMarket !== 'IN') {
                     html += `
                     <!-- Sector Breakdown Table -->
                     <div class="sp-stat-box">
@@ -4832,7 +4835,9 @@
                         </div>
                     </div>
                     `;
+                } // end if currentMarket !== 'IN' (Sector Stats)
 
+                if (currentMarket !== 'IN') {
                     html += `
                     <!-- Industry Breakdown Table -->
                     <div class="sp-stat-box">
@@ -4870,6 +4875,10 @@
                             </table>
                         </div>
                     </div>
+                    `;
+                } // end if currentMarket !== 'IN' (Industry Stats)
+
+                html += `
                     `;
                 
                 html += `
