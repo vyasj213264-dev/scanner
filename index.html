@@ -3865,13 +3865,13 @@
                 data.sector_leaderboard.forEach(s => {
                     const color = s.pct_1w >= 0 ? '#4ade80' : '#f87171';
                     html += `
-                        <li class="portal-rank-item" onclick="fetchStockDetail('${s.ticker}')" title="View Chart for ${s.ticker}">
+                        <li class="portal-rank-item" ${currentMarket === 'US' ? `onclick="fetchStockDetail('${s.ticker}')" style="cursor:pointer;" title="View Chart for ${s.ticker}"` : 'style="cursor:default;"'}>
                             <span class="rank">${s.rank}</span>
-                            <span class="ticker">${s.ticker}</span>
+                            ${currentMarket === 'US' ? `<span class="ticker" style="min-width: 60px;">${s.ticker}</span>` : ''}
                             <span style="font-size:0.75rem; font-weight:700; padding:2px 6px; background:rgba(128,128,128,0.2); border-radius:4px; margin-right:12px; color:var(--text-muted); display:inline-flex; align-items:center;">Stage ${s.stage != null ? Math.round(s.stage) : '?'}</span>
-                            <span class="name">${s.name}</span>
-                            <span class="perf" style="color:${color}">${s.pct_1w > 0 ? '+' : ''}${s.pct_1w.toFixed(1)}%</span>
-                            <span class="char char-${s.characterization}">${s.characterization}</span>
+                            <span class="name" style="flex:1;">${s.name}</span>
+                            <span class="perf" style="color:${color}; min-width: 60px; text-align: right;">${s.pct_1w > 0 ? '+' : ''}${s.pct_1w.toFixed(1)}%</span>
+                            <span class="char char-${s.characterization}" style="min-width: 80px; text-align: center;">${s.characterization}</span>
                         </li>
                     `;
                 });
