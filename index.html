@@ -5637,28 +5637,40 @@
                                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
                                     el.innerHTML = ''; // clear loading state
 
-                                    try {
-                                        new TradingView.widget({
-                                            autosize: true,
-                                            symbol: tickerFormula,
-                                            interval: 'D',
-                                            timezone: 'Etc/UTC',
-                                            theme: 'dark',
-                                            style: '1',
-                                            locale: 'en',
-                                            enable_publishing: false,
-                                            hide_top_toolbar: true,
-                                            hide_legend: true,
-                                            save_image: false,
-                                            container_id: containerId,
-                                            backgroundColor: '#131926',
-                                            gridColor: '#1e2a40',
-                                            studies: [
-                                                { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
-                                            ]
-                                        });
-                                    } catch (err) {
-                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                    const initTV = () => {
+                                        try {
+                                            new TradingView.widget({
+                                                autosize: true,
+                                                symbol: tickerFormula,
+                                                interval: 'D',
+                                                timezone: 'Etc/UTC',
+                                                theme: 'dark',
+                                                style: '1',
+                                                locale: 'en',
+                                                enable_publishing: false,
+                                                hide_top_toolbar: true,
+                                                hide_legend: true,
+                                                save_image: false,
+                                                container_id: containerId,
+                                                backgroundColor: '#131926',
+                                                gridColor: '#1e2a40',
+                                                studies: [
+                                                    { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
+                                                ]
+                                            });
+                                        } catch (err) {
+                                            const el = document.getElementById(containerId);
+                                            if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                        }
+                                    };
+
+                                    if (window.TradingView && window.TradingView.widget) {
+                                        initTV();
+                                    } else {
+                                        const s = document.createElement('script');
+                                        s.src = 'https://s3.tradingview.com/tv.js';
+                                        s.onload = initTV;
+                                        document.head.appendChild(s);
                                     }
                                 })
                                 .catch(err => {
@@ -5824,28 +5836,40 @@
                                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
                                     el.innerHTML = ''; // clear loading state
 
-                                    try {
-                                        new TradingView.widget({
-                                            autosize: true,
-                                            symbol: tickerFormula,
-                                            interval: 'D',
-                                            timezone: 'Etc/UTC',
-                                            theme: 'dark',
-                                            style: '1',
-                                            locale: 'en',
-                                            enable_publishing: false,
-                                            hide_top_toolbar: true,
-                                            hide_legend: true,
-                                            save_image: false,
-                                            container_id: containerId,
-                                            backgroundColor: '#131926',
-                                            gridColor: '#1e2a40',
-                                            studies: [
-                                                { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
-                                            ]
-                                        });
-                                    } catch (err) {
-                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                    const initTV = () => {
+                                        try {
+                                            new TradingView.widget({
+                                                autosize: true,
+                                                symbol: tickerFormula,
+                                                interval: 'D',
+                                                timezone: 'Etc/UTC',
+                                                theme: 'dark',
+                                                style: '1',
+                                                locale: 'en',
+                                                enable_publishing: false,
+                                                hide_top_toolbar: true,
+                                                hide_legend: true,
+                                                save_image: false,
+                                                container_id: containerId,
+                                                backgroundColor: '#131926',
+                                                gridColor: '#1e2a40',
+                                                studies: [
+                                                    { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
+                                                ]
+                                            });
+                                        } catch (err) {
+                                            const el = document.getElementById(containerId);
+                                            if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                        }
+                                    };
+
+                                    if (window.TradingView && window.TradingView.widget) {
+                                        initTV();
+                                    } else {
+                                        const s = document.createElement('script');
+                                        s.src = 'https://s3.tradingview.com/tv.js';
+                                        s.onload = initTV;
+                                        document.head.appendChild(s);
                                     }
                                 })
                                 .catch(err => {
