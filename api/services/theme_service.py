@@ -232,6 +232,7 @@ def get_custom_index_themes(market: str = "IN") -> Tuple[List[ThemeRankRecord], 
         r = ThemeRankRecord(
             Category="Custom Indices",
             Name=avg['name'],
+            id=idx_id,
             Stock_Count=avg['count'],
             Rank_1D=ranks_1d[idx_id],
             Rank_1W=ranks_1w[idx_id],
