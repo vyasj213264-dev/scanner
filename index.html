@@ -2091,10 +2091,27 @@
         let filterIndustries = {};
         let masterSectors = [];
         let masterIndustries = [];
-        let currentModalType = ''; // 'Sector' or 'Industry'
-        let currentMarket = 'US';
-        // Initialize market from URL immediately
-        if (new URLSearchParams(window.location.search).get('market') === 'IN') {
+        function fmtCompact(val) {
+            if (val == null || isNaN(val)) return '—';
+            if (val >= 1e12) return (val / 1e12).toFixed(1) + 'T';
+            if (val >= 1e9)  return (val / 1e9).toFixed(1) + 'B';
+            if (val >= 1e6)  return (val / 1e6).toFixed(1) + 'M';
+            if (val >= 1e3)  return (val / 1e3).toFixed(1) + 'K';
+            return val.toFixed(1);
+        }
+
+        // Circular Stage Badge UI
+        function getStageBadge(stage) {
+            if (!stage) return '';
+            let color = '#9ca3af'; // default gray
+            if (stage === 1) color = '#9ca3af';
+            if (stage === 2) color = '#3b82f6';
+            if (stage === 3) color = '#facc15';
+            if (stage === 4) color = '#ec4899';
+            return `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${color};color:#fff;font-size:10px;font-weight:bold;margin-right:6px;" title="Stage ${stage}">${stage}</span>`;
+        }
+
+        async function fetchStockDetail(ticker) {
             currentMarket = 'IN';
         }
         // cached for client-side resort
@@ -2119,6 +2136,7 @@
         let selectedSector = null;
         let selectedIndustry = null;
         let themeStockData = [];       // cached stock data for resort
+
         let themesViewMode = 'table';  // 'table' | 'chart'
 
         // Lev ETF State
@@ -2400,7 +2418,7 @@
                     // INR Classifications: Smallcap (~5k Cr), Midcap (~20k Cr), Largecap (~50k Cr)
                     mcapSelect.innerHTML = `
                         <option value="">Any</option>
-                        <option value="5000000000">&ge; Smallcap (₹500Cr+)</option>
+                        <option value="500000000">&ge; Smallcap (₹500Cr+)</option>
                         <option value="50000000000">&ge; Midcap (₹5,000Cr+)</option>
                         <option value="200000000000">&ge; Largecap (₹20,000Cr+)</option>
                         <option value="500000000000">Mega (₹50,000Cr+)</option>
@@ -2941,7 +2959,8 @@
 
             // Sync buttons
             document.querySelectorAll('.sort-btn[data-sort]').forEach(b => {
-                b.classList.toggle('active', b.dataset.sort === activeSortBy);
+                if (b.dataset.sort === activeSortBy) b.classList.add('active');
+                else b.classList.remove('active');
             });
 
             executeSort();
@@ -3151,8 +3170,8 @@
             const params = new URLSearchParams(window.location.search);
             const scannerId = e.state?.scanner || params.get('scanner');
             const themeId = e.state?.theme || params.get('theme');
-            const sectorId = e.state?.sector || params.get('sector');
-            const industryId = e.state?.industry || params.get('industry');
+            const sectorId = params.get('sector');
+            const industryId = params.get('industry');
 
             if (industryId) {
                 themesCategory = themeId || 'Sector';
@@ -3559,7 +3578,7 @@
                             : '';
                 html += `<tr>
                                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
-                                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> ${stagePill}</td>
+                                    <td style="display:flex;align-items:center;">${getStageBadge(s.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> <span style="margin-left:6px">${stagePill}</span></td>
                                     <td>${fmtPrice(s.close)}</td>
                                     ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
@@ -4084,13 +4103,13 @@
                         : '';
 
                 html += `<tr style="${rowHighlight}">
-                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.ticker}')"
-                        style="color:var(--accent);text-decoration:none;font-weight:700;">${etf.ticker}</a></td>
+                    <td style="padding-left: 8px;">${getWatchlistDropdownHtml(etf.ticker)}</td>
+                    <td style="display:flex;align-items:center;">${getStageBadge(etf.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.ticker}')"
+                       style="color:var(--accent);text-decoration:none;font-weight:600;">${etf.ticker}</a></td>
                     <td style="color:var(--text-secondary);font-size:0.82rem;">${etf.fund_name}</td>
                     <td style="font-size:0.82rem;"><a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.underlying}')"
                         style="color:var(--text-muted);text-decoration:none;" title="View underlying ticker">${etf.underlying}</a></td>
                     <td style="color:${objColor(etf.objective)};font-weight:600;font-size:0.82rem;">${etf.objective || '—'}</td>
-                    <td style="color:var(--text-secondary);font-size:0.8rem;">${fmtMcap(etf.net_assets)}</td>
                     <td style="text-align:center;">${stagePill(etf.stage)}</td>
                     <td style="text-align:center;">${check(etf.pullback_5)}</td>
                     <td style="text-align:center;">${check(etf.pullback_10)}</td>
@@ -4144,7 +4163,8 @@
                     <div class="card-header">
           <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                  <div class="card-ticker">
+                  <div class="card-ticker" style="display:flex;align-items:center;">
+                    ${getStageBadge(stock.stage)}
                     <a href="#" onclick="event.preventDefault(); fetchStockDetail('${stock.ticker}')"
                        style="color:var(--text-primary);text-decoration:none;">
                       ${stock.ticker}
@@ -4315,7 +4335,7 @@
                 html += `
                 <tr>
                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(row.ticker)}</td>
-                    <td><a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
+                    <td style="display:flex;align-items:center;">${getStageBadge(row.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
                     <td style="color:${row.rs_rating >= 90 ? 'var(--pos)' : row.rs_rating >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating >= 90 ? '700' : '400'}">${row.rs_rating != null ? row.rs_rating.toFixed(0) : '—'}</td>
                     <td>${fmtPrice(row.close)}</td>
                     ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${row.sector || '—'}</td>
@@ -4723,9 +4743,9 @@
                         <div id="stage-history-chart" style="width: 100%; height: 250px; margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px;"></div>
                     </div>
 
-                    <!-- Sector Heatmap (US only) -->
+                    <!-- Sector Heatmap -->
                 `;
-                if (currentMarket === 'US') {
+
                     html += `
                     <div class="sp-stat-box">
                         <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem;">Sector Heatmap (% Stage 2)</div>
@@ -4748,9 +4768,9 @@
                     // Flex grow proportional to sector size, min 100px width
                     const color = getHeatmapColor(row.pct_stage2);
                     html += `
-                        <div style="flex: ${row.total} 1 100px; background: ${color}; color: #fff; padding: 16px; border-radius: 6px; text-align: center; cursor: pointer; transition: transform 0.2s;" 
-                             onclick="runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\'")}'), 300)"
-                             onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                        <div style="flex: ${row.total} 1 100px; background: ${color}; color: #fff; padding: 16px; border-radius: 6px; text-align: center; cursor: ${currentMarket === 'US' ? 'pointer' : 'default'}; transition: transform 0.2s;" 
+                             onclick="${currentMarket === 'US' ? `runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\\\'")}'), 300)` : ''}"
+                             onmouseover="${currentMarket === 'US' ? `this.style.transform='scale(1.02)'` : ''}" onmouseout="${currentMarket === 'US' ? `this.style.transform='scale(1)'` : ''}">
                              <div style="font-weight: 700; font-size: 1.1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${row.sector}</div>
                              <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">${row.pct_stage2}% in Stage 2</div>
                              <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 2px;">${row.total} stocks</div>
@@ -4762,9 +4782,7 @@
                         </div>
                     </div>
                     `;
-                }
 
-                if (currentMarket === 'US') {
                     html += `
                     <!-- Sector Breakdown Table -->
                     <div class="sp-stat-box">
@@ -4791,7 +4809,7 @@
                 for (const row of data.sectors) {
                     html += `
                         <tr>
-                            <td style="font-weight:600; color:var(--text-primary); cursor:pointer;" onclick="runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\'")}'), 300)">${row.sector}</td>
+                            <td style="font-weight:600; color:var(--text-primary); cursor:${currentMarket === 'US' ? 'pointer' : 'default'};" onclick="${currentMarket === 'US' ? `runThemes('Sector'); setTimeout(()=>drillIntoSector('${row.sector.replace(/'/g, "\\\\'")}'), 300)` : ''}">${row.sector}</td>
                             <td style="text-align:right; color:var(--text-secondary);">${row.total}</td>
                             <td style="text-align:right; color:var(--text-primary); font-weight:600;">${row.avg_rs}</td>
                             <td style="text-align:right; color:${row.pct_above_50sma > 50 ? 'var(--green)' : 'var(--text-secondary)'};">${row.pct_above_50sma}%</td>
@@ -4805,15 +4823,13 @@
                     `;
                 }
 
-                html += `
+                                html += `
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     `;
-                }
 
-                if (currentMarket === 'US') {
                     html += `
                     <!-- Industry Breakdown Table -->
                     <div class="sp-stat-box">
@@ -4836,7 +4852,7 @@
                 for (const row of data.industries) {
                     html += `
                         <tr>
-                            <td style="font-weight:600; color:var(--text-primary); cursor:pointer;" onclick="runThemes('Industry'); setTimeout(()=>drillIntoSector('${row.industry.replace(/'/g, "\\'")}'), 300)">${row.industry}</td>
+                            <td style="font-weight:600; color:var(--text-primary); cursor:${currentMarket === 'US' ? 'pointer' : 'default'};" onclick="${currentMarket === 'US' ? `runThemes('Industry'); setTimeout(()=>drillIntoSector('${row.industry.replace(/'/g, "\\\\'")}'), 300)` : ''}">${row.industry}</td>
                             <td style="text-align:right; color:var(--text-secondary);">${row.total}</td>
                             <td style="text-align:right; color:var(--text-secondary);">${row.pct_stage1}%</td>
                             <td style="text-align:right; color:${row.pct_stage2 > 30 ? 'var(--accent)' : 'var(--text-secondary)'};">${row.pct_stage2}%</td>
@@ -4846,13 +4862,12 @@
                     `;
                 }
 
-                html += `
+                                html += `
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     `;
-                }
                 
                 html += `
                 </div>
@@ -5463,7 +5478,7 @@
                             }
 
                             // Fetch proxy tickers for unmapped industry/sector
-                            fetchApi(`/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
+                            fetchApi(`/themes/proxy?category=Industry&name=${encodeURIComponent(row.name)}&limit=10`)
                                 .then(res => res.json())
                                 .then(tickers => {
                                     const el = document.getElementById(containerId);
@@ -5477,18 +5492,40 @@
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
-                                        if (currentLen + t.length + 1 > 120) break;
+                                        if (currentLen + t.length + 1 > 120) break; // Leave room for math operators
                                         expressionParts.push(t);
                                         currentLen += t.length + 1;
                                     }
 
                                     const count = expressionParts.length;
                                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
-                                    el.innerHTML = '';
+                                    el.innerHTML = ''; // clear loading state
 
-                                    try { requestAnimationFrame(() => renderTVChart(containerId, tickerFormula, true)); } 
-                                    catch (err) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>'; }
-                                }).catch(err => {
+                                    try {
+                                        new TradingView.widget({
+                                            autosize: true,
+                                            symbol: tickerFormula,
+                                            interval: 'D',
+                                            timezone: 'Etc/UTC',
+                                            theme: 'dark',
+                                            style: '1',
+                                            locale: 'en',
+                                            enable_publishing: false,
+                                            hide_top_toolbar: true,
+                                            hide_legend: true,
+                                            save_image: false,
+                                            container_id: containerId,
+                                            backgroundColor: '#131926',
+                                            gridColor: '#1e2a40',
+                                            studies: [
+                                                { id: "MAExp@tv-basicstudies", inputs: { in_0: 21 } }
+                                            ]
+                                        });
+                                    } catch (err) {
+                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
+                                    }
+                                })
+                                .catch(err => {
                                     console.error(err);
                                     const el = document.getElementById(containerId);
                                     if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Failed to load proxy</div>';
@@ -5700,7 +5737,7 @@
             const area = document.getElementById('grid-area');
             area.innerHTML = `
                 <div class="breadcrumb-bar">
-                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                    ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">${allCatName}</span><span class="bc-sep">›</span>`}
                     <span class="bc-current">${name}</span>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:250px;">

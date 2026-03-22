@@ -475,31 +475,35 @@ def run_ingest(market='US'):
     # These ETFs represent sectors in the Themes UI, or are underlying tickers
     # used by the Leveraged ETF scanner. They are NOT part of the stock
     # universe, so their OHLCV + indicator data wouldn't otherwise be computed.
-    sector_etf_tickers = [
-        # Sector ETFs (for Themes UI)
-        'XLK', 'XLV', 'XLY', 'XLF', 'XLI', 'XLP', 'XLE', 'XLRE',
-        'XLB', 'XLU', 'XLC', 'XTL', 'IYM', 'SPY',
-        # Broad market ETFs (lev ETF underlyings)
-        'QQQ', 'IWM', 'DIA', 'MDY', 'RSP', 'SLY',
-        # Sector ETFs (lev ETF underlyings not already above)
-        'SOXX', 'IBB', 'CIBR', 'SKYY', 'XRT',
-        # Commodity ETFs
-        'GLD', 'SLV', 'USO', 'UNG',
-        # Fixed Income ETFs
-        'TLT', 'IEF', 'HYG',
-        # Crypto ETFs
-        'IBIT', 'ETHA',
-        # International ETFs
-        'EEM', 'EFA', 'FXI', 'EWJ', 'EWZ',
-        # Currency ETFs
-        'FXY', 'FXE',
-    ]
+    if market == 'US':
+        sector_etf_tickers = [
+            # Sector ETFs (for Themes UI)
+            'XLK', 'XLV', 'XLY', 'XLF', 'XLI', 'XLP', 'XLE', 'XLRE',
+            'XLB', 'XLU', 'XLC', 'XTL', 'IYM', 'SPY',
+            # Broad market ETFs (lev ETF underlyings)
+            'QQQ', 'IWM', 'DIA', 'MDY', 'RSP', 'SLY',
+            # Sector ETFs (lev ETF underlyings not already above)
+            'SOXX', 'IBB', 'CIBR', 'SKYY', 'XRT',
+            # Commodity ETFs
+            'GLD', 'SLV', 'USO', 'UNG',
+            # Fixed Income ETFs
+            'TLT', 'IEF', 'HYG',
+            # Crypto ETFs
+            'IBIT', 'ETHA',
+            # International ETFs
+            'EEM', 'EFA', 'FXI', 'EWJ', 'EWZ',
+            # Currency ETFs
+            'FXY', 'FXE',
+        ]
+    else:
+        # Indices required by the AI Trade Portal for Market Bias (India)
+        sector_etf_tickers = ['^NSEI', 'BANKNIFTY.NS', '^CRSMA']
     
     # Filter out any ETFs that happen to already be in the universe
     existing_tickers = set(r[0] for r in all_ohlcv)  # ticker is first element of tuple
     etfs_to_download = [t for t in sector_etf_tickers if t not in existing_tickers]
     
-    if market == 'US' and etfs_to_download:
+    if etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
         try:
             etf_data = yf.download(etfs_to_download, period='2y', group_by='ticker', threads=True)

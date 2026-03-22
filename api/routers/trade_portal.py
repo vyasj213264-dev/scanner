@@ -65,7 +65,10 @@ def get_market_bias(market: str = "US") -> Dict[str, Any]:
         }
 
 def get_sector_leaderboard(market: str = "US") -> List[Dict[str, Any]]:
-    # 2. Sector Leaderboard
+    # 2. Sector Leaderboard (or Custom Index Leaderboard for IN)
+    found_etfs = {}
+    sector_etfs = {}
+    
     if market == "US":
         sector_etfs = {
             'XLK': 'Technology', 'XLY': 'Consumer Discretionary', 'XLC': 'Communication Services',
@@ -73,55 +76,74 @@ def get_sector_leaderboard(market: str = "US") -> List[Dict[str, Any]]:
             'XLE': 'Energy', 'XLB': 'Materials', 'XLRE': 'Real Estate', 
             'XLU': 'Utilities', 'XLP': 'Consumer Staples'
         }
+        
+        placeholders = ','.join(['?']*len(sector_etfs))
+        rows = fetch_all(f"""
+            SELECT Ticker, Momentum_1W, Stage 
+            FROM screen_data 
+            WHERE Market = ? AND Ticker IN ({placeholders})
+        """, (market, *sector_etfs.keys()))
+        
+        found_etfs = {r['Ticker']: {'mom': r['Momentum_1W'], 'stage': r['Stage']} for r in rows if r['Momentum_1W'] is not None}
+        
+        # Fallback to computing from constituents if ETF data is missing (e.g. before ingest update runs)
+        if len(found_etfs) < 5:
+            # Fallback query
+            agg_rows = fetch_all("""
+                SELECT Sector, AVG(Momentum_1W) as Avg_Mom, round(AVG(Stage)) as Avg_Stage, COUNT(*) as count
+                FROM screen_data
+                WHERE Market = ? AND Sector IS NOT NULL AND Sector != ''
+                      AND Momentum_1W IS NOT NULL
+                GROUP BY Sector
+                HAVING COUNT(*) >= 5
+            """, (market,))
+            
+            # Mappings from our DB sectors to standard names
+            sector_mapping = {
+                'Technology': ('XLK', 'Technology'), 'Consumer Cyclical': ('XLY', 'Consumer Discretionary'),
+                'Communication Services': ('XLC', 'Communication Services'), 'Healthcare': ('XLV', 'Health Care'),
+                'Financial Services': ('XLF', 'Financials'), 'Industrials': ('XLI', 'Industrials'),
+                'Energy': ('XLE', 'Energy'), 'Basic Materials': ('XLB', 'Materials'),
+                'Real Estate': ('XLRE', 'Real Estate'), 'Utilities': ('XLU', 'Utilities'),
+                'Consumer Defensive': ('XLP', 'Consumer Staples')
+            }
+            
+            for r in agg_rows:
+                db_sector = r['Sector']
+                if db_sector in sector_mapping:
+                    ticker, display_name = sector_mapping[db_sector]
+                    found_etfs[ticker] = {'mom': r['Avg_Mom'], 'stage': r['Avg_Stage'] or 0}
+                    sector_etfs[ticker] = display_name
     else:
-        sector_etfs = {
-            '^CNXIT': 'Technology', '^CNXAUTO': 'Automobile and Auto Components', 
-            '^CNXMETAL': 'Metals & Mining', '^CNXPHARMA': 'Healthcare', 
-            '^CNXFMCG': 'Fast Moving Consumer Goods', '^CNXREALTY': 'Realty', 
-            '^CNXPSUBANK': 'Financial Services', 'BANKNIFTY.NS': 'Financial Services'
-        }
-    
-    placeholders = ','.join(['?']*len(sector_etfs))
-    rows = fetch_all(f"""
-        SELECT Ticker, Momentum_1W, Stage 
-        FROM screen_data 
-        WHERE Market = ? AND Ticker IN ({placeholders})
-    """, (market, *sector_etfs.keys()))
-    
-    leaderboard = []
-    found_etfs = {r['Ticker']: {'mom': r['Momentum_1W'], 'stage': r['Stage']} for r in rows if r['Momentum_1W'] is not None}
-    
-    # Fallback to computing from constituents if ETF data is missing (e.g. before ingest update runs)
-    if len(found_etfs) < 5:
-        # Fallback query
-        agg_rows = fetch_all("""
-            SELECT Sector, AVG(Momentum_1W) as Avg_Mom, round(AVG(Stage)) as Avg_Stage, COUNT(*) as count
-            FROM screen_data
-            WHERE Market = ? AND Sector IS NOT NULL AND Sector != ''
-                  AND Momentum_1W IS NOT NULL
-            GROUP BY Sector
-            HAVING COUNT(*) >= 5
-        """, (market,))
+        # Indian Market: Use Pre-Built Custom Indices
+        import json
+        import os
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        indices_path = os.path.join(base_dir, "custom_indices_in.json")
+        try:
+            with open(indices_path, 'r') as f:
+                indices = json.load(f)
+        except Exception:
+            indices = {}
+            
+        rows = fetch_all("SELECT Ticker, Momentum_1W, Stage FROM screen_data WHERE Market = 'IN' AND Momentum_1W IS NOT NULL")
+        stock_data = {r['Ticker']: {'mom': r['Momentum_1W'], 'stage': r['Stage'] or 0} for r in rows}
         
-        # Mappings from our DB sectors to standard names
-        sector_mapping = {
-            'Technology': ('XLK', 'Technology'), 'Consumer Cyclical': ('XLY', 'Consumer Discretionary'),
-            'Communication Services': ('XLC', 'Communication Services'), 'Healthcare': ('XLV', 'Health Care'),
-            'Financial Services': ('XLF', 'Financials'), 'Industrials': ('XLI', 'Industrials'),
-            'Energy': ('XLE', 'Energy'), 'Basic Materials': ('XLB', 'Materials'),
-            'Real Estate': ('XLRE', 'Real Estate'), 'Utilities': ('XLU', 'Utilities'),
-            'Consumer Defensive': ('XLP', 'Consumer Staples')
-        }
-        
-        for r in agg_rows:
-            db_sector = r['Sector']
-            if db_sector in sector_mapping:
-                ticker, display_name = sector_mapping[db_sector]
-                found_etfs[ticker] = {'mom': r['Avg_Mom'], 'stage': r['Avg_Stage'] or 0}
-                sector_etfs[ticker] = display_name
+        for idx_id, data in indices.items():
+            name = data.get("name", idx_id)
+            symbols = data.get("symbols", [])
+            valid_moms = [stock_data[s]['mom'] for s in symbols if s in stock_data]
+            valid_stages = [stock_data[s]['stage'] for s in symbols if s in stock_data]
+            
+            if len(valid_moms) >= 3: # Require at least 3 constituents for a valid index
+                avg_mom = sum(valid_moms) / len(valid_moms)
+                avg_stage = sum(valid_stages) / len(valid_stages)
+                found_etfs[idx_id] = {'mom': avg_mom, 'stage': round(avg_stage)}
+                sector_etfs[idx_id] = name
                 
     # Sort and characterize
     sorted_etfs = sorted(found_etfs.items(), key=lambda x: x[1]['mom'], reverse=True)
+    leaderboard = []
     
     for rank, (ticker, data) in enumerate(sorted_etfs, 1):
         mom = data['mom']
@@ -153,34 +175,43 @@ def get_growth_opportunities(leaderboard: List[Dict], market: str = "US") -> Lis
         
     opps = []
     for sector_name in top_3_sectors:
-        # DB sector exact match mapping (heuristic)
-        db_sector_match = sector_name
-        if "Discretionary" in sector_name: db_sector_match = "Consumer Cyclical"
-        if "Staples" in sector_name: db_sector_match = "Consumer Defensive"
-        if "Materials" in sector_name: db_sector_match = "Basic Materials"
-        if "Financials" in sector_name: db_sector_match = "Financial Services"
-        if "Health Care" in sector_name: db_sector_match = "Healthcare"
-        
-        # Find top industry in this sector
-        ind_rows = fetch_all("""
-            SELECT Industry, COUNT(*) as count, AVG(Momentum_1W) as Avg_Mom
-            FROM screen_data
-            WHERE Market = ? AND Sector LIKE ? AND Momentum_1W IS NOT NULL AND Stage IN (2, 3)
-            GROUP BY Industry
-            HAVING COUNT(*) >= 5
-            ORDER BY Avg_Mom DESC
-            LIMIT 1
-        """, (market, f"%{db_sector_match}%"))
-        
-        top_industry = ind_rows[0]['Industry'] if ind_rows else "Broad leadership"
-        
-        opps.append({
-            "sector": sector_name,
-            "interest_reason": f"Strong relative strength outperformance (+{next(s['pct_1w'] for s in leaderboard if s['name'] == sector_name):.1f}% over 1W), signaling concentrated institutional rotation into this space.",
-            "watch_type": f"Focus on fundamentally sound names in the **{top_industry}** group printing tight consolidations or high tight flags near the 20 DMA.",
-            "validation": "Confirmed by continued outperformance vs SPY and expanding breadth within the sector. Invalidated by a loss of the sector ETF's 20-day moving average on expanding volume."
-        })
-        
+        if market == 'US':
+            # DB sector exact match mapping (heuristic)
+            db_sector_match = sector_name
+            if "Discretionary" in sector_name: db_sector_match = "Consumer Cyclical"
+            if "Staples" in sector_name: db_sector_match = "Consumer Defensive"
+            if "Materials" in sector_name: db_sector_match = "Basic Materials"
+            if "Financials" in sector_name: db_sector_match = "Financial Services"
+            if "Health Care" in sector_name: db_sector_match = "Healthcare"
+            
+            # Find top industry in this sector
+            ind_rows = fetch_all("""
+                SELECT Industry, COUNT(*) as count, AVG(Momentum_1W) as Avg_Mom
+                FROM screen_data
+                WHERE Market = ? AND Sector LIKE ? AND Momentum_1W IS NOT NULL AND Stage IN (2, 3)
+                GROUP BY Industry
+                HAVING COUNT(*) >= 5
+                ORDER BY Avg_Mom DESC
+                LIMIT 1
+            """, (market, f"%{db_sector_match}%"))
+            
+            top_industry = ind_rows[0]['Industry'] if ind_rows else "Broad leadership"
+            
+            opps.append({
+                "sector": sector_name,
+                "interest_reason": f"Strong relative strength outperformance (+{next(s['pct_1w'] for s in leaderboard if s['name'] == sector_name):.1f}% over 1W), signaling concentrated institutional rotation into this space.",
+                "watch_type": f"Focus on fundamentally sound names in the **{top_industry}** group printing tight consolidations or high tight flags near the 20 DMA.",
+                "validation": "Confirmed by continued outperformance vs SPY and expanding breadth within the sector. Invalidated by a loss of the sector ETF's 20-day moving average on expanding volume."
+            })
+        else:
+            # For IN Market, sector_name is actually the Custom Index name (like 'Defence Index')
+            opps.append({
+                "sector": sector_name,
+                "interest_reason": f"Collective constituent momentum (+{next(s['pct_1w'] for s in leaderboard if s['name'] == sector_name):.1f}% over 1W), indicating broad appetite for this theme.",
+                "watch_type": f"Focus on fundamentally sound, high RS names within the **{sector_name}** printing tight consolidations.",
+                "validation": "Confirmed by continued outperformance against the Nifty 50 and expanding breadth within the index. Invalidated by a breakdown below recent collective lows."
+            })
+            
     return opps
 
 def get_weekly_bias_statement(bias_dict: Dict[str, Any]) -> str:
@@ -202,13 +233,16 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
     
     def fetch_trades(direction: str, limit: int):
         if direction == "Long":
+            min_rs = 90 if market == 'IN' else 97
+            min_close = 10
+            
             sql = f"""
                 SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
                 WHERE Market = '{market}' AND Stage IN (2, 3)
-                  AND Close >= 10
+                  AND Close >= {min_close}
                   AND Volume >= 500000
-                  AND RS_Rating >= 97
+                  AND RS_Rating >= {min_rs}
                   AND (Tight_Setup = TRUE OR VCP_Approximation = TRUE)
                   AND (
                       (Close >= SMA_10 AND Close <= SMA_10 * 1.05) OR 
@@ -275,7 +309,7 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
-                    "reason": f"Stock is exhibiting an extreme high-probability {setup_reasons} near a key moving average. Unprecedented relative strength (RS: {round(r['RS_Rating'] or 0)} > 97) flags massive institutional accumulation.",
+                    "reason": f"Stock is exhibiting an extreme high-probability {setup_reasons} near a key moving average. Strong relative strength (RS: {round(r['RS_Rating'] or 0)} >= {min_rs}) flags massive institutional accumulation.",
                     "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}."
                 })
                 added += 1
