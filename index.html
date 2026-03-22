@@ -4780,7 +4780,7 @@
             `;
 
             try {
-                const res = await fetchApi('/breadth');
+                const res = await fetchApi('/breadth?market=' + currentMarket);
                 const data = await res.json();
 
                 let html = `
