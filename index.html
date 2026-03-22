@@ -2368,7 +2368,7 @@
                 document.getElementById('market-label').textContent = 'IN';
             }
             
-            const usOnlyButtons = ['btn-breadth', 'btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry', 'f-group-sector', 'f-group-industry'];
+            const usOnlyButtons = ['btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry', 'f-group-sector', 'f-group-industry'];
             usOnlyButtons.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = market === 'US' ? '' : 'none';
@@ -2576,7 +2576,8 @@
                 }
 
                 document.getElementById('sp-stat-rs').textContent = fmt(d.rs_rating, 0);
-                document.getElementById('sp-stat-mcap').textContent = d.market_cap ? (d.market_cap >= 1e9 ? `$${(d.market_cap / 1e9).toFixed(1)}B` : `$${(d.market_cap / 1e6).toFixed(1)}M`) : '--';
+                const mcPrefix = currentMarket === 'IN' ? '₹' : '$';
+                document.getElementById('sp-stat-mcap').textContent = d.market_cap ? (d.market_cap >= 1e9 ? `${mcPrefix}${(d.market_cap / 1e9).toFixed(1)}B` : `${mcPrefix}${(d.market_cap / 1e6).toFixed(1)}M`) : '--';
                 document.getElementById('sp-stat-adr').textContent = fmt(d.adr_20, 1, '%');
                 document.getElementById('sp-stat-rvol').textContent = d.rvol ? d.rvol.toFixed(1) + 'x' : '--';
                 document.getElementById('sp-stat-stage').textContent = d.is_stage2 ? 'Yes' : 'No';
