@@ -153,7 +153,7 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
                 cursor.execute(sql_fetch, (last_id,))
                 inserted_row = cursor.fetchone()
                 
-            return User(**dict(inserted_row))
+            user = User(**dict(inserted_row))
         else:
             # Update name/picture/google_id in case they changed
             sql = "UPDATE users SET name=?, picture=?, google_id=? WHERE id=?"
@@ -165,7 +165,7 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
             updated_row = fetch_one("SELECT * FROM users WHERE id = ?", (row["id"],))
             user = User(**dict(updated_row))
             
-        # Create a new session record on login
+        # ── ALWAYS create a new session record on EVERY login ──
         session_sql = "INSERT INTO user_sessions (user_id) VALUES (?) RETURNING id"
         if is_postgres: session_sql = session_sql.replace('?', '%s')
         
@@ -175,8 +175,7 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
         
         if session_row is None:
             # Fallback for old SQLite
-            last_id = cursor.lastrowid
-            user.session_id = last_id
+            user.session_id = cursor.lastrowid
         else:
             user.session_id = dict(session_row)["id"]
             

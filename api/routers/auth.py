@@ -133,7 +133,7 @@ async def google_callback(code: str, request: Request):
         name=profile.get("name", ""),
         picture=profile.get("picture", ""),
     )
-    jwt_token = create_access_token(user.id)
+    jwt_token = create_access_token(user.id, session_id=user.session_id)
 
     # Redirect back to app with JWT in URL fragment (frontend picks it up)
     return RedirectResponse(f"/?token={jwt_token}")
