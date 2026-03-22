@@ -131,15 +131,21 @@ def get_breadth(market: str = Query("US", description="US or IN")):
         history_rows = fetch_all(
             f"SELECT Date, Stage_1, Stage_2, Stage_3, Stage_4 FROM market_breadth_history WHERE Market = '{market}' ORDER BY Date ASC"
         )
+        
+        from datetime import datetime, timedelta
+        six_months_ago = (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
+        
         history = []
         for r in history_rows:
-            history.append({
-                "date": r.get("Date") or r.get("date"),
-                "stage1": r.get("Stage_1") or r.get("stage_1"),
-                "stage2": r.get("Stage_2") or r.get("stage_2"),
-                "stage3": r.get("Stage_3") or r.get("stage_3"),
-                "stage4": r.get("Stage_4") or r.get("stage_4"),
-            })
+            date_str = r.get("Date") or r.get("date")
+            if date_str and str(date_str) >= six_months_ago:
+                history.append({
+                    "date": date_str,
+                    "stage1": r.get("Stage_1") or r.get("stage_1"),
+                    "stage2": r.get("Stage_2") or r.get("stage_2"),
+                    "stage3": r.get("Stage_3") or r.get("stage_3"),
+                    "stage4": r.get("Stage_4") or r.get("stage_4"),
+                })
 
         return {
             "market": market,
