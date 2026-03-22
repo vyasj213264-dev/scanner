@@ -162,3 +162,23 @@ def fetch_custom_index_stocks(
         as_of_date=last_updated,
         data=results,
     )
+
+
+@router.get(
+    "/themes/proxy",
+    response_model=List[str],
+    summary="Get highly liquid proxy stocks for an Industry or Sector",
+)
+def fetch_theme_proxy(
+    category: str = Query(..., description="'Sector' or 'Industry'"),
+    name: str = Query(..., description="Name of the sector or industry"),
+    limit: int = Query(10, description="Max number of proxy stocks"),
+    market: str = Query("US", description="US or IN"),
+):
+    from api.services.theme_service import get_theme_proxies
+    try:
+        tickers = get_theme_proxies(category, name, limit, market=market.upper())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"{exc}\n{traceback.format_exc()}")
+    
+    return tickers

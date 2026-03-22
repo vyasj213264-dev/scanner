@@ -2647,7 +2647,7 @@
                     let expressionParts = [];
                     let currentLen = 0;
                     for (let r of data.data) {
-                        let t = r.ticker;
+                        let t = formatTVSymbol(r.ticker, currentMarket);
                         if (currentLen + t.length + 1 > 120) break;
                         expressionParts.push(t);
                         currentLen += t.length + 1;
@@ -5574,7 +5574,7 @@
                                         let expressionParts = [];
                                         let currentLen = 0;
                                         for (let r of data.data) {
-                                            let t = r.ticker;
+                                            let t = formatTVSymbol(r.ticker, currentMarket);
                                             if (currentLen + t.length + 1 > 120) break;
                                             expressionParts.push(t);
                                             currentLen += t.length + 1;
@@ -5607,9 +5607,10 @@
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
-                                        if (currentLen + t.length + 1 > 120) break; // Leave room for math operators
-                                        expressionParts.push(t);
-                                        currentLen += t.length + 1;
+                                        let tvt = formatTVSymbol(t, currentMarket);
+                                        if (currentLen + tvt.length + 1 > 120) break; // Leave room for math operators
+                                        expressionParts.push(tvt);
+                                        currentLen += tvt.length + 1;
                                     }
 
                                     const count = expressionParts.length;
@@ -5793,9 +5794,10 @@
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
-                                        if (currentLen + t.length + 1 > 120) break; // Leave room for math operators
-                                        expressionParts.push(t);
-                                        currentLen += t.length + 1;
+                                        let tvt = formatTVSymbol(t, currentMarket);
+                                        if (currentLen + tvt.length + 1 > 120) break; // Leave room for math operators
+                                        expressionParts.push(tvt);
+                                        currentLen += tvt.length + 1;
                                     }
 
                                     const count = expressionParts.length;
@@ -6050,23 +6052,11 @@
             return result;
         }
 
-        // ── TradingView Chart Renderer ────────────────────────────
-        // Replaces LightweightCharts with live TradingView embedded widgets.
-        // isSmallGrid = true  → Mini Chart widget (compact, for grid cards)
-        // isSmallGrid = false → Advanced Chart widget (full toolbar, for detail panel)
-        function renderTVChart(containerId, ticker, isSmallGrid = false) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            container.innerHTML = ''; // clear any previous chart
-
-            const theme = currentTheme === 'light' ? 'light' : 'dark';
-
+        // ── Shared TV Symbol Formatter ────────────────────────────
+        function formatTVSymbol(ticker, market) {
             let tvSymbol = ticker;
-
-            // Format symbol based on Market rules for TradingView
-            // Skip transformation if it is a complex Math Formula proxy index
             if (!ticker.startsWith('(')) {
-                if (currentMarket === 'IN') {
+                if (market === 'IN') {
                     if (tvSymbol === '^NSEI') tvSymbol = 'BSE:SENSEX';
                     else if (tvSymbol === '^CRSMA') tvSymbol = 'BSE:BSEMIDCAP';
                     else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'BSE:BANKEX';
@@ -6078,6 +6068,21 @@
                     else if (tvSymbol === '^IXIC') tvSymbol = 'COMP';
                 }
             }
+            return tvSymbol;
+        }
+
+        // ── TradingView Chart Renderer ────────────────────────────
+        // Replaces LightweightCharts with live TradingView embedded widgets.
+        // isSmallGrid = true  → Mini Chart widget (compact, for grid cards)
+        // isSmallGrid = false → Advanced Chart widget (full toolbar, for detail panel)
+        function renderTVChart(containerId, ticker, isSmallGrid = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = ''; // clear any previous chart
+
+            const theme = currentTheme === 'light' ? 'light' : 'dark';
+
+            let tvSymbol = formatTVSymbol(ticker, currentMarket);
 
             if (isSmallGrid) {
                 // Strip proxy formula prefixes — Lightweight Charts using local yfinance data
