@@ -2536,16 +2536,9 @@
             }
             
             // Re-run the active view
-            const force = true;
-            if (activeScanner === 'universe') runUniverse(force);
-            else if (activeScanner === 'trade-portal') runTradePortal(force);
-            else if (activeScanner === 'lev-etf') runLevEtf(force);
-            else if (activeScanner === 'watchlist') runWatchlistView();
-            else if (activeScanner && activeScanner.startsWith('wl-')) runWatchlist(activeScanner.replace('wl-', ''));
-            else if (activeScanner) runScanner(activeScanner, document.getElementById('results-title').textContent, force);
-            else if (document.getElementById('themes-area') && document.getElementById('themes-area').style.display !== 'none') runThemes(typeof themesCategory !== 'undefined' ? themesCategory : 'Sector');
-            else if (document.getElementById('breadth-area') && document.getElementById('breadth-area').style.display !== 'none') runBreadth();
-            else if (document.getElementById('screener-area') && document.getElementById('screener-area').style.display !== 'none') runScreener();
+            // User requested: If someone changes tab US to IN or otherwise, redirect them to stock universe
+            runUniverse(true);
+            logEvent('toggle_market', { market: currentMarket });
         }
 
         // ── Boot ─────────────────────────────────────────────────
@@ -2625,7 +2618,7 @@
             } else {
                 runBreadth();
             }
-            logEvent('toggle_market', { market: currentMarket });
+            logEvent('toggle_theme', { theme: currentTheme });
         }
 
         // ── Stock Detail Panel ──────────────────────────────────
@@ -6218,7 +6211,6 @@
                                 theme: theme,
                                 style: '1',
                                 locale: 'en',
-                                range: '3M',
                                 enable_publishing: false,
                                 hide_top_toolbar: true,
                                 hide_legend: true,
