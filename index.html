@@ -5231,7 +5231,7 @@
             try {
                 // Check localStorage cache keyed by today's date
                 const todayKey = new Date().toISOString().slice(0, 10); // "2026-02-25"
-                const cacheKey = themesCategory === 'Custom Indices' ? 'themes_custom_cache' : 'themes_cache';
+                const cacheKey = themesCategory === 'Custom Indices' ? 'themes_custom_v2_cache' : 'themes_cache';
                 const cached = localStorage.getItem(cacheKey);
                 let json;
 
