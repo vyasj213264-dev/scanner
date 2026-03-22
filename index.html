@@ -428,12 +428,16 @@
         /* ── Sidebar ─────────────────────────────────────────────── */
         .sidebar {
             width: var(--sidebar-w);
+            min-width: 180px;
+            max-width: 360px;
             background: var(--surface);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             overflow-y: auto;
             flex-shrink: 0;
+            resize: horizontal;
+            position: relative;
         }
 
         .sidebar::-webkit-scrollbar {
@@ -847,7 +851,7 @@
         }
 
         .stock-panel-header {
-            padding: 24px;
+            padding: 16px;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
@@ -855,15 +859,15 @@
         }
 
         .sp-ticker {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 800;
             color: #fff;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .sp-company {
             color: var(--text-secondary);
-            font-size: 0.95rem;
+            font-size: 0.82rem;
         }
 
         .sp-price-wrap {
@@ -871,13 +875,13 @@
         }
 
         .sp-price {
-            font-size: 1.8rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: #fff;
         }
 
         .sp-change {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 500;
         }
 
@@ -896,30 +900,30 @@
         .stock-panel-content {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 16px;
         }
 
         .sp-chart {
             width: 100%;
-            height: 350px;
+            height: 320px;
             background: var(--bg);
-            border-radius: var(--radius);
-            margin-bottom: 24px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
             border: 1px solid var(--border);
         }
 
         .sp-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
         .sp-stat-box {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 16px;
+            border-radius: var(--radius-xs);
+            padding: 10px 12px;
             transition: border-color 0.2s;
         }
 
@@ -929,16 +933,17 @@
 
         .sp-stat-label {
             color: var(--text-secondary);
-            font-size: 0.75rem;
+            font-size: 0.68rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .sp-stat-val {
-            font-size: 1.25rem;
+            font-size: 1.05rem;
             font-weight: 700;
             color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
         }
 
         /* ── Skeleton Loader ─────────────────────────────────── */
