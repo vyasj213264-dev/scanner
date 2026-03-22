@@ -399,6 +399,7 @@ def run_ingest(market='US'):
                     # Map indicators to the canonical order for screen_data
                     record = (
                         ticker,
+                        market,
                         str(last.name),
                         _nan_to_none(last['Close']),
                         _nan_to_none(last['Volume']),
@@ -432,8 +433,7 @@ def run_ingest(market='US'):
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
                         _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap')),
-                        int(last['Stage']) if pd.notna(last['Stage']) else None,
-                        market # Include market directly in tuple for robustness
+                        int(last['Stage']) if pd.notna(last['Stage']) else None
                     )
                     all_data.append(record)
                     
@@ -740,13 +740,12 @@ def run_ingest(market='US'):
         cursor.execute("PRAGMA synchronous = OFF")
         cursor.execute("PRAGMA journal_mode = MEMORY")
 
-    # Column list exactly matching the tuple creation for screen_data
     SCREEN_DATA_COLS = [
-        "Ticker", "Date", "Close", "Volume", "SMA_5", "SMA_9", "SMA_10", "SMA_20", "SMA_21", "SMA_50", "SMA_100", "SMA_200",
+        "Ticker", "Market", "Date", "Close", "Volume", "SMA_5", "SMA_9", "SMA_10", "SMA_20", "SMA_21", "SMA_50", "SMA_100", "SMA_200",
         "RVOL", "ADR_20", "Pct_From_52W_High", "In_Stage_2", "Tight_Setup", "Near_Horizontal_Resistance", 
         "RS_Raw", "Inside_Bar", "Golden_Crossover", "Gap_Up", "Gap_Down", "VCP_Approximation", 
         "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", "RS_Rating",
-        "Sector", "Industry", "Market_Cap", "Stage", "Market"
+        "Sector", "Industry", "Market_Cap", "Stage"
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
