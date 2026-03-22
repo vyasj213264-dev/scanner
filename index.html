@@ -2655,7 +2655,7 @@
                     let expressionParts = [];
                     let currentLen = 0;
                     for (let r of data.data) {
-                        let t = formatTVSymbol(r.ticker, currentMarket);
+                        let t = r.ticker;
                         if (currentLen + t.length + 1 > 120) break;
                         expressionParts.push(t);
                         currentLen += t.length + 1;
@@ -2663,7 +2663,7 @@
                     
                     const count = expressionParts.length;
                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
-                    renderTVChart('sp-tv-widget', tickerFormula, false);
+                    renderTVChart('sp-tv-widget', tickerFormula, true);
                     
                 } catch(e) {
                     console.error("Custom index proxy chart load failed", e);
