@@ -38,12 +38,12 @@
             --text-primary: #e2e8f5;
             --text-secondary: #8b9ec0;
             --text-muted: #4a5c7a;
-            --sidebar-w: 260px;
-            --header-h: 56px;
-            --radius: 12px;
-            --radius-sm: 8px;
-            --radius-xs: 5px;
-            --transition: all 0.15s ease;
+            --sidebar-w: 240px;
+            --header-h: 48px;
+            --radius: 10px;
+            --radius-sm: 6px;
+            --radius-xs: 4px;
+            --transition: all 0.12s ease;
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
             --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
@@ -112,8 +112,8 @@
             border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            padding: 0 20px;
-            gap: 14px;
+            padding: 0 16px;
+            gap: 10px;
             flex-shrink: 0;
             z-index: 100;
             position: relative;
@@ -450,7 +450,7 @@
         }
 
         .sidebar-section {
-            padding: 20px 12px 8px;
+            padding: 14px 8px 4px;
         }
 
         .sidebar-section-label {
@@ -468,18 +468,18 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 9px 10px;
+            padding: 6px 8px;
             border-radius: var(--radius-sm);
             border: none;
             background: transparent;
             color: var(--text-secondary);
-            font-size: 0.83rem;
+            font-size: 0.8rem;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
             transition: var(--transition);
             text-align: left;
-            gap: 8px;
+            gap: 6px;
         }
 
         .scanner-btn:hover {
@@ -517,8 +517,8 @@
 
         .sidebar-footer {
             margin-top: auto;
-            padding: 16px 12px;
-            font-size: 0.72rem;
+            padding: 10px 8px;
+            font-size: 0.7rem;
             color: var(--text-muted);
             text-align: center;
             border-top: 1px solid var(--border);
@@ -534,11 +534,11 @@
 
         /* ── Results Header Bar ──────────────────────────────── */
         .results-header {
-            height: 52px;
-            padding: 0 24px;
+            height: 40px;
+            padding: 0 16px;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 10px;
             border-bottom: 1px solid var(--border);
             background: var(--surface);
             flex-shrink: 0;
@@ -611,7 +611,7 @@
         .grid-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px 24px;
+            padding: 12px 16px;
         }
 
         .grid-area::-webkit-scrollbar {
@@ -630,8 +630,8 @@
         .chart-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 18px;
-            max-width: 1400px;
+            gap: 12px;
+            max-width: 1600px;
         }
 
         @media (max-width: 1024px) {
@@ -1081,49 +1081,56 @@
             border-top: 1px solid var(--border);
         }
 
-        /* ── Universe Table ─────────────────────────────────── */
+        /* ── Universe Table (Compact / Pro Density) ─────────── */
         .universe-table-wrapper {
             width: 100%;
             overflow-x: auto;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
         }
 
         .universe-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             text-align: right;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
         }
 
         .universe-table th,
         .universe-table td {
-            padding: 12px 16px;
+            padding: 5px 10px;
             border-bottom: 1px solid var(--border);
             white-space: nowrap;
         }
 
         .universe-table th {
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.85);
             color: var(--text-secondary);
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
             cursor: pointer;
             user-select: none;
             position: sticky;
             top: 0;
             z-index: 10;
+            box-shadow: 0 1px 0 var(--border);
         }
 
         .universe-table th:hover {
             color: var(--text-primary);
-            background: rgba(30, 41, 59, 0.8);
+            background: rgba(30, 41, 59, 0.9);
         }
 
         .universe-table th[data-ksort]:not([data-ksort="ticker"])::after {
             content: "⇅";
-            margin-left: 4px;
-            opacity: 0.3;
+            margin-left: 3px;
+            opacity: 0.25;
+            font-size: 0.65rem;
         }
 
         .universe-table th[data-ksort="ticker"] {
@@ -1146,8 +1153,12 @@
             color: var(--accent);
         }
 
-        .universe-table tr:hover {
-            background: rgba(255, 255, 255, 0.02);
+        .universe-table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .universe-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.06);
         }
 
         .pct-pos {
@@ -1331,7 +1342,7 @@
 
         .universe-table tr.clickable-row {
             cursor: pointer;
-            transition: background 0.15s, transform 0.1s;
+            transition: background 0.12s;
         }
 
         .universe-table tr.clickable-row:hover {
@@ -1339,17 +1350,17 @@
         }
 
         .universe-table tr.clickable-row:active {
-            transform: scale(0.995);
+            background: rgba(99, 102, 241, 0.14) !important;
         }
 
         .rank-badge {
             display: inline-block;
-            min-width: 28px;
+            min-width: 22px;
             text-align: center;
-            padding: 2px 6px;
-            border-radius: 6px;
+            padding: 1px 5px;
+            border-radius: 4px;
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
         }
 
         .rank-top {
