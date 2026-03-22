@@ -131,7 +131,7 @@ def get_sector_leaderboard(market: str = "US") -> List[Dict[str, Any]]:
         
         for idx_id, data in indices.items():
             name = data.get("name", idx_id)
-            symbols = data.get("symbols", [])
+            symbols = data.get("constituents", [])
             valid_moms = [stock_data[s]['mom'] for s in symbols if s in stock_data]
             valid_stages = [stock_data[s]['stage'] for s in symbols if s in stock_data]
             
