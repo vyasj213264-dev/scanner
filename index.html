@@ -2558,8 +2558,53 @@
             document.getElementById('stock-panel').classList.add('open');
 
             logEvent('view_stock_detail', { ticker: ticker });
+            
+            const isCustomIndex = ticker.startsWith('PCI:');
 
-            // Set Loading state
+            // Quick reset
+            document.getElementById('sp-company').textContent = "Loading...";
+            ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'].forEach(id => {
+                document.getElementById(id).textContent = "--";
+            });
+            document.getElementById('sp-tv-widget').innerHTML = '';
+            
+            if (isCustomIndex) {
+                // Set Loading state for Custom Index Proxy
+                document.getElementById('sp-ticker').innerHTML = `<span>${ticker}</span>`;
+                document.getElementById('sp-company').textContent = "Custom Index Proxy Chart";
+                
+                try {
+                    const res = await fetchApi(`/themes/custom_indices/stocks?idx_id=${encodeURIComponent(ticker)}`);
+                    const data = await res.json();
+                    
+                    if (!data.data || data.data.length === 0) {
+                        document.getElementById('sp-tv-widget').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">No constituents found</div>';
+                        return;
+                    }
+                    
+                    let expressionParts = [];
+                    let currentLen = 0;
+                    for (let r of data.data) {
+                        let t = r.ticker;
+                        if (currentLen + t.length + 1 > 120) break;
+                        expressionParts.push(t);
+                        currentLen += t.length + 1;
+                    }
+                    
+                    const count = expressionParts.length;
+                    const tickerFormula = `(${expressionParts.join('+')})/${count}`;
+                    renderTVChart('sp-tv-widget', tickerFormula, false);
+                    
+                } catch(e) {
+                    console.error("Custom index proxy chart load failed", e);
+                    document.getElementById('sp-tv-widget').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);">Failed to load proxy chart</div>';
+                }
+                
+                return; // End execution here for custom indices (no fundamentals)
+            }
+
+            // --- Regular Stock Detail ---
+            
             // Map ticker to TradingView-compatible symbol for external link
             let tvLinkSymbol = ticker;
             if (currentMarket === 'IN') {
@@ -2568,10 +2613,6 @@
                 else if (ticker.endsWith('.BO')) tvLinkSymbol = 'BSE:' + ticker.replace('.BO', '');
             }
             document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${tvLinkSymbol}" target="_blank" style="color:inherit;text-decoration:none;" title="Open in TradingView">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
-            document.getElementById('sp-company').textContent = "Loading...";
-            ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'].forEach(id => {
-                document.getElementById(id).textContent = "--";
-            });
 
             // Mount custom Lightweight Chart
             renderTVChart('sp-tv-widget', ticker, false);
@@ -3865,7 +3906,7 @@
                 data.sector_leaderboard.forEach(s => {
                     const color = s.pct_1w >= 0 ? '#4ade80' : '#f87171';
                     html += `
-                        <li class="portal-rank-item" ${currentMarket === 'US' ? `onclick="fetchStockDetail('${s.ticker}')" style="cursor:pointer;" title="View Chart for ${s.ticker}"` : 'style="cursor:default;"'}>
+                        <li class="portal-rank-item" onclick="fetchStockDetail('${s.ticker}')" style="cursor:pointer;" title="View Chart for ${s.ticker}">
                             <span class="rank">${s.rank}</span>
                             ${currentMarket === 'US' ? `<span class="ticker" style="min-width: 60px;">${s.ticker}</span>` : ''}
                             <span style="font-size:0.75rem; font-weight:700; padding:2px 6px; background:rgba(128,128,128,0.2); border-radius:4px; margin-right:12px; color:var(--text-muted); display:inline-flex; align-items:center;">Stage ${s.stage != null ? Math.round(s.stage) : '?'}</span>
