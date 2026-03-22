@@ -5334,7 +5334,7 @@
 
             let html = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div class="theme-section-header" style="margin-bottom:0;">${icon} ${themesCategory}s <span class="badge">${rows.length}</span></div>
+                <div class="theme-section-header" style="margin-bottom:0;">${icon} ${themesCategory}${themesCategory.endsWith('s') ? '' : 's'} <span class="badge">${rows.length}</span></div>
                 <div class="sort-group">
                     <button class="sort-btn ${themesViewMode === 'table' ? 'active' : ''}" onclick="themesViewMode='table'; renderThemesTopLevel();">Table</button>
                     <button class="sort-btn ${themesViewMode === 'chart' ? 'active' : ''}" onclick="themesViewMode='chart'; renderThemesTopLevel();">Chart</button>
