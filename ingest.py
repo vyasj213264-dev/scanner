@@ -882,7 +882,7 @@ def run_ingest(market='US'):
         "pullback-9dma":          "abs(Close - SMA_9) / SMA_9 <= 0.02",
         "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
         "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
-        "long-term-pf":           "f.peg_ratio > 0 AND f.peg_ratio < 1.5 AND f.revenue_doubled = 1 AND d.In_Stage_2 = 1 AND d.Market_Cap >= 500",
+        "long-term-pf":           "f.peg_ratio > 0 AND f.peg_ratio < 1.5 AND f.revenue_doubled IS TRUE AND d.In_Stage_2 IS TRUE AND d.Market_Cap >= 500",
     }
     
     baseline = "Close >= 5"
