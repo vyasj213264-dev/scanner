@@ -79,7 +79,7 @@ def run_fundamental_ingest(market='IN'):
                 market,
                 res['peg_ratio'],
                 res['revenue_growth_3y'],
-                int(res['revenue_doubled'])
+                bool(res['revenue_doubled'])
             ))
 
     print(f"Data Extracted. Opening Transaction to { 'Postgres' if DATABASE_URL and DATABASE_URL.startswith('postgres') else 'SQLite' }", flush=True)
