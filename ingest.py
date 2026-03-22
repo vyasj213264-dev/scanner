@@ -165,33 +165,38 @@ def fetch_indian_tickers():
     import pandas as pd
     import requests
     import io
-    print("Fetching Indian Tickers from NSE CSVs...", flush=True)
+    print("Fetching Indian Tickers from NSE Master Equities List...", flush=True)
+    # Replaced fragile index-specific CSVs with the comprehensive EQUITY_L list
+    # This guarantees we capture NIFTY 500, Smallcap, Microcap, and SME stocks.
     urls = [
-        "https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv",
-        "https://nsearchives.nseindia.com/content/indices/ind_niftymicrocap250_list.csv",
-        "https://nsearchives.nseindia.com/content/indices/ind_niftysmeemerge_list.csv",
-        "https://nsearchives.nseindia.com/content/indices/ind_niftysmallcap250list.csv"
+        "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
     ]
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/csv,application/csv'
+    }
     tickers_meta = {}
     valid_tickers = []
     
     for url in urls:
         try:
             r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
+            if r.status_code == 200 and 'DOCTYPE html' not in r.text:
                 df = pd.read_csv(io.StringIO(r.text))
                 for _, row in df.iterrows():
-                    sym = str(row['Symbol']).strip()
+                    sym = str(row['SYMBOL']).strip() # EQUITY_L uses 'SYMBOL' instead of 'Symbol'
                     if sym and len(sym) <= 15 and '^' not in sym:
                         ns_sym = f"{sym}.NS"
                         if ns_sym not in tickers_meta:
                             valid_tickers.append(ns_sym)
                             tickers_meta[ns_sym] = {
-                                'sector': str(row.get('Industry', 'Unknown')).strip(),
-                                'industry': str(row.get('Industry', 'Unknown')).strip(),
+                                'sector': 'Unknown',
+                                'industry': 'Unknown',
                                 'market_cap': None
                             }
+                print(f"Successfully loaded {len(valid_tickers)} NSE equities.", flush=True)
+            else:
+                print(f"Fetch failed or returned HTML. Status: {r.status_code}")
         except Exception as e:
             print(f"Failed to fetch NSE list {url}: {e}", flush=True)
             
@@ -878,6 +883,7 @@ def run_ingest(market='US'):
         "pullback-9dma":          "abs(Close - SMA_9) / SMA_9 <= 0.02",
         "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
         "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
+        "long-term-pf":           "f.peg_ratio > 0 AND f.peg_ratio < 1.5 AND f.revenue_doubled = 1 AND d.In_Stage_2 = 1 AND d.Market_Cap >= 500",
     }
     
     baseline = "Close >= 5"
@@ -885,8 +891,8 @@ def run_ingest(market='US'):
     cache_records = []
     for scanner_id, condition in filters.items():
         print(f"  Calculating matches for scanner: {scanner_id}...", flush=True)
-        # SQLite uses 1/0 for booleans, Postgres correctly parses true/false mapping natively using psycopg2
-        cursor.execute(f"SELECT Ticker FROM screen_data WHERE Market = '{market}' AND {baseline} AND ({condition})")
+        # We LEFT JOIN fundamentals_data so both technicals and fundamentals can be queried
+        cursor.execute(f"SELECT d.Ticker FROM screen_data d LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker WHERE d.Market = '{market}' AND d.{baseline} AND ({condition})")
         matching = cursor.fetchall()
         for row in matching:
             # handle both sqlite.Row and psycopg2.extras.DictRow

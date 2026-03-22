@@ -242,10 +242,11 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                 break
                 
             ind = r['Industry']
-            if ind in seen_industries and added < limit - 1:
+            if ind is not None and ind in seen_industries and added < limit - 1:
                  continue
                  
-            seen_industries.add(ind)
+            if ind is not None:
+                seen_industries.add(ind)
             
             close = r['Close']
             adr = r['ADR_20'] if r['ADR_20'] else (close * 0.03) # Fallback 3%

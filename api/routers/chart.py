@@ -22,7 +22,8 @@ async def get_chart_data(ticker: str) -> List[Dict[str, Any]]:
                 cursor = db.cursor()
 
             # Check if it's a proxy formula: (TICKER1+TICKER2)/N
-            formula_match = re.match(r'^\(((?:[A-Za-z0-9]+(?:\+[A-Za-z0-9]+)*))\)/(\d+)$', ticker)
+            # Now supports Indian tickers (e.g. RELIANCE.NS, ^NSEI) which contain '.' or '^'
+            formula_match = re.match(r'^\(((?:[A-Za-z0-9.^]+(?:\+[A-Za-z0-9.^]+)*))\)/(\d+)$', ticker)
             if formula_match:
                 tickers = formula_match.group(1).split('+')
                 divisor = int(formula_match.group(2))

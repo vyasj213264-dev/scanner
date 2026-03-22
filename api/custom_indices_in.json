@@ -1,0 +1,561 @@
+{
+  "PCI:AGROCHEMDOM": {
+    "name": "Agrochemical Domestic Index",
+    "constituents": [
+      "DHANUKA.NS",
+      "IPL.NS",
+      "INSECTICID.NS",
+      "HERANBA.NS",
+      "BESTAGRO.NS",
+      "DHARMAJ.NS"
+    ]
+  },
+  "PCI:AHF": {
+    "name": "Affordable Housing Finance Index",
+    "constituents": [
+      "HOMEFIRST.NS",
+      "AAVAS.NS",
+      "APTUS.NS",
+      "INDIASHLTR.NS",
+      "AADHARHFC.NS"
+    ]
+  },
+  "PCI:ALCOHOLBEV": {
+    "name": "Alcoholic Beverages Index",
+    "constituents": [
+      "UNITDSPR.NS",
+      "UBL.NS",
+      "RADICO.NS",
+      "ABDL.NS",
+      "PICCADIL.BO",
+      "TI.NS",
+      "INDIAGLYCO.NS",
+      "SULA.NS",
+      "GLOBUSSPR.NS",
+      "SDBL.NS",
+      "GMBREW.NS",
+      "ASALCBR.NS",
+      "JAGAJITIND.BO"
+    ]
+  },
+  "PCI:CABLES": {
+    "name": "Cables - Power Index",
+    "constituents": [
+      "DYCL.NS",
+      "KEI.BO",
+      "POLYCAB.BO",
+      "HAVELLS.BO"
+    ]
+  },
+  "PCI:CDMO": {
+    "name": "CDMO Index",
+    "constituents": [
+      "NEULANDLAB.NS",
+      "AMIORG.NS",
+      "SUVENPHAR.NS",
+      "HIKAL.NS",
+      "SYNGENE.NS",
+      "DIVISLAB.NS",
+      "PPLPHARMA.NS"
+    ]
+  },
+  "PCI:CEMENTS": {
+    "name": "Cements Index",
+    "constituents": [
+      "ULTRACEMCO.NS",
+      "AMBUJACEM.NS",
+      "SHREECEM.NS",
+      "JKCEMENT.NS",
+      "DALBHARAT.NS",
+      "ACC.NS",
+      "RAMCOCEM.NS",
+      "NUVOCO.NS",
+      "JKLAKSHMI.NS",
+      "BIRLACORPN.NS",
+      "INDIACEM.NS",
+      "STARCEMENT.NS",
+      "PRSMJOHNSN.NS",
+      "RAIN.NS",
+      "ORIENTCEM.NS",
+      "HEIDELBERG.NS",
+      "SAGCEM.NS",
+      "KCP.NS",
+      "UDAICEMENT.NS"
+    ]
+  },
+  "PCI:CVFIN": {
+    "name": "Commercial Vehicle Finance Index",
+    "constituents": [
+      "CHOLAFIN.NS",
+      "SHRIRAMFIN.NS",
+      "SUNDARMFIN.NS",
+      "M&MFIN.NS",
+      "SUNDARMHLD.NS"
+    ]
+  },
+  "PCI:EMS": {
+    "name": "Consumer Electronics EMS Index",
+    "constituents": [
+      "DIXON.NS",
+      "KAYNES.NS",
+      "AMBER.NS",
+      "PGEL.NS",
+      "SYRMA.NS",
+      "AVALON.NS",
+      "EPACK.NS"
+    ]
+  },
+  "PCI:CONMF": {
+    "name": "Contract Manufacturing Index",
+    "constituents": [
+      "DIXON.NS",
+      "AMBER.NS",
+      "EPACK.NS",
+      "PGEL.NS",
+      "INFLAME.BO",
+      "OPTIEMUS.NS"
+    ]
+  },
+  "PCI:COWORK": {
+    "name": "Co-Working Index",
+    "constituents": [
+      "AWFIS.NS",
+      "EFCIL.BO",
+      "KONTOR.NS",
+      "WEWORK.NS",
+      "SMARTWORKS.NS"
+    ]
+  },
+  "PCI:CREDITRATINGS": {
+    "name": "Credit Ratings Index",
+    "constituents": [
+      "CRISIL.NS",
+      "ICRA.NS",
+      "CARERATING.NS"
+    ]
+  },
+  "PCI:DATACENTRE": {
+    "name": "Data Centre Index",
+    "constituents": [
+      "NETWEB.NS",
+      "ANANTRAJ.NS",
+      "TECHNOE.NS",
+      "BBOX.NS",
+      "E2E.NS"
+    ]
+  },
+  "PCI:DIAGNOSTICS": {
+    "name": "Diagnostics Index",
+    "constituents": [
+      "VIJAYA.NS",
+      "THYROCARE.NS",
+      "LALPATHLAB.NS",
+      "KRSNAA.NS",
+      "METROPOLIS.NS",
+      "3BBLACKBIO.BO",
+      "SURAKSHA.NS"
+    ]
+  },
+  "PCI:DIAMONDGEM": {
+    "name": "Diamonds, Gems & Jewellery Index",
+    "constituents": [
+      "TITAN.NS",
+      "KALYANKJIL.NS",
+      "SENCO.NS",
+      "PNGJL.NS",
+      "SKYGOLD.NS",
+      "THANGAMAYL.NS",
+      "VAIBHAVGBL.NS",
+      "GOLDIAM.NS",
+      "DPABHUSHAN.NS",
+      "MOTISONS.NS",
+      "TBZ.NS",
+      "RGL.NS",
+      "KHAZANCHI.BO",
+      "MVGJL.NS",
+      "GARGI.BO",
+      "RBZJEWEL.NS",
+      "ASTAR.BO"
+    ]
+  },
+  "PCI:FINANCEAMC": {
+    "name": "Finance - AMC Index",
+    "constituents": [
+      "HDFCAMC.NS",
+      "NAM-INDIA.NS",
+      "UTIAMC.NS",
+      "ABSLAMC.NS",
+      "SRAMSET.BO",
+      "ICICIAMC.NS"
+    ]
+  },
+  "PCI:GEOSPATIAL": {
+    "name": "Geospatial Index",
+    "constituents": [
+      "CEINSYSTECH.BO",
+      "GENESYS.NS",
+      "MAPMYINDIA.NS"
+    ]
+  },
+  "PCI:GOLDFIN": {
+    "name": "Gold Loan Finance Index",
+    "constituents": [
+      "MUTHOOTFIN.NS",
+      "MANAPPURAM.NS",
+      "IIFL.NS",
+      "CSBBANK.NS",
+      "FEDFINA.NS"
+    ]
+  },
+  "PCI:HEAVYENGG": {
+    "name": "Heavy Engineering Equipment Index",
+    "constituents": [
+      "GMMPFAUDLR.NS",
+      "BEWLTD.NS",
+      "HLEGLAS.NS",
+      "KLBRENG-B.BO",
+      "THERMAX.NS",
+      "PRAJIND.NS"
+    ]
+  },
+  "PCI:HOSPITALS": {
+    "name": "Hospitals Index",
+    "constituents": [
+      "APOLLOHOSP.NS",
+      "ARTEMISMED.NS",
+      "ASTERDM.NS",
+      "DRAGARWQ.BO",
+      "FORTIS.NS",
+      "GPTHEALTH.NS",
+      "MEDANTA.NS",
+      "HCG.NS",
+      "INDRAMEDCO.NS",
+      "JLHL.NS",
+      "KMCSHIL.BO",
+      "KOVAI.NS",
+      "KIMS.NS",
+      "NH.NS",
+      "MAXHEALTH.NS",
+      "RAINBOW.NS",
+      "SAKAR.NS",
+      "SHALBY.NS",
+      "YATHARTH.NS"
+    ]
+  },
+  "PCI:HOTELS": {
+    "name": "Hotels Index",
+    "constituents": [
+      "INDHOTEL.NS",
+      "EIHOTEL.NS",
+      "CHALET.NS",
+      "LEMONTREE.NS",
+      "JUNIPER.NS",
+      "SAMHI.NS",
+      "PARKHOTELS.NS",
+      "ORIENTHOT.NS",
+      "TAJGVK.NS",
+      "EIHAHOTELS.NS",
+      "HLVLTD.NS",
+      "BENARAS.BO",
+      "ROHLTD.NS",
+      "UPHOT.BO",
+      "VHLTD.NS",
+      "KAMATHOTEL.NS",
+      "SINCLAIR.NS",
+      "ASIANHOTNR.NS",
+      "ADVANIHOTR.NS",
+      "SAYAJIHOTL.BO"
+    ]
+  },
+  "PCI:LHT": {
+    "name": "Liquid Handling Terminals Index",
+    "constituents": [
+      "GPPL.NS",
+      "GANESHBE.NS",
+      "ADANIPORTS.NS",
+      "AEGISLOG.NS",
+      "SWANENERGY.NS"
+    ]
+  },
+  "PCI:LOGISTICS": {
+    "name": "Logistics Index",
+    "constituents": [
+      "DELHIVERY.NS",
+      "TVSSCS.NS",
+      "VRLLOG.NS",
+      "ALLCARGO.NS",
+      "MAHLOG.NS",
+      "TCIEXP.NS",
+      "NAVKARCORP.NS"
+    ]
+  },
+  "PCI:MICROFIN": {
+    "name": "Micro Finance Index",
+    "constituents": [
+      "CREDITACC.NS",
+      "FUSION.NS",
+      "SPANDANA.NS",
+      "SATIN.NS",
+      "ARMANFIN.NS"
+    ]
+  },
+  "PCI:MCA": {
+    "name": "Middle Class Apparel Index",
+    "constituents": [
+      "MANYAVAR.NS",
+      "TRENT.NS",
+      "SHOPERSTOP.NS",
+      "ARVINDFASN.NS",
+      "GOCOLORS.NS",
+      "CANTABIL.NS"
+    ]
+  },
+  "PCI:MINING": {
+    "name": "Mining / Minerals Index",
+    "constituents": [
+      "COALINDIA.NS",
+      "VEDL.NS",
+      "KIOCL.NS",
+      "GMDCLTD.NS",
+      "MOIL.NS",
+      "ASHAPURMIN.NS",
+      "ORISSAMINE.NS",
+      "DECNGOLD.BO"
+    ]
+  },
+  "PCI:OPALKITCH": {
+    "name": "Opalware / Kitchenware Index",
+    "constituents": [
+      "LAOPALA.NS",
+      "CELLO.NS",
+      "STOVEKRAFT.NS",
+      "TTKPRESTIG.NS",
+      "BOROLTD.NS",
+      "HAWKINCOOK.BO"
+    ]
+  },
+  "PCI:PAINTS": {
+    "name": "Paints Index",
+    "constituents": [
+      "KANSAINER.NS",
+      "ASIANPAINT.NS",
+      "BERGEPAINT.NS",
+      "AKZOINDIA.NS",
+      "INDIGOPNTS.NS",
+      "SIRCA.NS",
+      "SHALPAINTS.NS",
+      "KAMOPAINTS.NS"
+    ]
+  },
+  "PCI:PAPER": {
+    "name": "Paper Index",
+    "constituents": [
+      "JKPAPER.NS",
+      "WSTCSTPAPR.NS",
+      "SESHAPAPER.NS",
+      "ANDHRAPAP.NS",
+      "PDMJEPAPER.NS",
+      "TNPL.NS"
+    ]
+  },
+  "PCI:PETWASTE": {
+    "name": "PET Waste Recycling Index",
+    "constituents": [
+      "GANECOS.NS",
+      "ECORECO.BO",
+      "GRAVITA.NS",
+      "POCL.NS"
+    ]
+  },
+  "PCI:PFILMS": {
+    "name": "Polyester Films Index",
+    "constituents": [
+      "GRWRHITECH.NS",
+      "JINDALPOLY.NS",
+      "POLYPLEX.NS",
+      "COSMOFIRST.NS",
+      "ESTER.NS"
+    ]
+  },
+  "PCI:PEB": {
+    "name": "Pre-Engineered Buildings Index",
+    "constituents": [
+      "EPACKPEB.NS",
+      "INTERARCH.NS",
+      "PENIND.NS",
+      "MBEL.NS",
+      "EVERESTIND.NS"
+    ]
+  },
+  "PCI:PRIVATELARGEBANKS": {
+    "name": "Private Large Banks Index",
+    "constituents": [
+      "AXISBANK.NS",
+      "ICICIBANK.NS",
+      "HDFCBANK.NS",
+      "KOTAKBANK.NS"
+    ]
+  },
+  "PCI:PSUBANKS": {
+    "name": "PSU Banks Index",
+    "constituents": [
+      "SBIN.NS",
+      "BANKBARODA.NS",
+      "PNB.NS",
+      "CANBK.NS",
+      "UNIONBANK.NS",
+      "INDIANB.NS",
+      "IDBI.NS",
+      "IOB.NS",
+      "BANKINDIA.NS",
+      "MAHABANK.NS",
+      "UCOBANK.NS",
+      "CENTRALBK.NS",
+      "PSB.NS"
+    ]
+  },
+  "PCI:QSR": {
+    "name": "QSR Index",
+    "constituents": [
+      "BARBEQUE.NS",
+      "DEVYANI.NS",
+      "SAPPHIRE.NS",
+      "WESTLIFE.NS",
+      "JUBLFOOD.NS",
+      "SPECIALITY.NS",
+      "RBA.NS"
+    ]
+  },
+  "PCI:RAILWAYS": {
+    "name": "Railways Index",
+    "constituents": [
+      "KERNEX.NS",
+      "RVNL.NS",
+      "TITAGARH.NS",
+      "JWL.NS",
+      "ORIRAIL.BO",
+      "HBLENGINE.NS"
+    ]
+  },
+  "PCI:REFGAS": {
+    "name": "Refrigerant Gas Index",
+    "constituents": [
+      "JUBLINGREA.NS",
+      "SRF.NS",
+      "FLUOROCHEM.NS",
+      "NAVINFLUOR.NS"
+    ]
+  },
+  "PCI:SHIPPING": {
+    "name": "Shipping Index",
+    "constituents": [
+      "GESHIP.NS",
+      "SCI.NS",
+      "KMEW.BO",
+      "SEAMECLTD.NS",
+      "DREDGECORP.NS"
+    ]
+  },
+  "PCI:SFBANKS": {
+    "name": "Small Finance Banks Index",
+    "constituents": [
+      "AUBANK.NS",
+      "UJJIVANSFB.NS",
+      "EQUITASBNK.NS",
+      "JSFB.NS",
+      "FINOPB.NS",
+      "SURYODAY.NS"
+    ]
+  },
+  "PCI:SOLAR": {
+    "name": "Solar Index",
+    "constituents": [
+      "INA.BO",
+      "SOLEX.NS",
+      "ALPEXSOLAR.NS",
+      "WAAREEENER.NS",
+      "WEBELSOLAR.NS",
+      "SWSOLAR.NS",
+      "WAAREERTL.BO",
+      "ORIANA.NS"
+    ]
+  },
+  "PCI:SP": {
+    "name": "Steel Pipes Index",
+    "constituents": [
+      "JTLIND.NS",
+      "HARIOMPIPE.NS",
+      "HITECH.NS",
+      "APLAPOLLO.NS",
+      "RAMASTEEL.NS"
+    ]
+  },
+  "PCI:Sugar": {
+    "name": "Sugar Index",
+    "constituents": [
+      "DCMSHRIRAM.NS",
+      "EIDPARRY.NS",
+      "BALRAMCHIN.NS",
+      "TRIVENI.NS",
+      "RENUKA.NS",
+      "MVKAGRO.NS",
+      "DALMIASUG.NS",
+      "BAJAJHIND.NS",
+      "GODAVARIB.NS"
+    ]
+  },
+  "PCI:TRANSFORMER": {
+    "name": "Transformer / CRGO Index",
+    "constituents": [
+      "JAYBEE.NS",
+      "VILAS.NS",
+      "SIEMENS.NS",
+      "ABB.NS",
+      "SHILCTECH.BO",
+      "VOLTAMP.NS",
+      "TARIL.NS",
+      "POWERINDIA.NS",
+      "CGPOWER.NS",
+      "BBL.NS",
+      "INDOTECH.NS"
+    ]
+  },
+  "PCI:TRANSMISSION": {
+    "name": "Transmission Index",
+    "constituents": [
+      "APARINDS.NS",
+      "BBL.NS",
+      "VOLTAMP.NS",
+      "SHILCTECH.BO",
+      "SKIPPER.NS",
+      "TECHNOE.NS",
+      "POLYCAB.NS",
+      "KEI.NS",
+      "POWERGRID.NS",
+      "TARIL.NS"
+    ]
+  },
+  "PCI:TUBETYRE": {
+    "name": "Tubes & Tyres Index",
+    "constituents": [
+      "GOODYEAR.BO",
+      "MRF.NS",
+      "BALKRISIND.NS",
+      "APOLLOTYRE.NS",
+      "CEATLTD.NS",
+      "JKTYRE.NS",
+      "TVSSRICHAK.NS"
+    ]
+  },
+  "PCI:WATEREPC": {
+    "name": "Water EPC Index",
+    "constituents": [
+      "WABAG.NS",
+      "IONEXCHANG.NS",
+      "VPRPL.NS",
+      "WELENT.NS",
+      "EMSLIMITED.NS",
+      "JASH.NS"
+    ]
+  }
+}

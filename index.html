@@ -49,6 +49,7 @@
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
             --header-bg: rgba(10, 13, 24, 0.95);
             --glass: rgba(15, 21, 37, 0.85);
+            color-scheme: dark;
         }
 
         [data-theme="light"] {
@@ -69,6 +70,7 @@
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
             --header-bg: rgba(255, 255, 255, 0.95);
             --glass: rgba(248, 250, 252, 0.9);
+            color-scheme: light;
         }
 
         *,
@@ -378,6 +380,7 @@
             margin-bottom: 12px;
             background: linear-gradient(135deg, #fff 0%, #9ca3af 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -1202,7 +1205,8 @@
         }
 
         .filter-bar select,
-        .filter-bar input[type="number"] {
+        .filter-bar input[type="number"],
+        .filter-bar input[type="text"] {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -1910,6 +1914,10 @@
                     <span class="btn-label" style="font-weight: 600; color: #fff;">🏭 Industry Ranks</span>
                 </button>
                 <div style="height: 4px;"></div>
+                <button class="scanner-btn" id="btn-themes-custom" onclick="runThemes('Custom Indices')" style="display: none;">
+                    <span class="btn-label" style="font-weight: 600; color: #fff;">🧩 Custom Indices</span>
+                </button>
+                <div style="height: 4px;" id="div-themes-custom" style="display: none;"></div>
                 <button class="scanner-btn" id="btn-lev-etf" onclick="runLevEtf()">
                     <span class="btn-label" style="font-weight: 600; color: #fff;">⚡ Lev ETFs</span>
                 </button>
@@ -2368,6 +2376,15 @@
                     el.nextElementSibling.style.display = market === 'US' ? '' : 'none';
                 }
             });
+
+            const inOnlyButtons = ['btn-themes-custom'];
+            inOnlyButtons.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = market === 'IN' ? '' : 'none';
+                if (el && el.nextElementSibling && el.nextElementSibling.style && el.nextElementSibling.tagName !== 'BUTTON') {
+                    el.nextElementSibling.style.display = market === 'IN' ? '' : 'none';
+                }
+            });
             const pInput = document.getElementById('f-price');
             if (pInput) pInput.placeholder = market === 'IN' ? '₹' : '$';
             
@@ -2472,6 +2489,7 @@
                     try { await fetchWatchlists(); } catch (e) { console.warn('Watchlists unavailable:', e); }
 
                     buildSidebar(scanData.scanners);
+                    updateMarketUI(currentMarket);
 
                     return; // success
                 } catch (err) {
@@ -3527,6 +3545,7 @@
                                     <th data-ksort="momentum_1m" class="sortable">1M</th>
                                     <th data-ksort="momentum_1d" class="sortable">1D</th>
                                     ${['minervini-cheat','tight-setup','htf'].includes(activeScanner) ? '<th style="color:#10b981;min-width:72px;" title="Suggested trigger entry price">Trigger</th><th style="color:#f43f5e;min-width:64px;" title="Suggested stop loss price">Stop</th>' : ''}
+                                    ${activeScanner === 'long-term-pf' ? '<th data-ksort="peg_ratio" class="sortable">PEG</th><th data-ksort="revenue_growth_3y" class="sortable">3Y Rev Gr</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
@@ -3577,6 +3596,7 @@
                                         return '<td style="color:#10b981;font-weight:600;">' + prefix + trigger.toFixed(2) + '</td>'
                                              + '<td style="color:#f43f5e;font-weight:600;">' + prefix + stop.toFixed(2) + '</td>';
                                     })() : ''}
+                                    ${activeScanner === 'long-term-pf' ? `<td style="color:${s.peg_ratio && s.peg_ratio < 1.0 ? 'var(--pos)' : 'inherit'}">${s.peg_ratio != null ? s.peg_ratio.toFixed(2) : '—'}</td><td style="color:var(--pos)">${s.revenue_growth_3y != null ? '+' + ((s.revenue_growth_3y - 1) * 100).toFixed(0) + '%' : '—'}</td>` : ''}
                                 </tr>`;
             }
             html += `</tbody></table></div>`;
@@ -3869,19 +3889,18 @@
                                 <div class="portal-trade-header">
                                     <div class="portal-trade-ticker" onclick="fetchStockDetail('${t.ticker}')">${t.ticker}</div>
                                     <div style="font-size: 0.8rem; font-weight: 800; letter-spacing: 0.5px; padding: 4px 8px; border-radius: 4px; color: #fff; background: ${t.type === 'SHORT' ? '#f87171' : '#4ade80'}; margin-right: 12px;">${t.type || 'LONG'}</div>
-                                    <div class="portal-trade-industry">${t.industry}</div>
-                                    <div class="portal-trade-industry">${t.industry}</div>
+                                    <div class="portal-trade-industry">${t.industry || 'General Equity'}</div>
                                     <div class="portal-trade-rs">RS ${t.rs_rating}</div>
                                 </div>
                                 
                                 <div class="portal-trade-stats">
                                     <div class="portal-stat">
                                         <span class="portal-stat-label">Entry Trigger</span>
-                                        <span class="portal-stat-val val-entry">$${t.entry.toFixed(2)}</span>
+                                        <span class="portal-stat-val val-entry">${currentMarket === 'IN' ? '₹' : '$'}${t.entry.toFixed(2)}</span>
                                     </div>
                                     <div class="portal-stat">
                                         <span class="portal-stat-label">Stop Loss</span>
-                                        <span class="portal-stat-val val-stop">$${t.stoploss.toFixed(2)}</span>
+                                        <span class="portal-stat-val val-stop">${currentMarket === 'IN' ? '₹' : '$'}${t.stoploss.toFixed(2)}</span>
                                     </div>
                                     <div class="portal-stat">
                                         <span class="portal-stat-label">Max Pos Size</span>
@@ -5171,17 +5190,29 @@
             history.pushState({ theme: themesCategory }, '', cleanUrl);
 
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
-            const btnId = themesCategory === 'Sector' ? 'btn-themes-sector' : 'btn-themes-industry';
-            document.getElementById(btnId).classList.add('active');
+            let btnId = 'btn-themes-sector';
+            if (themesCategory === 'Industry') btnId = 'btn-themes-industry';
+            else if (themesCategory === 'Custom Indices') btnId = 'btn-themes-custom';
+            
+            const btn = document.getElementById(btnId);
+            if (btn) btn.classList.add('active');
+            
             activeScanner = null;
             themesLevel = 'top';
             selectedSector = null;
             selectedIndustry = null;
             themeStockData = [];
 
-            const label = themesCategory === 'Sector' ? 'Sector Ranks' : 'Industry Ranks';
+            let label = 'Sector Ranks';
+            if (themesCategory === 'Industry') label = 'Industry Ranks';
+            else if (themesCategory === 'Custom Indices') label = 'Custom Index Ranks';
+            
+            const subLabel = themesCategory === 'Custom Indices' 
+                ? `<span style="color:var(--text-muted)">Tracking money flow across ${themesCategory.toLowerCase()}</span>`
+                : `<span style="color:var(--text-muted)">Tracking money flow rotation across market ${themesCategory.toLowerCase()}s</span>`;
+                
             document.getElementById('results-title').textContent = label;
-            document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Tracking money flow rotation across market ${themesCategory.toLowerCase()}s</span>`;
+            document.getElementById('results-meta').innerHTML = subLabel;
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
 
@@ -5199,7 +5230,7 @@
             try {
                 // Check localStorage cache keyed by today's date
                 const todayKey = new Date().toISOString().slice(0, 10); // "2026-02-25"
-                const cacheKey = 'themes_cache';
+                const cacheKey = themesCategory === 'Custom Indices' ? 'themes_custom_cache' : 'themes_cache';
                 const cached = localStorage.getItem(cacheKey);
                 let json;
 
@@ -5211,7 +5242,8 @@
                 }
 
                 if (!json) {
-                    const res = await fetchApi('/themes');
+                    const endpoint = themesCategory === 'Custom Indices' ? '/themes/custom_indices' : '/themes';
+                    const res = await fetchApi(endpoint);
                     json = await res.json();
                     json._cacheDate = todayKey;
                     try { localStorage.setItem(cacheKey, JSON.stringify(json)); } catch (_) { }
@@ -5294,8 +5326,10 @@
         function renderThemesTopLevel() {
             const area = document.getElementById('grid-area');
             const rows = sortThemeRows(themesData.filter(r => r.category === themesCategory));
-            const icon = themesCategory === 'Sector' ? '📊' : '🏭';
-            const clickFn = themesCategory === 'Sector' ? 'drillIntoSector' : 'drillIntoIndustry';
+            let icon = '📊';
+            let clickFn = 'drillIntoSector';
+            if (themesCategory === 'Industry') { icon = '🏭'; clickFn = 'drillIntoIndustry'; }
+            else if (themesCategory === 'Custom Indices') { icon = '🧩'; clickFn = 'drillIntoCustomIndex'; }
 
             let html = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -5319,9 +5353,11 @@
                         <tbody>
                 `;
                 for (const row of rows) {
-                    const etf = themesCategory === 'Sector' && sectorEtfMap[row.name] ?
+                    const etf = (themesCategory === 'Sector' && sectorEtfMap[row.name]) ?
                         `<a href="https://www.tradingview.com/chart/?symbol=${sectorEtfMap[row.name]}" target="_blank" onclick="event.stopPropagation()" style="margin-left:8px; font-size:0.75rem; background:var(--bg-elevated); padding:2px 6px; border-radius:4px; color:var(--text-muted); text-decoration:none; border: 1px solid var(--border);">🖥️ ${sectorEtfMap[row.name]}</a>` : '';
-                    html += `<tr class="clickable-row" onclick="${clickFn}('${row.name.replace(/'/g, "\\'")}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} ${etf} <span style="opacity:0.4;font-size:0.75rem;margin-left:4px;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, rows.length)}</tr>`;
+                    const clickArg1 = row.id ? row.id.replace(/'/g, "\\'") : row.name.replace(/'/g, "\\'");
+                    const clickArg2 = row.name.replace(/'/g, "\\'");
+                    html += `<tr class="clickable-row" onclick="${clickFn}('${clickArg1}', '${clickArg2}')"><td style="font-weight:600;color:var(--text-primary);">${row.name} ${etf} <span style="opacity:0.4;font-size:0.75rem;margin-left:4px;">→</span></td><td style="text-align:right;color:var(--text-secondary);">${row.stock_count}</td>${buildRankCells(row, rows.length)}</tr>`;
                 }
                 html += `</tbody></table></div>`;
                 area.innerHTML = html;
@@ -5341,13 +5377,20 @@
                     const card = document.createElement('div');
                     card.className = 'chart-card';
                     card.style.cursor = 'pointer';
-                    card.onclick = () => window[clickFn](row.name);
+                    card.onclick = () => window[clickFn](row.id || row.name, row.name);
 
                     let chartHtml = '';
                     let containerId = `tv-theme-${row.name.replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
 
                     if (ticker) {
                         chartHtml = `<div class="chart-container" id="${containerId}"></div>`;
+                    } else if (themesCategory === 'Custom Indices') {
+                        chartHtml = `
+                        <div class="chart-container" id="${containerId}">
+                            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">
+                                Custom Index Chart via Constituents...
+                            </div>
+                        </div>`;
                     } else {
                         chartHtml = `
                         <div class="chart-container" id="${containerId}">
@@ -5376,7 +5419,6 @@
                             if (!entry.isIntersecting) return;
                             o.unobserve(entry.target);
 
-                            // If we have a hardcoded ETF ticker, render directly
                             if (ticker) {
                                 try {
                                     requestAnimationFrame(() => renderTVChart(containerId, ticker, true));
@@ -5386,8 +5428,40 @@
                                 }
                                 return;
                             }
+                            
+                            if (themesCategory === 'Custom Indices') {
+                                // Fetch constituents for Custom Index to build the proxy chart
+                                fetchApi(`/themes/custom_indices/stocks?idx_id=${encodeURIComponent(row.id || row.name)}`)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        const el = document.getElementById(containerId);
+                                        if (!el) return;
+                                        if (!data.data || data.data.length === 0) {
+                                            el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;background:var(--bg-elevated);">No constituents</div>';
+                                            return;
+                                        }
+                                        let expressionParts = [];
+                                        let currentLen = 0;
+                                        for (let r of data.data) {
+                                            let t = r.ticker;
+                                            if (currentLen + t.length + 1 > 120) break;
+                                            expressionParts.push(t);
+                                            currentLen += t.length + 1;
+                                        }
+                                        const count = expressionParts.length;
+                                        const tickerFormula = `(${expressionParts.join('+')})/${count}`;
+                                        el.innerHTML = '';
+                                        try { requestAnimationFrame(() => renderTVChart(containerId, tickerFormula, true)); }
+                                        catch (err) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>'; }
+                                    }).catch(err => {
+                                        console.error(err);
+                                        const el = document.getElementById(containerId);
+                                        if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Failed to load proxy</div>';
+                                    });
+                                return;
+                            }
 
-                            // Otherwise, fetch proxy tickers for unmapped industry/sector
+                            // Fetch proxy tickers for unmapped industry/sector
                             fetchApi(`/themes/proxy?category=${themesCategory}&name=${encodeURIComponent(row.name)}&limit=10`)
                                 .then(res => res.json())
                                 .then(tickers => {
@@ -5399,7 +5473,6 @@
                                         return;
                                     }
 
-                                    // Calculate arithmetic expression formula up to ~120 chars
                                     let expressionParts = [];
                                     let currentLen = 0;
                                     for (let t of tickers) {
@@ -5410,15 +5483,11 @@
 
                                     const count = expressionParts.length;
                                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
-                                    el.innerHTML = ''; // clear loading state
+                                    el.innerHTML = '';
 
-                                    try {
-                                        requestAnimationFrame(() => renderTVChart(containerId, tickerFormula, true));
-                                    } catch (err) {
-                                        el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>';
-                                    }
-                                })
-                                .catch(err => {
+                                    try { requestAnimationFrame(() => renderTVChart(containerId, tickerFormula, true)); } 
+                                    catch (err) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Chart failed to load</div>'; }
+                                }).catch(err => {
                                     console.error(err);
                                     const el = document.getElementById(containerId);
                                     if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171">Failed to load proxy</div>';
@@ -5441,6 +5510,30 @@
             themesSortBy = 'rank_1m';
             themesSortDir = 1;
             renderFilteredIndustries();
+            document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        
+        window.drillIntoCustomIndex = async function (idxId, name) {
+            selectedIndustry = name;
+            themesLevel = 'stocks';
+            const cleanUrl = buildCleanUrl({ theme: themesCategory, industry: name });
+            history.pushState({ theme: themesCategory, industry: name }, '', cleanUrl);
+
+            document.getElementById('grid-area').innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:16px; align-items:center; justify-content:center; height:300px;">
+                    <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;">Loading Constituents for ${name}...</div>
+                </div>
+            `;
+            try {
+                const res = await fetchApi(`/themes/custom_indices/stocks?idx_id=${encodeURIComponent(idxId)}`);
+                const json = await res.json();
+                themeStockData = json.data;
+                renderThemeStocks();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('grid-area').innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load stocks for index</div>`;
+            }
             document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -5649,18 +5742,21 @@
                 if (val < 0) return `<span class="pct-neg">${pct}%</span>`;
                 return `<span class="pct-neutral">${pct}%</span>`;
             };
-            const fmtMcap = (val) => {
+            const localFmtMcap = (val) => {
                 if (val == null || isNaN(val)) return '—';
-                if (val >= 1e12) return `$${(val / 1e12).toFixed(1)}T`;
-                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
-                if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-                return `$${val.toFixed(0)}`;
+                const sym = currentMarket === 'IN' ? '₹' : '$';
+                if (val >= 1e12) return `${sym}${(val / 1e12).toFixed(1)}T`;
+                if (val >= 1e9) return `${sym}${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `${sym}${(val / 1e6).toFixed(1)}M`;
+                return `${sym}${val.toFixed(0)}`;
             };
 
+            const allCatName = themesCategory === 'Custom Indices' ? 'All Custom Indices' : `All ${themesCategory}s`;
+            
             let html = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                     <div class="breadcrumb-bar" style="margin-bottom:0; flex-grow:1;">
-                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">${allCatName}</span><span class="bc-sep">›</span>`}
                         <span class="bc-current">${name}</span>
                         <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
                     </div>
@@ -5725,7 +5821,7 @@
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_1m || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_3m || '—'}</td>
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>` : ''}
-                            <td>${fmtMcap(s.market_cap)}</td>
+                            <td>${localFmtMcap(s.market_cap)}</td>
                             <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                             <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
                             <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
@@ -5746,10 +5842,11 @@
 
         function renderThemeStocksGrid(stocks, name) {
             const area = document.getElementById('grid-area');
+            const allCatName = themesCategory === 'Custom Indices' ? 'All Custom Indices' : `All ${themesCategory}s`;
             let html = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                     <div class="breadcrumb-bar" style="margin-bottom:0; flex-grow:1;">
-                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All ${themesCategory}s</span><span class="bc-sep">›</span>`}
+                        ${selectedSector ? `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">All Sectors</span><span class="bc-sep">›</span><span class="bc-link" onclick="drillIntoSector('${selectedSector.replace(/'/g, "\\'")}')">` + selectedSector + `</span><span class="bc-sep">›</span>` : `<span class="bc-link" onclick="themesLevel='top';renderThemesView();">${allCatName}</span><span class="bc-sep">›</span>`}
                         <span class="bc-current">${name}</span>
                         <span style="margin-left:8px;color:var(--text-muted);font-size:0.8rem;">${stocks.length} stocks</span>
                     </div>

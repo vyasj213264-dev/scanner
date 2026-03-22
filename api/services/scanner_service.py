@@ -120,6 +120,12 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         description="Price within +/- 2% of the 50-day moving average.",
         category="Pullbacks",
     ),
+    ScannerMeta(
+        id="long-term-pf",
+        label="🎯 Long Term PF (Fundamental Growth)",
+        description="Indian Market specific: Small/Midcaps (> 500Cr), PEG Ratio < 1.5, Revenue doubled over the last 3-4 years, and firmly in Stage 2 trend. Designed for core long-term holdings.",
+        category="Trend & Breakout",
+    ),
 ]
 
 # Lookup by id for O(1) access
@@ -160,6 +166,7 @@ _FILTERS: dict = {
     "pullback-9dma":          "abs(Close - SMA_9) / SMA_9 <= 0.02",
     "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
     "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
+    "long-term-pf":           "f.peg_ratio > 0 AND f.peg_ratio < 1.5 AND f.revenue_doubled = 1 AND d.In_Stage_2 = 1 AND d.Market_Cap >= 500",
 }
 
 # ---------------------------------------------------------------------------
@@ -174,7 +181,7 @@ def get_baseline_filter(market: str = "US") -> str:
 
 BASELINE_FILTER = "Close >= 5"  # default for backward compat
 
-SortField = Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m", "ticker"]
+SortField = Literal["rs_rating", "rvol", "close", "pct_from_52w_high", "momentum_1m", "ticker", "peg_ratio", "revenue_growth_3y"]
 SortOrder = Literal["asc", "desc"]
 
 _SORT_COLUMN_MAP: dict = {
@@ -184,6 +191,8 @@ _SORT_COLUMN_MAP: dict = {
     "pct_from_52w_high": "Pct_From_52W_High",
     "momentum_1m":      "Momentum_1M",
     "ticker":           "Ticker",
+    "peg_ratio":        "f.peg_ratio",
+    "revenue_growth_3y": "f.revenue_growth_3y",
 }
 
 
@@ -262,12 +271,14 @@ def run_scan(
     
     sql = (
         f"SELECT d.*, "
+        f"f.peg_ratio AS peg_ratio, f.revenue_growth_3y AS revenue_growth_3y, "
         f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
         f"sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M, "
         f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
         f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
         f"FROM screen_data d "
         f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
+        f"LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
         f"WHERE r.scanner_id = ? AND d.Market = '{market}' AND d.{baseline}{extra_where} "

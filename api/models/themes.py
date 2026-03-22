@@ -10,6 +10,7 @@ class ThemeRankRecord(BaseModel):
     
     category: str = Field(..., validation_alias="Category")
     name: str = Field(..., validation_alias="Name")
+    id: Optional[str] = None
     stock_count: int = Field(..., validation_alias="Stock_Count")
     
     # Absolute Current Ranks

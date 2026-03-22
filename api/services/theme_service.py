@@ -150,6 +150,113 @@ def get_themes_stocks(
     
     return rows, universe_count, last_updated
 
+import json
+import os
+
+def get_custom_index_themes(market: str = "IN") -> Tuple[List[ThemeRankRecord], str]:
+    """
+    Dynamically calculates aggregate performance and ranking for custom indices based on screen_data momentum fields.
+    Takes the JSON dictionary of Custom Indices, computes the average momentums for their constituents, and relatively ranks them.
+    """
+    path = os.path.join(os.path.dirname(__file__), '..', 'custom_indices_in.json')
+    if not os.path.exists(path) or market.upper() != "IN":
+        return [], "No Data"
+        
+    with open(path, 'r') as f:
+        custom_indices = json.load(f)
+
+    # Fetch all momentum data for the requested market to do fast in-memory lookups
+    sql = "SELECT Ticker, Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y FROM screen_data WHERE Market = ?"
+    rows = fetch_all(sql, (market,))
+    
+    stock_dict = {}
+    for r in rows:
+        t = _get(r, 'ticker', 'Ticker')
+        stock_dict[t] = {
+            '1d': _get(r, 'momentum_1d', 'Momentum_1D'),
+            '1w': _get(r, 'momentum_1w', 'Momentum_1W'),
+            '1m': _get(r, 'momentum_1m', 'Momentum_1M'),
+            '3m': _get(r, 'momentum_3m', 'Momentum_3M'),
+            '6m': _get(r, 'momentum_6m', 'Momentum_6M'),
+            '1y': _get(r, 'momentum_1y', 'Momentum_1Y'),
+        }
+
+    index_averages = []
+    
+    for idx_id, info in custom_indices.items():
+        name = info.get('name', idx_id)
+        constituents = info.get('constituents', [])
+        
+        sums = {k: 0.0 for k in ['1d', '1w', '1m', '3m', '6m', '1y']}
+        counts = {k: 0 for k in sums.keys()}
+        valid_stocks = 0
+        
+        for ticker in constituents:
+            if ticker in stock_dict:
+                valid_stocks += 1
+                for k in sums.keys():
+                    val = stock_dict[ticker][k]
+                    if val is not None:
+                        sums[k] += float(val)
+                        counts[k] += 1
+                        
+        if valid_stocks > 0:
+            avg = {
+                k: (sums[k] / counts[k]) if counts[k] > 0 else 0.0
+                for k in sums.keys()
+            }
+            avg['id'] = idx_id
+            avg['name'] = name
+            avg['count'] = valid_stocks
+            index_averages.append(avg)
+
+    if not index_averages:
+        return [], "No Data"
+
+    # Compute comparative rankings (1 is highest momentum)
+    # Sort and rank for each timeframe
+    def rank_list(items, key):
+        items.sort(key=lambda x: x[key], reverse=True)
+        return {item['id']: i + 1 for i, item in enumerate(items)}
+
+    ranks_1d = rank_list(list(index_averages), '1d')
+    ranks_1w = rank_list(list(index_averages), '1w')
+    ranks_1m = rank_list(list(index_averages), '1m')
+    ranks_3m = rank_list(list(index_averages), '3m')
+    ranks_6m = rank_list(list(index_averages), '6m')
+    ranks_1y = rank_list(list(index_averages), '1y')
+
+    results = []
+    for avg in index_averages:
+        idx_id = avg['id']
+        r = ThemeRankRecord(
+            Category="Custom Index",
+            Name=avg['name'],
+            Stock_Count=avg['count'],
+            Rank_1D=ranks_1d[idx_id],
+            Rank_1W=ranks_1w[idx_id],
+            Rank_1M=ranks_1m[idx_id],
+            Rank_3M=ranks_3m[idx_id],
+            Rank_6M=ranks_6m[idx_id],
+            Rank_1Y=ranks_1y[idx_id],
+            change_1d=None,
+            change_1w=None,
+            change_1m=None,
+            change_3m=None,
+            change_6m=None,
+            change_1y=None
+        )
+        results.append(r)
+        
+    # Sort the final output by Rank_1d
+    results.sort(key=lambda x: x.rank_1d)
+
+    # Get last updated date
+    last_updated_row = fetch_all(f"SELECT MAX(Date) as last_date FROM screen_data WHERE Market = '{market}'")
+    last_updated = _get(last_updated_row[0], 'last_date', 'max') if last_updated_row else "Unknown"
+
+    return results, last_updated
+
 
 def get_theme_proxies(category: str, name: str, limit: int = 10, market: str = "US") -> List[str]:
     """

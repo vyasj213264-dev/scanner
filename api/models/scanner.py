@@ -58,6 +58,8 @@ class StockResult(BaseModel):
     industry_rank_3m: Optional[int] = Field(None, validation_alias="Industry_Rank_3M")
     industry_rank_6m: Optional[int] = Field(None, validation_alias="Industry_Rank_6M")
     stage: Optional[int] = Field(None, validation_alias="Stage")
+    peg_ratio: Optional[float] = Field(None, validation_alias="peg_ratio")
+    revenue_growth_3y: Optional[float] = Field(None, validation_alias="revenue_growth_3y")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)
@@ -98,6 +100,8 @@ class UniverseStockResult(BaseModel):
     industry: Optional[str] = Field(None, validation_alias="Industry")
     market_cap: Optional[float] = Field(None, validation_alias="Market_Cap")
     adr_20: Optional[float] = Field(None, validation_alias="ADR_20")
+    peg_ratio: Optional[float] = Field(None, validation_alias="peg_ratio")
+    revenue_growth_3y: Optional[float] = Field(None, validation_alias="revenue_growth_3y")
     momentum_1d: Optional[float] = Field(None, validation_alias="Momentum_1D")
     momentum_1w: Optional[float] = Field(None, validation_alias="Momentum_1W")
     momentum_1m: Optional[float] = Field(None, validation_alias="Momentum_1M")
