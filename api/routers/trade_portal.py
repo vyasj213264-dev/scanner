@@ -234,7 +234,7 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
     
     def fetch_trades(direction: str, limit: int):
         if direction == "Long":
-            min_rs = 90 if market == 'IN' else 97
+            min_rs = 95 if market == 'IN' else 97
             min_close = 10
             
             sql = f"""
