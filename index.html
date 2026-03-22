@@ -5999,23 +5999,29 @@
 
             const theme = currentTheme === 'light' ? 'light' : 'dark';
 
-            // Strip proxy formula prefixes — TradingView only understands plain tickers
-            // e.g. (AAPL+MSFT)/2 → use the first ticker for grid cards
             let tvSymbol = ticker;
-            const formulaMatch = ticker.match(/^\(([A-Za-z0-9.^]+)/);
-            if (formulaMatch) tvSymbol = formulaMatch[1]; // best-effort fallback
 
             // Format symbol based on Market rules for TradingView
-            if (currentMarket === 'IN') {
-                if (tvSymbol === '^NSEI') tvSymbol = 'BSE:SENSEX';
-                else if (tvSymbol === '^CRSMA') tvSymbol = 'BSE:BSEMIDCAP';
-                else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'BSE:BANKEX';
-                else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'BSE:BSE' + tvSymbol.replace('^CNX', '');
-                else if (tvSymbol.endsWith('.NS')) tvSymbol = 'BSE:' + tvSymbol.replace('.NS', '');
-                else if (tvSymbol.endsWith('.BO')) tvSymbol = 'BSE:' + tvSymbol.replace('.BO', '');
-            } else {
-                if (tvSymbol === '^GSPC') tvSymbol = 'SP:SPX';
-                else if (tvSymbol === '^IXIC') tvSymbol = 'COMP';
+            // Skip transformation if it is a complex Math Formula proxy index
+            if (!ticker.startsWith('(')) {
+                if (currentMarket === 'IN') {
+                    if (tvSymbol === '^NSEI') tvSymbol = 'BSE:SENSEX';
+                    else if (tvSymbol === '^CRSMA') tvSymbol = 'BSE:BSEMIDCAP';
+                    else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'BSE:BANKEX';
+                    else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'BSE:BSE' + tvSymbol.replace('^CNX', '');
+                    else if (tvSymbol.endsWith('.NS')) tvSymbol = 'BSE:' + tvSymbol.replace('.NS', '');
+                    else if (tvSymbol.endsWith('.BO')) tvSymbol = 'BSE:' + tvSymbol.replace('.BO', '');
+                } else {
+                    if (tvSymbol === '^GSPC') tvSymbol = 'SP:SPX';
+                    else if (tvSymbol === '^IXIC') tvSymbol = 'COMP';
+                }
+            }
+
+            if (isSmallGrid) {
+                // Strip proxy formula prefixes — Lightweight Charts using local yfinance data
+                // cannot fetch historical OHLCV for math formulas. Use first ticker as fallback.
+                const formulaMatch = tvSymbol.match(/^\(([A-Za-z0-9.^]+)/);
+                if (formulaMatch) tvSymbol = formulaMatch[1]; 
             }
 
             if (isSmallGrid) {
