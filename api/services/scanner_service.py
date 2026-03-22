@@ -349,17 +349,21 @@ def get_universe(
     latest_date_query = f"(SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}')"
     sql = (
         f"SELECT d.Ticker, d.Close, d.Sector, d.Industry, d.Market_Cap, d.ADR_20, "
+        f"d.RS_Rating, d.Stage, d.RVOL, d.Pct_From_52W_High, "
         f"d.Momentum_1D, d.Momentum_1W, d.Momentum_1M, "
         f"d.Momentum_3M, d.Momentum_6M, d.Momentum_1Y, "
+        f"f.peg_ratio, f.revenue_growth_3y, "
         f"sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W, "
         f"sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M, "
         f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
         f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
         f"FROM screen_data d "
+        f"LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
         f"WHERE d.Market = '{market}' AND d.{get_baseline_filter(market)}{extra_where}"
     )
+
     rows = fetch_all(sql, tuple(params))
     last_updated = get_last_updated(market)
     

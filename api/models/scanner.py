@@ -100,6 +100,8 @@ class UniverseStockResult(BaseModel):
     industry: Optional[str] = Field(None, validation_alias="Industry")
     market_cap: Optional[float] = Field(None, validation_alias="Market_Cap")
     adr_20: Optional[float] = Field(None, validation_alias="ADR_20")
+    rvol: Optional[float] = Field(None, validation_alias="RVOL")
+    pct_from_52w_high: Optional[float] = Field(None, validation_alias="Pct_From_52W_High")
     peg_ratio: Optional[float] = Field(None, validation_alias="peg_ratio")
     revenue_growth_3y: Optional[float] = Field(None, validation_alias="revenue_growth_3y")
     rs_rating: Optional[float] = Field(None, validation_alias="RS_Rating")
