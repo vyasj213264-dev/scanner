@@ -4,7 +4,9 @@ import re
 from collections import defaultdict
 from api.database import get_db
 
-router = APIRouter(prefix="/api/v1/chart", tags=["chart"])
+from api.routers.auth import require_user
+
+router = APIRouter(prefix="/api/v1/chart", tags=["chart"], dependencies=[Depends(require_user)])
 
 @router.get("/{ticker:path}")
 async def get_chart_data(ticker: str) -> List[Dict[str, Any]]:

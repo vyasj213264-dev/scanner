@@ -5,7 +5,10 @@ Computes breadth metrics from screen_data in real time.
 from fastapi import APIRouter, HTTPException, Query
 from api.database import fetch_all, fetch_val
 
-router = APIRouter(prefix="/api/v1", tags=["Market Breadth"])
+from api.routers.auth import require_user
+from fastapi import Depends
+
+router = APIRouter(prefix="/api/v1", tags=["Market Breadth"], dependencies=[Depends(require_user)])
 
 
 @router.get("/breadth", summary="Get market breadth indicators")

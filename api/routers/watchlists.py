@@ -49,7 +49,11 @@ def list_watchlists(user: User = Depends(require_user)):
 
 @router.post("", response_model=WatchlistOut, summary="Create a new watchlist")
 def create_watchlist(body: WatchlistCreate, user: User = Depends(require_user)):
-    return watchlist_service.create_watchlist(user.id, body.name.strip())
+    name = body.name.strip()
+    existing = watchlist_service.get_watchlists(user.id)
+    if any(w["name"].lower() == name.lower() for w in existing):
+        raise HTTPException(status_code=400, detail="A watchlist with this name already exists")
+    return watchlist_service.create_watchlist(user.id, name)
 
 
 @router.patch("/{watchlist_id}", response_model=WatchlistOut, summary="Rename a watchlist")

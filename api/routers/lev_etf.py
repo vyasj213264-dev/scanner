@@ -9,7 +9,10 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter
 from api.database import fetch_all
 
-router = APIRouter(prefix="/api/v1/lev-etf", tags=["Leveraged ETFs"])
+from api.routers.auth import require_user
+from fastapi import Depends
+
+router = APIRouter(prefix="/api/v1/lev-etf", tags=["Leveraged ETFs"], dependencies=[Depends(require_user)])
 
 # ---------------------------------------------------------------------------
 # Full Leveraged ETF List

@@ -1960,37 +1960,42 @@
                 </svg>
             </button>
             <div style="margin-bottom: 8px;">
-                <button class="scanner-btn" id="btn-universe" onclick="runUniverse()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">🌍 Stock Universe</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-breadth" onclick="runBreadth()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">📈 Market Breadth</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-themes-sector" onclick="runThemes('Sector')">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">📊 Sector Ranks</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-themes-industry" onclick="runThemes('Industry')">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">🏭 Industry Ranks</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-themes-custom" onclick="runThemes('Custom Indices')" style="display: none;">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">🧩 Custom Indices</span>
-                </button>
-                <div style="height: 4px;" id="div-themes-custom" style="display: none;"></div>
-                <button class="scanner-btn" id="btn-lev-etf" onclick="runLevEtf()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">⚡ Lev ETFs</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-trade-portal" onclick="runTradePortal()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">🤖 AI Trade Portal</span>
-                </button>
-                <div style="height: 4px;"></div>
-                <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
-                    <span class="btn-label" style="font-weight: 600; color: #fff;">⚙️ Custom Screener</span>
-                </button>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-label">Markets</div>
+                    <button class="scanner-btn" id="btn-universe" onclick="runUniverse()">
+                        <span class="btn-label" style="font-weight: 600;">🌍 Stock Universe</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-breadth" onclick="runBreadth()">
+                        <span class="btn-label" style="font-weight: 600;">📈 Market Breadth</span>
+                    </button>
+                </div>
+                
+                <div class="sidebar-section" style="padding-top: 8px;">
+                    <div class="sidebar-section-label">Themes & Sectors</div>
+                    <button class="scanner-btn" id="btn-themes-sector" onclick="runThemes('Sector')">
+                        <span class="btn-label" style="font-weight: 600;">📊 Sector Ranks</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-themes-industry" onclick="runThemes('Industry')">
+                        <span class="btn-label" style="font-weight: 600;">🏭 Industry Ranks</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-themes-custom" onclick="runThemes('Custom Indices')" style="display: none;">
+                        <span class="btn-label" style="font-weight: 600;">🧩 Custom Indices</span>
+                    </button>
+                    <div id="div-themes-custom" style="display: none;"></div>
+                </div>
+
+                <div class="sidebar-section" style="padding-top: 8px;">
+                    <div class="sidebar-section-label">Tools</div>
+                    <button class="scanner-btn" id="btn-lev-etf" onclick="runLevEtf()">
+                        <span class="btn-label" style="font-weight: 600;">⚡ Lev ETFs</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-trade-portal" onclick="runTradePortal()">
+                        <span class="btn-label" style="font-weight: 600;">🤖 AI Trade Portal</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
+                        <span class="btn-label" style="font-weight: 600;">⚙️ Custom Screener</span>
+                    </button>
+                </div>
             </div>
             <div id="sidebar-content">
                 <!-- Populated dynamically from /api/v1/scanners -->
@@ -2331,6 +2336,9 @@
                 return false;
             }
 
+            // Optimistically hide overlay to prevent flash on refresh/popstate
+            document.getElementById('auth-overlay').style.display = 'none';
+
             try {
                 const res = await fetch(`/auth/me`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
@@ -2603,6 +2611,13 @@
                 runThemes(themesCategory);
             } else if (activeScanner === 'lev-etf') {
                 runLevEtf(true);
+            } else if (activeScanner === 'universe') {
+                runUniverse();
+            } else if (activeScanner === 'trade-portal') {
+                runTradePortal(true);
+            } else if (activeScanner && activeScanner.startsWith('wl-')) {
+                const wlId = parseInt(activeScanner.replace('wl-', ''));
+                if (!isNaN(wlId)) runWatchlist(wlId);
             } else if (activeScanner) {
                 runScanner(activeScanner, document.getElementById('results-title').textContent, true);
             } else if (document.getElementById('results-title').textContent === 'Custom Screener Builder') {
@@ -2610,7 +2625,7 @@
             } else {
                 runBreadth();
             }
-            logEvent('toggle_theme', { theme: currentTheme });
+            logEvent('toggle_market', { market: currentMarket });
         }
 
         // ── Stock Detail Panel ──────────────────────────────────
@@ -2674,7 +2689,7 @@
                 else if (ticker.endsWith('.NS')) tvLinkSymbol = 'BSE:' + ticker.replace('.NS', '');
                 else if (ticker.endsWith('.BO')) tvLinkSymbol = 'BSE:' + ticker.replace('.BO', '');
             }
-            document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${tvLinkSymbol}" target="_blank" style="color:inherit;text-decoration:none;" title="Open in TradingView">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
+            document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${tvLinkSymbol}" target="_blank" style="color:inherit;text-decoration:none;" title="Open Chart">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
 
             // Mount custom Lightweight Chart
             renderTVChart('sp-tv-widget', ticker, false);
@@ -3313,6 +3328,8 @@
             activeWatchlist = null; // Clear watchlist context
             themesCategory = null;
             themesLevel = 'top';
+            filterSectors = {};
+            filterIndustries = {};
 
             // Reflect the active scanner in the URL (only on user clicks, not on popstate)
             if (!force) pushScannerToHistory(scannerId);
@@ -4993,6 +5010,7 @@
                 // Render Historical Stage Chart
                 if (data.history && data.history.length > 0) {
                     const chartArea = document.getElementById('stage-history-chart');
+                    chartArea.style.position = 'relative';
                     const chart = LightweightCharts.createChart(chartArea, {
                         layout: { background: { color: 'transparent' }, textColor: currentTheme === 'dark' ? '#9ca3af' : '#6b7280' },
                         grid: { vertLines: { visible: false }, horzLines: { visible: false } },
@@ -5052,6 +5070,8 @@
                             const val3 = param.seriesData.get(s3Line);
                             const val4 = param.seriesData.get(s4Line);
                             if (val1 && val2 && val3 && val4) {
+                                tooltip.style.left = Math.min(param.point.x + 15, chartArea.clientWidth - 220) + 'px';
+                                tooltip.style.top = Math.max(param.point.y - 60, 10) + 'px';
                                 tooltip.style.display = 'block';
                                 tooltip.innerHTML = `
                                     <div style="font-weight:600;margin-bottom:4px;color:var(--text-secondary);">${dateStr}</div>

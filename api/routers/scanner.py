@@ -18,7 +18,10 @@ from api.services import scanner_service
 from api.config import DEFAULT_SCAN_LIMIT, MAX_SCAN_LIMIT
 from api.database import fetch_all
 
-router = APIRouter(prefix="/api/v1", tags=["Scanner"])
+from api.routers.auth import require_user
+from fastapi import Depends
+
+router = APIRouter(prefix="/api/v1", tags=["Scanner"], dependencies=[Depends(require_user)])
 
 
 @router.get(

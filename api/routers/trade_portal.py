@@ -3,7 +3,10 @@ from fastapi import APIRouter, HTTPException, Query
 import traceback
 from api.database import fetch_all
 
-router = APIRouter(prefix="/api/v1/trade-portal", tags=["Trade Portal"])
+from api.routers.auth import require_user
+from fastapi import Depends
+
+router = APIRouter(prefix="/api/v1/trade-portal", tags=["Trade Portal"], dependencies=[Depends(require_user)])
 
 def get_market_bias(market: str = "US") -> Dict[str, Any]:
     if market == "US":

@@ -5,7 +5,10 @@ from api.models.themes import ThemeResponse
 from api.models.scanner import ScanResponse, StockResult
 from api.services.theme_service import get_themes, get_themes_stocks
 
-router = APIRouter(prefix="/api/v1", tags=["Themes"])
+from api.routers.auth import require_user
+from fastapi import Depends
+
+router = APIRouter(prefix="/api/v1", tags=["Themes"], dependencies=[Depends(require_user)])
 
 @router.get(
     "/themes",
