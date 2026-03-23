@@ -1882,7 +1882,7 @@
                     <div class="sp-stat-val" id="sp-stat-rvol">--</div>
                 </div>
                 <div class="sp-stat-box">
-                    <div class="sp-stat-label">Stage 2</div>
+                    <div class="sp-stat-label">Stage</div>
                     <div class="sp-stat-val" id="sp-stat-stage">--</div>
                 </div>
                 <div class="sp-stat-box">
@@ -2633,14 +2633,21 @@
 
             // Quick reset
             document.getElementById('sp-company').textContent = "Loading...";
-            ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'].forEach(id => {
-                document.getElementById(id).textContent = "--";
+            document.getElementById('sp-price').style.display = 'block';
+            document.getElementById('sp-change').style.display = 'block';
+            
+            const statIds = ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'];
+            statIds.forEach(id => {
+                const el = document.getElementById(id);
+                el.textContent = "--";
+                if (el.parentElement.classList.contains('sp-stat-box')) {
+                    el.parentElement.style.display = 'block';
+                }
             });
             document.getElementById('sp-tv-widget').innerHTML = '';
             
             if (isCustomIndex) {
                 // Set Loading state for Custom Index Proxy
-                document.getElementById('sp-ticker').innerHTML = `<span>${ticker}</span>`;
                 document.getElementById('sp-company').textContent = "Custom Index Proxy Chart";
                 
                 try {
@@ -2648,29 +2655,58 @@
                     const data = await res.json();
                     
                     if (!data.data || data.data.length === 0) {
+                        document.getElementById('sp-ticker').innerHTML = `<span>${ticker}</span>`;
                         document.getElementById('sp-tv-widget').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">No constituents found</div>';
                         return;
                     }
                     
                     let expressionParts = [];
                     let currentLen = 0;
+                    let validStages = [];
                     for (let r of data.data) {
                         let t = r.ticker;
-                        if (currentLen + t.length + 1 > 120) break;
-                        expressionParts.push(t);
-                        currentLen += t.length + 1;
+                        if (currentLen + t.length + 1 <= 120) {
+                            expressionParts.push(t);
+                            currentLen += t.length + 1;
+                        }
+                        if (r.stage != null) validStages.push(r.stage);
                     }
                     
                     const count = expressionParts.length;
                     const tickerFormula = `(${expressionParts.join('+')})/${count}`;
-                    renderTVChart('sp-tv-widget', tickerFormula, true);
+                    
+                    // Add redirection link for Custom Index
+                    const tvFormulaSymbol = formatTVSymbol(tickerFormula, currentMarket);
+                    document.getElementById('sp-ticker').innerHTML = `<a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvFormulaSymbol)}" target="_blank" style="color:inherit;text-decoration:none;" title="Open Chart">${ticker} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-bottom:4px;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>`;
+
+                    // Mount full TradingView chart (consistent with stocks)
+                    renderTVChart('sp-tv-widget', tickerFormula, false);
+
+                    // Show Stage and hide others for Indian Custom Indices
+                    if (currentMarket === 'IN') {
+                        const idsToHide = ['sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-mom', 'sp-price', 'sp-change'];
+                        idsToHide.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el.parentElement.classList.contains('sp-stat-box')) {
+                                el.parentElement.style.display = 'none';
+                            } else {
+                                el.style.display = 'none';
+                            }
+                        });
+                        
+                        // Calculate aggregate stage
+                        if (validStages.length > 0) {
+                            const avgStage = Math.round(validStages.reduce((a, b) => a + b, 0) / validStages.length);
+                            document.getElementById('sp-stat-stage').textContent = avgStage;
+                        }
+                    }
                     
                 } catch(e) {
                     console.error("Custom index proxy chart load failed", e);
                     document.getElementById('sp-tv-widget').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);">Failed to load proxy chart</div>';
                 }
                 
-                return; // End execution here for custom indices (no fundamentals)
+                return;
             }
 
             // --- Regular Stock Detail ---
