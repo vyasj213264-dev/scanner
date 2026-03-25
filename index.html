@@ -1890,6 +1890,10 @@
                     <div class="sp-stat-val" id="sp-stat-mom">--</div>
                 </div>
             </div>
+            <div id="sp-scanner-badges" style="padding: 12px 20px; display: none;">
+                <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px;">Active Setups</div>
+                <div id="sp-badges-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+            </div>
             <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.75rem; border-top: 1px solid var(--border-light); margin-top: auto;">
                 build by Hrishikesh with vibecode ❤️
             </div>
@@ -2638,6 +2642,8 @@
             document.getElementById('sp-company').textContent = "Loading...";
             document.getElementById('sp-price').style.display = 'block';
             document.getElementById('sp-change').style.display = 'block';
+            document.getElementById('sp-scanner-badges').style.display = 'none';
+            document.getElementById('sp-badges-list').innerHTML = '';
             
             const statIds = ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'];
             statIds.forEach(id => {
@@ -2751,8 +2757,43 @@
                 document.getElementById('sp-stat-mcap').textContent = d.market_cap ? (d.market_cap >= 1e9 ? `${mcPrefix}${(d.market_cap / 1e9).toFixed(1)}B` : `${mcPrefix}${(d.market_cap / 1e6).toFixed(1)}M`) : '--';
                 document.getElementById('sp-stat-adr').textContent = fmt(d.adr_20, 1, '%');
                 document.getElementById('sp-stat-rvol').textContent = d.rvol ? d.rvol.toFixed(1) + 'x' : '--';
-                document.getElementById('sp-stat-stage').textContent = d.is_stage2 ? 'Yes' : 'No';
+                // Show numeric Stage (1-4)
+                document.getElementById('sp-stat-stage').textContent = d.stage != null ? d.stage : '--';
                 document.getElementById('sp-stat-mom').textContent = fmt(d.momentum_1m ? d.momentum_1m * 100 : null, 1, '%');
+
+                // ── Scanner Badges ────────────────────────────────────
+                const scannerBadgeDefs = [
+                    { label: '🎯 Minervini Cheat',  check: () => d.in_stage_2 && d.rs_rating >= 70 && d.rvol < 0.85 && d.vcp_approximation && d.momentum_3m > 0.10 && d.pct_from_52w_high > -25 },
+                    { label: '🚀 High Tight Flag',   check: () => d.in_stage_2 && d.momentum_3m > 0.90 && d.pct_from_52w_high >= -25 && d.pct_from_52w_high <= -2 && d.rvol < 0.85 && d.rs_rating >= 80 && d.adr_20 >= 4.0 },
+                    { label: 'Stage 2',              check: () => d.in_stage_2 },
+                    { label: 'Tight Setup',          check: () => d.tight_setup && d.in_stage_2 },
+                    { label: 'Near Resistance',      check: () => d.near_horizontal_resistance },
+                    { label: 'VCP Pattern',          check: () => d.vcp_approximation && d.in_stage_2 },
+                    { label: 'Inside Bar',           check: () => d.inside_bar },
+                    { label: 'Gap Up',               check: () => d.gap_up },
+                    { label: 'Gap Down',             check: () => d.gap_down },
+                    { label: 'Golden Crossover',     check: () => d.golden_crossover },
+                    { label: 'RS High > Price',      check: () => d.rs_rating > 90 && d.pct_from_52w_high != null && d.pct_from_52w_high < -5 },
+                    { label: 'Momentum 1M>10%',      check: () => d.momentum_1m > 0.1 && d.in_stage_2 },
+                    { label: 'High RVOL (3x)',       check: () => d.rvol > 3.0 },
+                ];
+                
+                const activeBadges = scannerBadgeDefs.filter(b => { try { return b.check(); } catch(e) { return false; } });
+                const badgesSection = document.getElementById('sp-scanner-badges');
+                const badgesList = document.getElementById('sp-badges-list');
+                badgesList.innerHTML = '';
+                if (activeBadges.length > 0) {
+                    badgesSection.style.display = 'block';
+                    activeBadges.forEach(b => {
+                        const pill = document.createElement('span');
+                        pill.textContent = b.label;
+                        pill.style.cssText = 'display:inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); white-space: nowrap;';
+                        badgesList.appendChild(pill);
+                    });
+                } else {
+                    badgesSection.style.display = 'none';
+                }
+
 
             } catch (e) {
                 console.error(e);
