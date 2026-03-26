@@ -230,14 +230,163 @@ def get_weekly_bias_statement(bias_dict: Dict[str, Any], market: str = "US") -> 
     else:
         return f"With the market in a Neutral configuration, growth stock traders should run **balanced portfolios** targeting **around {exp}% exposure**. Rather than relying on a rising tide to lift all boats, adopt a market-neutral approach scaling into the absolute best high-RS Stage 2 longs and hedging with Stage 4 breakdown shorts."
 
-def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
+def compute_trade_quality_score(row: dict, direction: str, leaderboard: list) -> dict:
+    """
+    Composite trade quality score (0-100) with breakdown.
+    Components:
+      - Trend alignment (0-25)
+      - Relative strength (0-20)
+      - Setup tightness (0-20)
+      - Volatility suitability (0-15)
+      - Sector/Industry tailwind (0-20)
+    """
+    score = 0
+    factors = []
+
+    close = row.get('Close') or 0
+    sma_20 = row.get('SMA_20') or 0
+    sma_50 = row.get('SMA_50') or 0
+    stage = row.get('Stage') or 0
+    rs = row.get('RS_Rating') or 0
+    adr = row.get('ADR_20') or 0
+    tight = bool(row.get('Tight_Setup'))
+    vcp = bool(row.get('VCP_Approximation'))
+    inside_bar = bool(row.get('Inside_Bar'))
+    gap_down = bool(row.get('Gap_Down'))
+    pct_from_high = row.get('Pct_From_52W_High') or 0
+    sector = row.get('Sector') or ''
+
+    # 1. Trend alignment (0-25)
+    trend_score = 0
+    if direction == "Long":
+        if stage == 2:
+            trend_score += 15
+            factors.append("Stage 2 ✓")
+        elif stage == 1:
+            trend_score += 5
+        # MA stack: Close > SMA_20 > SMA_50
+        if close > 0 and sma_20 > 0 and sma_50 > 0:
+            if close >= sma_20 >= sma_50:
+                trend_score += 10
+                factors.append("MA stack aligned")
+            elif close >= sma_50:
+                trend_score += 5
+    else:  # Short
+        if stage == 4:
+            trend_score += 15
+            factors.append("Stage 4 ✓")
+        elif stage == 3:
+            trend_score += 5
+        # Inverted MA stack: Close < SMA_20 < SMA_50
+        if close > 0 and sma_20 > 0 and sma_50 > 0:
+            if close <= sma_20 <= sma_50:
+                trend_score += 10
+                factors.append("Bear MA stack")
+            elif close <= sma_50:
+                trend_score += 5
+    score += min(trend_score, 25)
+
+    # 2. Relative strength (0-20)
+    rs_score = 0
+    if direction == "Long":
+        if rs >= 95: rs_score = 20; factors.append(f"RS {round(rs)}")
+        elif rs >= 90: rs_score = 15
+        elif rs >= 80: rs_score = 10
+        elif rs >= 70: rs_score = 5
+    else:
+        # For shorts, low RS is good
+        if rs <= 10: rs_score = 20; factors.append(f"RS {round(rs)} (weak)")
+        elif rs <= 20: rs_score = 15
+        elif rs <= 30: rs_score = 10
+        elif rs <= 40: rs_score = 5
+    score += min(rs_score, 20)
+
+    # 3. Setup tightness (0-20)
+    setup_score = 0
+    setup_names = []
+    if tight:
+        setup_score += 8
+        setup_names.append("Tight")
+    if vcp:
+        setup_score += 8
+        setup_names.append("VCP")
+    if inside_bar:
+        setup_score += 6
+        setup_names.append("IB")
+    if direction == "Short" and gap_down:
+        setup_score += 6
+        setup_names.append("Gap↓")
+    if setup_names:
+        factors.append(" + ".join(setup_names))
+    score += min(setup_score, 20)
+
+    # 4. Volatility suitability for 2-10d swings (0-15)
+    vol_score = 0
+    if 2.0 <= adr <= 8.0:
+        vol_score = 15  # sweet spot
+    elif 1.5 <= adr < 2.0 or 8.0 < adr <= 12.0:
+        vol_score = 8
+    elif adr > 0:
+        vol_score = 3
+    if vol_score >= 10:
+        factors.append(f"ADR {adr:.1f}% ✓")
+    score += min(vol_score, 15)
+
+    # 5. Sector/Industry tailwind (0-20)
+    tailwind_score = 0
+    if leaderboard and sector:
+        # Find sector rank in leaderboard
+        for entry in leaderboard:
+            name = entry.get('name', '')
+            # Fuzzy match sector names
+            if sector.lower() in name.lower() or name.lower() in sector.lower():
+                rank = entry.get('rank', 999)
+                total = len(leaderboard)
+                if direction == "Long":
+                    if rank <= 3:
+                        tailwind_score = 20
+                        factors.append(f"Sector #{rank}")
+                    elif rank <= total // 2:
+                        tailwind_score = 10
+                else:
+                    # For shorts, lagging sectors are good
+                    if rank >= total - 2:
+                        tailwind_score = 20
+                        factors.append(f"Sector #{rank} (lagging)")
+                    elif rank > total // 2:
+                        tailwind_score = 10
+                break
+    score += min(tailwind_score, 20)
+
+    # Confidence label
+    if score >= 85:
+        confidence = "A+"
+    elif score >= 70:
+        confidence = "A"
+    elif score >= 55:
+        confidence = "B"
+    else:
+        confidence = "C"
+
+    return {
+        "quality_score": score,
+        "confidence_label": confidence,
+        "score_factors": " · ".join(factors) if factors else "Weak signals"
+    }
+
+
+def get_swing_trades(bias: str, market: str = "US", leaderboard: list = None) -> List[Dict[str, Any]]:
     # 5. Top 5 Swing Trades (Long/Short Mix based on Bias)
     trades = []
-    seen_industries = set()
+    seen_industries = {}  # industry -> count
+    MAX_PER_INDUSTRY = 2
     
+    # Score thresholds
+    SCORE_THRESHOLD = 55 if bias == "Neutral" else 60
+
     def fetch_trades(direction: str, limit: int):
         if direction == "Long":
-            min_rs = 95 if market == 'IN' else 97
+            min_rs = 90 if market == 'IN' else 95
             min_close = 10
             
             sql = f"""
@@ -253,56 +402,94 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                       (Close >= SMA_20 AND Close <= SMA_20 * 1.05) OR 
                       (Close >= SMA_50 AND Close <= SMA_50 * 1.05)
                   )
-                ORDER BY RS_Rating DESC, Pct_From_52W_High ASC
-                LIMIT 50
+                ORDER BY RS_Rating DESC
+                LIMIT 80
             """
-        else: # Short extreme high prob ETFs / Mega caps
-            large_caps = "'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL', 'AVGO', 'AMD', 'COIN'"
-            if market == 'IN':
-                large_caps = "'^NSEI', 'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'ITC.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'LT.NS'"
-                
+        else:  # Short — expanded universe (no longer ETFs/mega-caps only)
             sql = f"""
                 SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
                 WHERE Market = '{market}' AND Stage = 4
                   AND Volume >= 1000000
-                  AND (Sector IN ('ETF', 'Index') OR Ticker IN ({large_caps}))
+                  AND ADR_20 >= 2.0
+                  AND Close < SMA_20
+                  AND SMA_20 < SMA_50
                   AND (Tight_Setup = TRUE OR Inside_Bar = TRUE OR Gap_Down = TRUE)
-                ORDER BY RS_Rating ASC, Pct_From_52W_High ASC
-                LIMIT 50
+                ORDER BY RS_Rating ASC
+                LIMIT 80
             """
             
         rows = fetch_all(sql)
-        added = 0
         
+        # Score all candidates first
+        scored = []
         for r in rows:
+            score_data = compute_trade_quality_score(dict(r), direction, leaderboard or [])
+            scored.append((r, score_data))
+        
+        # Sort by quality score descending
+        scored.sort(key=lambda x: x[1]['quality_score'], reverse=True)
+        
+        added = 0
+        for r, score_data in scored:
             if added >= limit:
                 break
+            
+            # Score threshold gating
+            if score_data['quality_score'] < SCORE_THRESHOLD:
+                continue
                 
             ind = r['Industry']
-            if ind is not None and ind != "Unknown" and ind in seen_industries and added < limit - 1:
-                 continue
-                 
-            if ind is not None and ind != "Unknown":
-                seen_industries.add(ind)
+            # Smarter de-dup: allow up to MAX_PER_INDUSTRY per industry
+            if ind and ind != "Unknown":
+                count = seen_industries.get(ind, 0)
+                if count >= MAX_PER_INDUSTRY:
+                    continue
+                seen_industries[ind] = count + 1
             
             close = r['Close']
-            adr = r['ADR_20'] if r['ADR_20'] else (close * 0.03) # Fallback 3%
+            adr_dollar = (r['ADR_20'] / 100 * close) if r['ADR_20'] else (close * 0.03)
+            sma_10 = r['SMA_10'] or 0
+            sma_20 = r['SMA_20'] or 0
+            sma_50 = r['SMA_50'] or 0
             
             if direction == "Long":
                 entry = close * 1.01
-                stoploss = close - adr
+                
+                # Structure-aware stop: use nearest MA below price, cushioned by ADR
+                ma_candidates = [ma for ma in [sma_10, sma_20, sma_50] if 0 < ma < close]
+                if ma_candidates:
+                    nearest_ma_below = max(ma_candidates)  # highest MA below price
+                    structure_stop = nearest_ma_below - (0.5 * adr_dollar)
+                else:
+                    structure_stop = close - (1.5 * adr_dollar)
+                
+                atr_stop = close - (1.5 * adr_dollar)
+                stoploss = max(structure_stop, atr_stop)  # use the tighter stop
+                
+                # Clamp stop distance to 2-8% of price
+                stop_pct = (entry - stoploss) / entry
+                if stop_pct < 0.02:
+                    stoploss = entry * 0.98
+                elif stop_pct > 0.08:
+                    stoploss = entry * 0.92
+                
                 risk_per_share = entry - stoploss
-                if risk_per_share <= 0: continue
+                if risk_per_share <= 0:
+                    continue
+                
+                # Min 2R:R check (approx headroom from 52w high)
+                headroom = abs(r['Pct_From_52W_High'] or 0) / 100 * close
+                if headroom > 0 and headroom < (risk_per_share * 2):
+                    continue  # not enough room for 2R
                 
                 risk_pct = risk_per_share / entry
-                pos_size_pct = min(0.25, 0.01 / risk_pct)
+                pos_size_pct = min(0.25, 0.01 / risk_pct) if risk_pct > 0 else 0.05
                 
                 setup_names = []
                 if r['VCP_Approximation']: setup_names.append("Minervini Low Cheat")
                 if r['Tight_Setup']: setup_names.append("Tight Consolidation")
                 if r.get('Inside_Bar'): setup_names.append("Inside Bar")
-                
                 setup_reasons = " and ".join(setup_names) if setup_names else "Stage 2 Breakout Uptrend"
                 
                 trades.append({
@@ -314,23 +501,44 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
                     "reason": f"Stock is exhibiting an extreme high-probability {setup_reasons} near a key moving average. Strong relative strength (RS: {round(r['RS_Rating'] or 0)} >= {min_rs}) flags massive institutional accumulation.",
-                    "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}."
+                    "exit_plan": f"Take 1/2 size off at {round(entry + (risk_per_share * 2), 2)} (+2R) to finance risk. Trail remaining half via a close below the 10 DMA or break of {round(stoploss, 2)}.",
+                    "quality_score": score_data['quality_score'],
+                    "confidence_label": score_data['confidence_label'],
+                    "score_factors": score_data['score_factors']
                 })
                 added += 1
-            else:
+            else:  # Short
                 entry = close * 0.99
-                stoploss = close + adr
+                
+                # Structure-aware stop: nearest MA above price, cushioned by ADR
+                ma_candidates = [ma for ma in [sma_10, sma_20, sma_50] if ma > close]
+                if ma_candidates:
+                    nearest_ma_above = min(ma_candidates)  # lowest MA above price
+                    structure_stop = nearest_ma_above + (0.5 * adr_dollar)
+                else:
+                    structure_stop = close + (1.5 * adr_dollar)
+                
+                atr_stop = close + (1.5 * adr_dollar)
+                stoploss = min(structure_stop, atr_stop)  # use the tighter stop
+                
+                # Clamp stop distance to 2-8% of price
+                stop_pct = (stoploss - entry) / entry
+                if stop_pct < 0.02:
+                    stoploss = entry * 1.02
+                elif stop_pct > 0.08:
+                    stoploss = entry * 1.08
+                
                 risk_per_share = stoploss - entry
-                if risk_per_share <= 0: continue
+                if risk_per_share <= 0:
+                    continue
                 
                 risk_pct = risk_per_share / entry
-                pos_size_pct = min(0.25, 0.01 / risk_pct)
+                pos_size_pct = min(0.25, 0.01 / risk_pct) if risk_pct > 0 else 0.05
                 
                 setup_names = []
                 if r.get('Tight_Setup'): setup_names.append("Tight Consolidation (Bear Flag)")
                 if r.get('Inside_Bar'): setup_names.append("Inside Bar")
                 if r.get('Gap_Down'): setup_names.append("Gap Down Continuation")
-                
                 setup_reasons = " and ".join(setup_names) if setup_names else "Stage 4 Downtrend"
                 
                 trades.append({
@@ -341,8 +549,11 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
-                    "reason": f"High liquidity underlying asset is printing a {setup_reasons} breakdown pattern embedded in a structural Stage 4 macro downtrend. Valid for Leveraged Inverse ETF proxies or direct shorting.",
-                    "exit_plan": f"Cover 1/2 size at {round(entry - (risk_per_share * 2), 2)} (+2R). Trail remaining half via a close above the 10 DMA or break of {round(stoploss, 2)}."
+                    "reason": f"Liquid stock printing a {setup_reasons} breakdown pattern embedded in a structural Stage 4 macro downtrend with confirmed bearish MA stack (Close < 20 DMA < 50 DMA).",
+                    "exit_plan": f"Cover 1/2 size at {round(entry - (risk_per_share * 2), 2)} (+2R). Trail remaining half via a close above the 10 DMA or break of {round(stoploss, 2)}.",
+                    "quality_score": score_data['quality_score'],
+                    "confidence_label": score_data['confidence_label'],
+                    "score_factors": score_data['score_factors']
                 })
                 added += 1
 
@@ -363,31 +574,33 @@ def get_swing_trades(bias: str, market: str = "US") -> List[Dict[str, Any]]:
         
     return trades
 
+
 @router.get("/daily-read", summary="Get the AI Daily Trade Portal Read")
 def get_daily_read(market: str = Query("US", description="US or IN")):
     """Returns the synthetically generated deterministic AI market read."""
     try:
         market_up = market.upper()
         bias_dict = get_market_bias(market_up)
-        trades = get_swing_trades(bias_dict.get("bias", "Neutral"), market_up)
+        
+        # Build leaderboard FIRST so we can pass it to swing trade scoring
+        leaderboard = get_sector_leaderboard(market_up)
+        opps = get_growth_opportunities(leaderboard, market_up)
+        weekly_bias = get_weekly_bias_statement(bias_dict, market_up)
+        
+        # Now compute trades with leaderboard context for sector tailwind scoring
+        trades = get_swing_trades(bias_dict.get("bias", "Neutral"), market_up, leaderboard=leaderboard)
         
         result = {
             "status": "success",
             "data": {
                 "market_bias": bias_dict.get("text"),
                 "exposure_pct": bias_dict.get("exposure_pct"),
-                "swing_trades": trades
+                "swing_trades": trades,
+                "sector_leaderboard": leaderboard,
+                "growth_opportunities": opps,
+                "weekly_statement": weekly_bias
             }
         }
-        
-        # Generate Sector/Index Leaderboard and Growth Opportunities
-        leaderboard = get_sector_leaderboard(market_up)
-        opps = get_growth_opportunities(leaderboard, market_up)
-        weekly_bias = get_weekly_bias_statement(bias_dict, market_up)
-        
-        result["data"]["sector_leaderboard"] = leaderboard
-        result["data"]["growth_opportunities"] = opps
-        result["data"]["weekly_statement"] = weekly_bias
         
         return result
     except Exception as e:

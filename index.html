@@ -657,7 +657,7 @@
 
         .chart-card:hover {
             border-color: var(--border-light);
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+            box-shadow: var(--shadow-md);
         }
 
         .card-header {
@@ -1168,8 +1168,16 @@
             background: rgba(255, 255, 255, 0.015);
         }
 
+        [data-theme="light"] .universe-table tbody tr:nth-child(even) {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
         .universe-table tbody tr:hover {
-            background: rgba(59, 130, 246, 0.06);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        [data-theme="light"] .universe-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.1);
         }
 
         .pct-pos {
@@ -1897,7 +1905,7 @@
                     <div class="sp-stat-val" id="sp-stat-rvol">--</div>
                 </div>
                 <div class="sp-stat-box">
-                    <div class="sp-stat-label">Stage</div>
+                    <div class="sp-stat-label">Stage (50 DMA)</div>
                     <div class="sp-stat-val" id="sp-stat-stage">--</div>
                 </div>
                 <div class="sp-stat-box">
@@ -2781,7 +2789,7 @@
                 const scannerBadgeDefs = [
                     { label: '🎯 Minervini Cheat',  check: () => d.in_stage_2 && d.rs_rating >= 70 && d.rvol < 0.85 && d.vcp_approximation && d.momentum_3m > 0.10 && d.pct_from_52w_high > -25 },
                     { label: '🚀 High Tight Flag',   check: () => d.in_stage_2 && d.momentum_3m > 0.90 && d.pct_from_52w_high >= -25 && d.pct_from_52w_high <= -2 && d.rvol < 0.85 && d.rs_rating >= 80 && d.adr_20 >= 4.0 },
-                    { label: 'Stage 2',              check: () => d.in_stage_2 },
+                    { label: 'Classic Stage 2',      check: () => d.in_stage_2 },
                     { label: 'Tight Setup',          check: () => d.tight_setup && d.in_stage_2 },
                     { label: 'Near Resistance',      check: () => d.near_horizontal_resistance },
                     { label: 'VCP Pattern',          check: () => d.vcp_approximation && d.in_stage_2 },
@@ -4162,15 +4170,22 @@
                 
                 if (data.swing_trades && data.swing_trades.length > 0) {
                     data.swing_trades.forEach(t => {
+                        const confColor = t.confidence_label === 'A+' ? '#4ade80' : t.confidence_label === 'A' ? '#60a5fa' : t.confidence_label === 'B' ? '#fbbf24' : '#9ca3af';
                         html += `
                             <div class="portal-trade">
                                 <div class="portal-trade-header">
                                     <div class="portal-trade-ticker" onclick="fetchStockDetail('${t.ticker}')">${t.ticker}</div>
                                     <div style="font-size: 0.8rem; font-weight: 800; letter-spacing: 0.5px; padding: 4px 8px; border-radius: 4px; color: #fff; background: ${t.type === 'SHORT' ? '#f87171' : '#4ade80'}; margin-right: 12px;">${t.type || 'LONG'}</div>
+                                    <div style="display:inline-flex;align-items:center;gap:6px;margin-right:12px;padding:4px 10px;border-radius:6px;background:rgba(${confColor === '#4ade80' ? '74,222,128' : confColor === '#60a5fa' ? '96,165,250' : confColor === '#fbbf24' ? '251,191,36' : '156,163,175'},0.15);border:1px solid ${confColor}33;" title="${t.score_factors || ''}">
+                                        <span style="font-size:0.85rem;font-weight:800;color:${confColor};">${t.confidence_label || 'C'}</span>
+                                        <span style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);">${t.quality_score || 0}/100</span>
+                                    </div>
                                     <div class="portal-trade-industry">${t.industry || 'General Equity'}</div>
                                     <div class="portal-trade-rs">RS ${t.rs_rating}</div>
                                 </div>
                                 
+                                <div style="font-size:0.75rem;color:var(--text-muted);padding:0 20px 8px;font-style:italic;">${t.score_factors || ''}</div>
+
                                 <div class="portal-trade-stats">
                                     <div class="portal-stat">
                                         <span class="portal-stat-label">Entry Trigger</span>
@@ -4408,7 +4423,7 @@
             const mom1dClass = stock.momentum_1d > 0 ? 'positive' : stock.momentum_1d < 0 ? 'negative' : '';
 
             const stagePill = stock.in_stage_2
-                ? '<span class="card-stage-pill pill-stage2">Stage 2</span>'
+                ? '<span class="card-stage-pill pill-stage2">Classic Stage 2</span>'
                 : stock.gap_up
                     ? '<span class="card-stage-pill pill-gap-up">Gap Up</span>'
                     : stock.gap_down
@@ -4929,7 +4944,7 @@
                             <div class="sp-stat-val" style="font-size:1.8rem; color:var(--text-primary);">${data.total_stocks}</div>
                         </div>
                         <div class="sp-stat-box" style="text-align: center;">
-                            <div class="sp-stat-label">% in Stage 2 Uptrend</div>
+                            <div class="sp-stat-label">% in Stage 2 Uptrend (50 DMA)</div>
                             <div class="sp-stat-val" style="font-size:1.8rem; color:${data.pct_stage2 > 50 ? 'var(--green)' : 'var(--red)'};">${data.pct_stage2}%</div>
                         </div>
                         <div class="sp-stat-box" style="text-align: center;">
@@ -5394,7 +5409,7 @@
                     let metricHtml = `<span class="metric-chip">Vol: ${stock.rvol ? stock.rvol.toFixed(1) : '-'}x</span>`;
 
                     let stagePill = '';
-                    if (stock.is_stage2) stagePill = '<span class="card-stage-pill pill-stage2">Stage 2</span>';
+                    if (stock.is_stage2) stagePill = '<span class="card-stage-pill pill-stage2">Classic Stage 2</span>';
 
                     card.innerHTML = `
                         <div class="card-header">
@@ -6216,112 +6231,114 @@
             */
 
             if (isSmallGrid) {
-                // ── Lightweight Charts (grid card) using our own OHLCV data ──────────
-                container.style.position = 'relative';
-                const chartDiv = document.createElement('div');
-                chartDiv.style.cssText = 'height:100%;width:100%;';
-                container.appendChild(chartDiv);
+                // ── Grid Card Charts ──────────────────────────────────
+                // For custom indices / formulas use LightweightCharts (TV can't handle them)
+                // For all other tickers use TradingView tv.js for live data
+                const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
 
-                (async () => {
-                    try {
-                        const res = await fetchApi(`/chart/${ticker}`);
-                        if (!res.ok) throw new Error('Chart data not found');
-                        const rawData = await res.json();
-                        if (!rawData || rawData.length === 0) throw new Error('No data');
+                if (isFormula) {
+                    // ── LightweightCharts fallback for custom index formulas ──
+                    container.style.position = 'relative';
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.cssText = 'height:100%;width:100%;';
+                    container.appendChild(chartDiv);
 
-                        // Parse dates into {year,month,day} for LWC
-                        const ohlcData = rawData.map(d => ({
-                            time: d.time,
-                            open: +d.open,
-                            high: +d.high,
-                            low: +d.low,
-                            close: +d.close
-                        }));
+                    (async () => {
+                        try {
+                            const res = await fetchApi(`/chart/${ticker}`);
+                            if (!res.ok) throw new Error('Chart data not found');
+                            const rawData = await res.json();
+                            if (!rawData || rawData.length === 0) throw new Error('No data');
 
-                        // Only last ~65 trading days (~3 months)
-                        const sliced = ohlcData.slice(-65);
+                            const ohlcData = rawData.map(d => ({
+                                time: d.time,
+                                open: +d.open, high: +d.high, low: +d.low, close: +d.close
+                            }));
+                            const sliced = ohlcData.slice(-65);
 
-                        const isDark = currentTheme === 'dark';
-                        const chart = LightweightCharts.createChart(chartDiv, {
-                            layout: { background: { color: 'transparent' }, textColor: isDark ? '#6b7280' : '#9ca3af' },
-                            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-                            rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
-                            timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true, visible: false },
-                            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                            handleScroll: false,
-                            handleScale: false,
-                        });
+                            const isDark = currentTheme === 'dark';
+                            const chart = LightweightCharts.createChart(chartDiv, {
+                                layout: { background: { color: 'transparent' }, textColor: isDark ? '#6b7280' : '#9ca3af' },
+                                grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+                                rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
+                                timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true, visible: false },
+                                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                                handleScroll: false, handleScale: false,
+                            });
 
-                        const candleSeries = chart.addCandlestickSeries({
-                            upColor: '#22c55e', downColor: '#ef4444',
-                            borderUpColor: '#22c55e', borderDownColor: '#ef4444',
-                            wickUpColor: '#22c55e', wickDownColor: '#ef4444'
-                        });
-                        candleSeries.setData(sliced);
+                            const candleSeries = chart.addCandlestickSeries({
+                                upColor: '#22c55e', downColor: '#ef4444',
+                                borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+                                wickUpColor: '#22c55e', wickDownColor: '#ef4444'
+                            });
+                            candleSeries.setData(sliced);
 
-                        // 21 EMA overlay — compute from full dataset then slice
-                        if (ohlcData.length >= 21) {
-                            const emaData = [];
-                            const k = 2 / (21 + 1);
-                            let ema = ohlcData[0].close;
-                            for (let i = 0; i < ohlcData.length; i++) {
-                                ema = ohlcData[i].close * k + ema * (1 - k);
-                                if (i >= 20) emaData.push({ time: ohlcData[i].time, value: ema });
+                            if (ohlcData.length >= 21) {
+                                const emaData = [];
+                                const k = 2 / (21 + 1);
+                                let ema = ohlcData[0].close;
+                                for (let i = 0; i < ohlcData.length; i++) {
+                                    ema = ohlcData[i].close * k + ema * (1 - k);
+                                    if (i >= 20) emaData.push({ time: ohlcData[i].time, value: ema });
+                                }
+                                const emaSliced = emaData.slice(-(sliced.length));
+                                const emaSeries = chart.addLineSeries({
+                                    color: '#f59e0b', lineWidth: 1.5,
+                                    crosshairMarkerVisible: false,
+                                    priceLineVisible: false, lastValueVisible: false
+                                });
+                                emaSeries.setData(emaSliced);
                             }
-                            const emaSliced = emaData.slice(-(sliced.length));
-                            const emaSeries = chart.addLineSeries({
-                                color: '#f59e0b', lineWidth: 1.5,
-                                crosshairMarkerVisible: false,
-                                priceLineVisible: false, lastValueVisible: false
+
+                            chart.timeScale().fitContent();
+                            const ro = new ResizeObserver(() => {
+                                chart.applyOptions({ width: chartDiv.clientWidth, height: chartDiv.clientHeight });
                             });
-                            emaSeries.setData(emaSliced);
+                            ro.observe(chartDiv);
+                        } catch (err) {
+                            chartDiv.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">Chart unavailable</div>`;
                         }
+                    })();
+                } else {
+                    // ── TradingView tv.js widget for live data ──
+                    const chartDiv = document.createElement('div');
+                    const tvId = 'tv_grid_' + tvSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
+                    chartDiv.id = tvId;
+                    chartDiv.style.cssText = 'height:100%;width:100%;';
+                    container.appendChild(chartDiv);
 
-                        chart.timeScale().fitContent();
-
-                        // Auto-resize
-                        const ro = new ResizeObserver(() => {
-                            chart.applyOptions({ width: chartDiv.clientWidth, height: chartDiv.clientHeight });
+                    const instantiateGridTV = () => {
+                        new TradingView.widget({
+                            autosize: true,
+                            symbol: tvSymbol,
+                            interval: 'D',
+                            timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
+                            theme: theme,
+                            style: '1',
+                            locale: 'en',
+                            enable_publishing: false,
+                            hide_top_toolbar: true,
+                            hide_legend: true,
+                            hide_side_toolbar: true,
+                            allow_symbol_change: false,
+                            save_image: false,
+                            calendar: false,
+                            studies: [
+                                { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
+                            ],
+                            container_id: tvId
                         });
-                        ro.observe(chartDiv);
-                    } catch (err) {
-                        // Fallback to TradingView tv.js widget if local data is unavailable (e.g. Leveraged ETFs)
-                        chartDiv.innerHTML = '';
-                        chartDiv.id = 'tv_grid_fb_' + tvSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
+                    };
 
-                        const instantiateGridTV = () => {
-                            new TradingView.widget({
-                                autosize: true,
-                                symbol: tvSymbol,
-                                interval: 'D',
-                                timezone: currentMarket === 'IN' ? 'Asia/Kolkata' : 'America/New_York',
-                                theme: theme,
-                                style: '1',
-                                locale: 'en',
-                                enable_publishing: false,
-                                hide_top_toolbar: true,
-                                hide_legend: true,
-                                hide_side_toolbar: true,
-                                allow_symbol_change: false,
-                                save_image: false,
-                                calendar: false,
-                                studies: [
-                                    { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
-                                ],
-                                container_id: chartDiv.id
-                            });
-                        };
-
-                        if (window.TradingView && window.TradingView.widget) {
-                            instantiateGridTV();
-                        } else {
-                            const s = document.createElement('script');
-                            s.src = 'https://s3.tradingview.com/tv.js';
-                            s.onload = instantiateGridTV;
-                            document.head.appendChild(s);
-                        }
+                    if (window.TradingView && window.TradingView.widget) {
+                        instantiateGridTV();
+                    } else {
+                        const s = document.createElement('script');
+                        s.src = 'https://s3.tradingview.com/tv.js';
+                        s.onload = instantiateGridTV;
+                        document.head.appendChild(s);
                     }
-                })();
+                }
             } else {
                 // ── Advanced Chart (stock detail panel) ────────────
                 const uniqueId = 'tv_adv_' + tvSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
