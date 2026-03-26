@@ -887,6 +887,17 @@ def run_ingest(market='US'):
         "pullback-21dma":         "abs(Close - SMA_21) / SMA_21 <= 0.02",
         "pullback-50dma":         "abs(Close - SMA_50) / SMA_50 <= 0.02",
         "long-term-pf":           "f.peg_ratio > 0 AND f.peg_ratio < 1.5 AND f.revenue_doubled IS TRUE AND d.In_Stage_2 IS TRUE AND d.Market_Cap >= 500",
+        "modern-breakout":        (
+            "In_Stage_2 AND RS_Rating >= 95 AND Pct_From_52W_High > -20 "
+            "AND (Tight_Setup OR VCP_Approximation OR Inside_Bar) "
+            "AND abs(Close - SMA_20) / SMA_20 <= 0.06"
+        ),
+        "modern-pullback":        (
+            "In_Stage_2 AND RS_Rating >= 90 AND Close >= SMA_50 AND SMA_20 >= SMA_50 "
+            "AND RVOL < 1.0 "
+            "AND ((abs(Close - SMA_20) / SMA_20 <= 0.02) OR (abs(Close - SMA_10) / SMA_10 <= 0.02)) "
+            "AND (Inside_Bar OR Tight_Setup OR VCP_Approximation)"
+        ),
     }
     
     baseline = "Close >= 5"

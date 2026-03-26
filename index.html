@@ -2807,6 +2807,9 @@
                     { label: '9 DMA Pullback',          check: () => nearDma(d.close, d.sma_9) },
                     { label: '21 DMA Pullback',         check: () => nearDma(d.close, d.sma_21) },
                     { label: '50 DMA Pullback',         check: () => nearDma(d.close, d.sma_50) },
+                    // Modern Swing Scanners
+                    { label: '⚡ Breakout Leader',       check: () => d.in_stage_2 && d.rs_rating >= 95 && d.pct_from_52w_high > -20 && (d.tight_setup || d.vcp_approximation || d.inside_bar) && d.sma_20 > 0 && Math.abs(d.close - d.sma_20) / d.sma_20 <= 0.06 },
+                    { label: '🔄 Pullback Continuation', check: () => d.in_stage_2 && d.rs_rating >= 90 && d.close >= d.sma_50 && d.sma_20 >= d.sma_50 && d.rvol < 1.0 && (d.inside_bar || d.tight_setup || d.vcp_approximation) && (nearDma(d.close, d.sma_20) || nearDma(d.close, d.sma_10)) },
                 ];
                 
                 const activeBadges = scannerBadgeDefs.filter(b => { try { return b.check(); } catch(e) { return false; } });
