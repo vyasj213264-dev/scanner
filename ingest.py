@@ -871,6 +871,11 @@ def run_ingest(market='US'):
             "AND Momentum_3M > 0.10 AND Pct_From_52W_High > -25 "
             "AND (abs(Close - SMA_10) / SMA_10 <= 0.03 OR abs(Close - SMA_20) / SMA_20 <= 0.03)"
         ),
+        "htf": (
+            "In_Stage_2 AND Momentum_3M > 0.90 "
+            "AND Pct_From_52W_High BETWEEN -25 AND -2 "
+            "AND RVOL < 0.85 AND RS_Rating >= 80 AND ADR_20 >= 4.0"
+        ),
         "horizontal-resistance": "Near_Horizontal_Resistance AND RVOL > 1.0",
         "tight-setup":            "Tight_Setup AND In_Stage_2 AND RVOL < 1.0",
         "rs-high-before-price-high": "RS_Rating > 90 AND Pct_From_52W_High < -5",
@@ -900,7 +905,7 @@ def run_ingest(market='US'):
         ),
     }
     
-    baseline = "Close >= 5"
+    baseline = "Close >= 5" if market == "US" else "Close > 0"
     
     cache_records = []
     for scanner_id, condition in filters.items():
