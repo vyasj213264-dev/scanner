@@ -2787,25 +2787,26 @@
                 // ── Scanner Badges ────────────────────────────────────
                 const nearDma = (close, sma) => close != null && sma != null && sma > 0 && Math.abs(close - sma) / sma <= 0.02;
                 const scannerBadgeDefs = [
-                    { label: '🎯 Minervini Cheat',  check: () => d.in_stage_2 && d.rs_rating >= 70 && d.rvol < 0.85 && d.vcp_approximation && d.momentum_3m > 0.10 && d.pct_from_52w_high > -25 },
-                    { label: '🚀 High Tight Flag',   check: () => d.in_stage_2 && d.momentum_3m > 0.90 && d.pct_from_52w_high >= -25 && d.pct_from_52w_high <= -2 && d.rvol < 0.85 && d.rs_rating >= 80 && d.adr_20 >= 4.0 },
-                    { label: 'Classic Stage 2',      check: () => d.in_stage_2 },
-                    { label: 'Tight Setup',          check: () => d.tight_setup && d.in_stage_2 },
-                    { label: 'Near Resistance',      check: () => d.near_horizontal_resistance },
-                    { label: 'VCP Pattern',          check: () => d.vcp_approximation && d.in_stage_2 },
-                    { label: 'Inside Bar',           check: () => d.inside_bar },
-                    { label: 'Gap Up',               check: () => d.gap_up },
-                    { label: 'Gap Down',             check: () => d.gap_down },
-                    { label: 'Golden Crossover',     check: () => d.golden_crossover },
-                    { label: 'RS High > Price',      check: () => d.rs_rating > 90 && d.pct_from_52w_high != null && d.pct_from_52w_high < -5 },
-                    { label: 'Momentum 1M>10%',      check: () => d.momentum_1m > 0.1 && d.in_stage_2 },
-                    { label: 'High RVOL (3x)',       check: () => d.rvol > 3.0 },
-                    // DMA proximity badges
-                    { label: '≈ 5 DMA',              check: () => nearDma(d.close, d.sma_5) },
-                    { label: '≈ 9 DMA',              check: () => nearDma(d.close, d.sma_9) },
-                    { label: '≈ 21 DMA',             check: () => nearDma(d.close, d.sma_21) },
-                    { label: '≈ 40 DMA',             check: () => nearDma(d.close, d.sma_20) },
-                    { label: '≈ 50 DMA',             check: () => nearDma(d.close, d.sma_50) },
+                    // Core Setup Scanners (match ingest.py scanner_map)
+                    { label: '🎯 Minervini Cheat',     check: () => d.in_stage_2 && d.rs_rating >= 70 && d.rvol < 0.85 && d.vcp_approximation && d.momentum_3m > 0.10 && d.pct_from_52w_high > -25 },
+                    { label: '🚀 High Tight Flag',      check: () => d.in_stage_2 && d.momentum_3m > 0.90 && d.pct_from_52w_high >= -25 && d.pct_from_52w_high <= -2 && d.rvol < 0.85 && d.rs_rating >= 80 && d.adr_20 >= 4.0 },
+                    { label: 'Classic Stage 2',         check: () => d.in_stage_2 },
+                    { label: 'Tight Setup',             check: () => d.tight_setup && d.in_stage_2 },
+                    { label: 'VCP Pattern',             check: () => d.vcp_approximation && d.in_stage_2 },
+                    { label: 'Near Resistance',         check: () => d.near_horizontal_resistance },
+                    { label: 'Horiz. Resistance+RVOL',  check: () => d.near_horizontal_resistance && d.rvol > 1.0 },
+                    { label: 'RS High > Price',         check: () => d.rs_rating > 90 && d.pct_from_52w_high != null && d.pct_from_52w_high < -5 },
+                    { label: 'Momentum 1M > 10%',       check: () => d.momentum_1m > 0.1 && d.in_stage_2 },
+                    { label: 'Inside Bar',              check: () => d.inside_bar },
+                    { label: 'Gap Up',                  check: () => d.gap_up },
+                    { label: 'Gap Down',                check: () => d.gap_down },
+                    { label: 'Golden Crossover',        check: () => d.golden_crossover },
+                    { label: 'High RVOL (3x)',          check: () => d.rvol > 3.0 },
+                    // DMA Pullback Scanners (match ingest.py naming)
+                    { label: '5 DMA Pullback',          check: () => nearDma(d.close, d.sma_5) },
+                    { label: '9 DMA Pullback',          check: () => nearDma(d.close, d.sma_9) },
+                    { label: '21 DMA Pullback',         check: () => nearDma(d.close, d.sma_21) },
+                    { label: '50 DMA Pullback',         check: () => nearDma(d.close, d.sma_50) },
                 ];
                 
                 const activeBadges = scannerBadgeDefs.filter(b => { try { return b.check(); } catch(e) { return false; } });
