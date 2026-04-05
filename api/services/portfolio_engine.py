@@ -29,7 +29,7 @@ from api.database import get_db
 STARTING_CAPITAL = 100_000.0
 MAX_POSITIONS = 4
 TARGET_WEIGHT = 0.25  # 25% of equity per position
-SIM_START_DATE = "2025-01-01"
+SIM_START_DATE = "2016-01-01"
 EMA_PERIOD = 8
 RS_THRESHOLD = 97
 MIN_PRICE = 10.0
@@ -61,7 +61,7 @@ def load_ohlcv_data() -> Dict[str, pd.DataFrame]:
         query = """
             SELECT Ticker, Date, Open, High, Low, Close, Volume
             FROM daily_ohlcv
-            WHERE Market = 'US' AND Date >= '2024-01-01'
+            WHERE Market = 'US' AND Date >= '2016-01-01'
         """
         cursor.execute(query)
         # fetchall() natively returns list of tuples for psycopg2 and standard sqlite3.
@@ -489,9 +489,11 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
 
                     # Breakeven stop: Low <= EntryPrice (intraday)
                     elif pos.stop_moved_to_be and low <= pos.entry_price:
-                        exit_price = pos.entry_price  # Fill at breakeven
-                        pnl = pos.shares * (exit_price - pos.entry_price)  # ~0
-                        r_mult = 0.0
+                        open_price = float(row['Open'])
+                        # If it gapped down past our entry, we suffer slippage to the open price.
+                        exit_price = pos.entry_price if open_price >= pos.entry_price else open_price
+                        pnl = pos.shares * (exit_price - pos.entry_price)
+                        r_mult = (exit_price - pos.entry_price) / pos.R if pos.R > 0 else 0.0
                         cash += pos.shares * exit_price
                         cum_eq = get_equity(date_str)
 
@@ -849,6 +851,24 @@ def compute_metrics(equity_curve: List[dict], closed_trades: List[dict],
         metrics['days_in_market'] = 0
         metrics['total_trading_days'] = 0
         metrics['time_in_market_pct'] = 0
+    # ── Yearly Returns ──
+    yearly_returns = {}
+    if equity_curve:
+        by_year = {}
+        for pt in equity_curve:
+            year = pt['date'][:4]
+            if year not in by_year:
+                by_year[year] = []
+            by_year[year].append(pt['equity'])
+        
+        for y, eq_list in by_year.items():
+            if len(eq_list) > 0:
+                y_start = eq_list[0]
+                y_end = eq_list[-1]
+                y_ret = ((y_end - y_start) / y_start * 100) if y_start > 0 else 0
+                yearly_returns[y] = round(y_ret, 2)
+    
+    metrics['returns_by_year'] = yearly_returns
 
     return metrics
 

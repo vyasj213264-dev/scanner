@@ -373,7 +373,7 @@ def get_universe(
     latest_date_query = f"(SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}')"
     sql = (
         f"SELECT d.Ticker, d.Close, d.Sector, d.Industry, d.Market_Cap, d.ADR_20, "
-        f"d.RS_Rating, d.Stage, d.RVOL, d.Pct_From_52W_High, "
+        f"d.RS_Rating, d.RS_Rating_1M, d.RS_Rating_3M, d.RS_Rating_6M, d.Stage, d.RVOL, d.Pct_From_52W_High, "
         f"d.Momentum_1D, d.Momentum_1W, d.Momentum_1M, "
         f"d.Momentum_3M, d.Momentum_6M, d.Momentum_1Y, "
         f"f.peg_ratio, f.revenue_growth_3y, "

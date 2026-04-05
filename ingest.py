@@ -344,7 +344,7 @@ def run_ingest(market='US'):
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
-    benchmark_data = yf.download(benchmark_ticker, period='2y', progress=False)
+    benchmark_data = yf.download(benchmark_ticker, period='10y', progress=False)
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
@@ -359,7 +359,7 @@ def run_ingest(market='US'):
                 # Add a baseline sleep to avoid hitting the API too fast
                 time.sleep(5)
                 # threads=False is CRITICAL for GitHub Actions otherwise Yahoo instantly rate-limits the concurrent connections
-                temp_data = yf.download(chunk, period='2y', group_by='ticker', progress=False, threads=False)
+                temp_data = yf.download(chunk, period='10y', group_by='ticker', progress=False, threads=False)
                 
                 # yfinance sometimes returns an empty dataframe when silently rate limited
                 if temp_data.empty:
@@ -520,7 +520,7 @@ def run_ingest(market='US'):
     if etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
         try:
-            etf_data = yf.download(etfs_to_download, period='2y', group_by='ticker', threads=True)
+            etf_data = yf.download(etfs_to_download, period='10y', group_by='ticker', threads=True)
             
             for etf_ticker in etfs_to_download:
                 try:

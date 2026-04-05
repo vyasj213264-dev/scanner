@@ -390,7 +390,7 @@ def get_swing_trades(bias: str, market: str = "US", leaderboard: list = None) ->
             min_close = 10
             
             sql = f"""
-                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
+                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, RS_Rating_1M, RS_Rating_3M, RS_Rating_6M, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
                 WHERE Market = '{market}' AND Stage IN (2, 3)
                   AND Close >= {min_close}
@@ -407,7 +407,7 @@ def get_swing_trades(bias: str, market: str = "US", leaderboard: list = None) ->
             """
         else:  # Short — expanded universe (no longer ETFs/mega-caps only)
             sql = f"""
-                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
+                SELECT Ticker, Close, SMA_10, SMA_20, SMA_50, ADR_20, Stage, Sector, Industry, RS_Rating, RS_Rating_1M, RS_Rating_3M, RS_Rating_6M, Pct_From_52W_High, Tight_Setup, VCP_Approximation, Inside_Bar, Gap_Down
                 FROM screen_data
                 WHERE Market = '{market}' AND Stage = 4
                   AND Volume >= 1000000
@@ -497,6 +497,9 @@ def get_swing_trades(bias: str, market: str = "US", leaderboard: list = None) ->
                     "type": "LONG",
                     "industry": ind,
                     "rs_rating": r['RS_Rating'] or 0,
+                    "rs_rating_1m": r.get('RS_Rating_1M'),
+                    "rs_rating_3m": r.get('RS_Rating_3M'),
+                    "rs_rating_6m": r.get('RS_Rating_6M'),
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),
@@ -546,6 +549,9 @@ def get_swing_trades(bias: str, market: str = "US", leaderboard: list = None) ->
                     "type": "SHORT",
                     "industry": ind,
                     "rs_rating": r['RS_Rating'] or 0,
+                    "rs_rating_1m": r.get('RS_Rating_1M'),
+                    "rs_rating_3m": r.get('RS_Rating_3M'),
+                    "rs_rating_6m": r.get('RS_Rating_6M'),
                     "entry": round(entry, 2),
                     "stoploss": round(stoploss, 2),
                     "position_size_pct": round(pos_size_pct * 100, 1),

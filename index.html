@@ -6845,15 +6845,15 @@
                     ${stat('Total Return', `${m.total_return_pct >= 0 ? '+' : ''}${m.total_return_pct.toFixed(1)}%`, m.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)')}
                     ${stat('CAGR', `${m.cagr_pct.toFixed(1)}%`, 'var(--accent)')}
                     ${stat('Max Drawdown', `-${m.max_drawdown_pct.toFixed(1)}%`, 'var(--red)')}
-                    ${stat('Win Rate', `${m.win_rate_pct.toFixed(0)}% (${m.win_count}/${m.total_trades})`, wrColor)}
+                    ${stat('Batting Avg (Win Rate)', `${m.win_rate_pct.toFixed(0)}% (${m.win_count}/${m.total_trades})`, wrColor)}
                     ${stat('Avg Win', `+$${m.avg_win_dollar.toLocaleString()} (+${m.avg_win_r.toFixed(2)}R)`, 'var(--green)')}
                     ${stat('Avg Loss', `$${m.avg_loss_dollar.toLocaleString()} (${m.avg_loss_r.toFixed(2)}R)`, 'var(--red)')}
-                    ${stat('Payoff Ratio', `${m.payoff_ratio.toFixed(2)}x`, pfColor)}
+                    ${stat('Avg Risk:Reward', `${m.payoff_ratio.toFixed(2)}`, pfColor)}
                     ${stat('Profit Factor', `${m.profit_factor.toFixed(2)}`, pfColor)}
                     ${stat('Expectancy (R)', `${m.expectancy_r >= 0 ? '+' : ''}${m.expectancy_r.toFixed(3)}R`, m.expectancy_r >= 0 ? 'var(--green)' : 'var(--red)')}
                     ${stat('Expectancy ($)', `${m.expectancy_dollar >= 0 ? '+' : ''}$${m.expectancy_dollar.toLocaleString()}`, m.expectancy_dollar >= 0 ? 'var(--green)' : 'var(--red)')}
-                    ${stat('Best Trade', `+$${m.best_trade_dollar.toLocaleString()} (+${m.best_trade_r.toFixed(2)}R)`, 'var(--green)')}
-                    ${stat('Worst Trade', `$${m.worst_trade_dollar.toLocaleString()} (${m.worst_trade_r.toFixed(2)}R)`, 'var(--red)')}
+                    ${stat('Max Profit', `+$${m.best_trade_dollar.toLocaleString()} (+${m.best_trade_r.toFixed(2)}R)`, 'var(--green)')}
+                    ${stat('Max Loss', `$${m.worst_trade_dollar.toLocaleString()} (${m.worst_trade_r.toFixed(2)}R)`, 'var(--red)')}
                     ${stat('Avg Holding', `${m.avg_holding_days.toFixed(0)} days`, 'var(--text-primary)')}
                     ${stat('Partial Exits', `${m.partial_exit_count}`, 'var(--yellow)')}
                     ${stat('Max Win Streak', `${m.max_consecutive_wins}`, 'var(--green)')}
@@ -6862,6 +6862,24 @@
                     ${stat('Time in Market', `${m.time_in_market_pct.toFixed(0)}% (${m.days_in_market}/${m.total_trading_days} days)`, 'var(--text-secondary)')}
                 </div>
             </div>`;
+
+            if (m.returns_by_year && Object.keys(m.returns_by_year).length > 0) {
+                let yearlyHtml = `
+                <div class="pf-section" style="margin-top: 1rem;">
+                    <div class="pf-section-title">📅 Yearly Performance Breakdown</div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">`;
+                
+                for (const [year, ret] of Object.entries(m.returns_by_year)) {
+                    let color = ret >= 0 ? "var(--green)" : "var(--red)";
+                    yearlyHtml += `
+                        <div style="background: var(--bg-hover); padding: 8px 12px; border-radius: 6px; text-align: center; border: 1px solid var(--border-color); flex: 1; min-width: 70px;">
+                            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px;">${year}</div>
+                            <div style="color: ${color}; font-weight: 600;">${ret > 0 ? '+' : ''}${ret}%</div>
+                        </div>`;
+                }
+                yearlyHtml += `</div></div>`;
+                el.innerHTML += yearlyHtml;
+            }
         }
 
         // ── Init ─────────────────────────────────────────────────
