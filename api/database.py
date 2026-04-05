@@ -61,7 +61,8 @@ COL_MAP = {
     'gap_up': 'Gap_Up', 'gap_down': 'Gap_Down', 'vcp_approximation': 'VCP_Approximation',
     'momentum_1d': 'Momentum_1D', 'momentum_1w': 'Momentum_1W', 'momentum_1m': 'Momentum_1M',
     'momentum_3m': 'Momentum_3M', 'momentum_6m': 'Momentum_6M', 'momentum_1y': 'Momentum_1Y',
-    'rs_rating': 'RS_Rating', 'sector': 'Sector', 'industry': 'Industry',
+    'rs_rating': 'RS_Rating', 'rs_rating_1m': 'RS_Rating_1M', 'rs_rating_3m': 'RS_Rating_3M', 
+    'rs_rating_6m': 'RS_Rating_6M', 'sector': 'Sector', 'industry': 'Industry',
     'market_cap': 'Market_Cap', 'stage': 'Stage',
     'avg_mom': 'Avg_Mom', 'count': 'count'
 }
