@@ -62,7 +62,7 @@ def load_ohlcv_data() -> Dict[str, pd.DataFrame]:
         query = """
             SELECT Ticker, Date, Open, High, Low, Close, Volume
             FROM daily_ohlcv
-            WHERE Market = 'US'
+            WHERE Market = 'US' AND Date >= '2023-01-01'
             ORDER BY Ticker, Date ASC
         """
         if is_pg:
