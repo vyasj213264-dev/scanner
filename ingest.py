@@ -57,7 +57,10 @@ def calculate_rs_rating(stock_df, spy_df):
         res = {'1M': np.nan, '3M': np.nan, '6M': np.nan, '1Y': np.nan}
         def get_perf(df, days):
             if len(df) < days: return np.nan
-            return float(df['Close'].iloc[-1]) / float(df['Close'].iloc[-days])
+            c = df['Close']
+            if isinstance(c, pd.DataFrame):
+                c = c.iloc[:, 0]
+            return float(c.iloc[-1]) / float(c.iloc[-days])
 
         for key, days in [('1M', 21), ('3M', 63), ('6M', 126), ('1Y', 252)]:
             stock_perf = get_perf(stock_df, days)
@@ -222,6 +225,10 @@ def run_ingest(market='US'):
     print(f"Loading {market} ticker universe...", flush=True)
     tickers = []
     ticker_meta = {}
+    
+    # Store data directly in memory to pass to portfolio engine
+    sim_data_dict = {}
+    ibd_rs_dict = {}
     
     if market == 'US':
         # Inject core US Index Proxies for Trade Portal
@@ -458,6 +465,13 @@ def run_ingest(market='US'):
                     # Store all trailing OHLCV data for comprehensive Simulation and Charting Lookbacks
                     historical_data = df.copy()
                     
+                    df_sim = df[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
+                    df_sim.index.name = 'Date'
+                    df_sim = df_sim.reset_index()
+                    df_sim['Date'] = pd.to_datetime(df_sim['Date'])
+                    df_sim['Ticker'] = ticker
+                    sim_data_dict[ticker] = df_sim
+                    
                     # We need to extract Date (index), Open, High, Low, Close, Volume
                     for date_idx, row_data in historical_data.iterrows():
                         # Handle potential numpy types / pandas timestamp
@@ -533,6 +547,14 @@ def run_ingest(market='US'):
                         df_etf = etf_data.dropna(subset=['Close'])
                     
                     trailing = df_etf.copy()
+                    
+                    df_sim = df_etf[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
+                    df_sim.index.name = 'Date'
+                    df_sim = df_sim.reset_index()
+                    df_sim['Date'] = pd.to_datetime(df_sim['Date'])
+                    df_sim['Ticker'] = etf_ticker
+                    sim_data_dict[etf_ticker] = df_sim
+                    
                     etf_count = 0
                     for date_idx, row_data in trailing.iterrows():
                         date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
@@ -937,6 +959,8 @@ def run_ingest(market='US'):
             r3 = None if pd.isna(row['RS_Rating_3M']) else float(row['RS_Rating_3M'])
             r4 = None if pd.isna(row['RS_Rating_6M']) else float(row['RS_Rating_6M'])
             update_data.append((r1, r2, r3, r4, row['Ticker']))
+            if r1 is not None:
+                ibd_rs_dict[row['Ticker']] = r1
         
         for i in range(0, len(update_data), batch_size):
             batch = update_data[i:i + batch_size]
@@ -1125,6 +1149,19 @@ def run_ingest(market='US'):
         print(f"[{market}] Database connection closed.", flush=True)
     print(f"[{market}] Ingestion complete.", flush=True)
 
+    print(f"[{market}] Running portfolio simulation...", flush=True)
+    if market == 'US':
+        try:
+            from api.services.portfolio_engine import run_all_variants, store_results
+            results = run_all_variants(in_memory_data=sim_data_dict, in_memory_ibd=ibd_rs_dict)
+            if results:
+                store_results(results)
+                print("✅ Successfully updated portfolio simulation results.", flush=True)
+            else:
+                print("⚠️ Portfolio Simulation yielded no data.", flush=True)
+        except Exception as e:
+            print(f"❌ Portfolio Simulation Error: {e}", flush=True)
+
 def main():
     import sys
     target_market = sys.argv[1].upper() if len(sys.argv) > 1 else 'BOTH'
@@ -1132,18 +1169,6 @@ def main():
     if target_market in ['US', 'BOTH']:
         print("\n=== STARTING US MARKET INGESTION ===", flush=True)
         run_ingest(market='US')
-        
-        print("\n=== UPDATING PORTFOLIO SIMULATION ===", flush=True)
-        try:
-            from api.services.portfolio_engine import run_all_variants, store_results
-            results = run_all_variants()
-            if results:
-                store_results(results)
-                print("✅ Portfolio Simulation complete and stored.", flush=True)
-            else:
-                print("⚠️ Portfolio Simulation yielded no data.", flush=True)
-        except Exception as e:
-            print(f"❌ Portfolio Simulation Error: {e}", flush=True)
         
     # TODO: Uncomment the following block when ready to ingest Indian market data again
     # if target_market in ['IN', 'BOTH']:

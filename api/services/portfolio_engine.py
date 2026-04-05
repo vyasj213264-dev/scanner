@@ -876,14 +876,19 @@ def compute_metrics(equity_curve: List[dict], closed_trades: List[dict],
 # ──────────────────────────────────────────────────────────────────
 # Main Entry Point
 # ──────────────────────────────────────────────────────────────────
-def run_all_variants() -> List[dict]:
+def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, in_memory_ibd: Dict[str, float] = None) -> List[dict]:
     """
-    Run all 8 strategy variants and return results.
-    This is the main entry point called by the API.
+    Main entry point. Loads OHLCV data once, precomputes indicators,
+    and runs all variants simultaneously without recalculating.
+    Pass in_memory_data and in_memory_ibd to run directly from RAM.
     """
     start_time = time.time()
-    print("📊 Portfolio Engine: Loading OHLCV data...", flush=True)
-    all_data = load_ohlcv_data()
+
+    print("📊 Portfolio Engine: Loading data...", flush=True)
+    if in_memory_data is not None:
+        all_data = {t: df.copy() for t, df in in_memory_data.items()}
+    else:
+        all_data = load_ohlcv_data()
     print(f"   Loaded {len(all_data)} tickers with OHLCV data", flush=True)
 
     if 'QQQ' not in all_data:
@@ -906,7 +911,10 @@ def run_all_variants() -> List[dict]:
 
     # Load IBD-style RS ratings from screen_data
     print("📊 Portfolio Engine: Loading IBD RS ratings...", flush=True)
-    ibd_rs = load_rs_ratings()
+    if in_memory_ibd is not None:
+        ibd_rs = in_memory_ibd
+    else:
+        ibd_rs = load_rs_ratings()
     print(f"   Loaded RS ratings for {len(ibd_rs)} tickers", flush=True)
 
     # Convert all DataFrames to string-indexed Date for O(1) lookups
