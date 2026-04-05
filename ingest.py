@@ -8,6 +8,9 @@ import time
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configurable historic data retention period (e.g. '5y', '10y', 'max')
+HISTORY_PERIOD = os.environ.get('HISTORY_PERIOD', '5y')
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_NAME = "scanner.db"
 
@@ -292,30 +295,31 @@ def run_ingest(market='US'):
             except Exception as sec_e:
                 print(f"Error: SEC fallback also failed: {sec_e}", flush=True)
                 
-    elif market == 'IN':
-        print("Fetching Indian Tickers (NSE/BSE)...", flush=True)
-        in_tickers, in_meta = fetch_indian_tickers()
-        tickers.extend(in_tickers)
-        ticker_meta.update(in_meta)
-        
-        # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
-        import concurrent.futures
-        print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
-        actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
-        
-        def _fetch_mc(t):
-            try:
-                import yfinance as yf
-                return t, yf.Ticker(t).fast_info.get('marketCap')
-            except:
-                return t, None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-            for t, mc in executor.map(_fetch_mc, actual_stocks):
-                if mc:
-                    ticker_meta[t]['market_cap'] = mc
-                    
-        print("Indian Market Cap fetch complete.", flush=True)
+    # TODO: Uncomment when ready to ingest Indian market data again
+    # elif market == 'IN':
+    #     print("Fetching Indian Tickers (NSE/BSE)...", flush=True)
+    #     in_tickers, in_meta = fetch_indian_tickers()
+    #     tickers.extend(in_tickers)
+    #     ticker_meta.update(in_meta)
+    #     
+    #     # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
+    #     import concurrent.futures
+    #     print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
+    #     actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
+    #     
+    #     def _fetch_mc(t):
+    #         try:
+    #             import yfinance as yf
+    #             return t, yf.Ticker(t).fast_info.get('marketCap')
+    #         except:
+    #             return t, None
+    # 
+    #     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+    #         for t, mc in executor.map(_fetch_mc, actual_stocks):
+    #             if mc:
+    #                 ticker_meta[t]['market_cap'] = mc
+    #                 
+    #     print("Indian Market Cap fetch complete.", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
@@ -344,7 +348,7 @@ def run_ingest(market='US'):
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
-    benchmark_data = yf.download(benchmark_ticker, period='10y', progress=False)
+    benchmark_data = yf.download(benchmark_ticker, period=HISTORY_PERIOD, progress=False)
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
@@ -359,7 +363,7 @@ def run_ingest(market='US'):
                 # Add a baseline sleep to avoid hitting the API too fast
                 time.sleep(5)
                 # threads=False is CRITICAL for GitHub Actions otherwise Yahoo instantly rate-limits the concurrent connections
-                temp_data = yf.download(chunk, period='10y', group_by='ticker', progress=False, threads=False)
+                temp_data = yf.download(chunk, period=HISTORY_PERIOD, group_by='ticker', progress=False, threads=False)
                 
                 # yfinance sometimes returns an empty dataframe when silently rate limited
                 if temp_data.empty:
@@ -519,7 +523,7 @@ def run_ingest(market='US'):
     if etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
         try:
-            etf_data = yf.download(etfs_to_download, period='10y', group_by='ticker', threads=True)
+            etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=True)
             
             for etf_ticker in etfs_to_download:
                 try:
@@ -1098,9 +1102,10 @@ def main():
         except Exception as e:
             print(f"❌ Portfolio Simulation Error: {e}", flush=True)
         
-    if target_market in ['IN', 'BOTH']:
-        print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
-        run_ingest(market='IN')
+    # TODO: Uncomment the following block when ready to ingest Indian market data again
+    # if target_market in ['IN', 'BOTH']:
+    #     print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
+    #     run_ingest(market='IN')
 
 if __name__ == "__main__":
     main()

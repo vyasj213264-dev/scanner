@@ -27,5 +27,6 @@ jobs:
       - name: Run ingestion script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          HISTORY_PERIOD: '5y' # Change to '10y', 'max', '1y' etc. to change historic pull depth.
         run: |
           python ingest.py BOTH
