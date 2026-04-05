@@ -51,16 +51,22 @@ def _safe_bool(val):
 def calculate_rs_rating(stock_df, spy_df):
     global _rs_error_logged
     try:
-        if len(stock_df) < 252 or len(spy_df) < 252:
-            return np.nan
-        stock_perf = _safe_float(stock_df['Close'].iloc[-1]) / _safe_float(stock_df['Close'].iloc[-252])
-        spy_perf = _safe_float(spy_df['Close'].iloc[-1]) / _safe_float(spy_df['Close'].iloc[-252])
-        return stock_perf / spy_perf
+        res = {'1M': np.nan, '3M': np.nan, '6M': np.nan, '1Y': np.nan}
+        def get_perf(df, days):
+            if len(df) < days: return np.nan
+            return float(df['Close'].iloc[-1]) / float(df['Close'].iloc[-days])
+
+        for key, days in [('1M', 21), ('3M', 63), ('6M', 126), ('1Y', 252)]:
+            stock_perf = get_perf(stock_df, days)
+            spy_perf = get_perf(spy_df, days)
+            if pd.notna(stock_perf) and pd.notna(spy_perf) and spy_perf != 0:
+                res[key] = stock_perf / spy_perf
+        return res
     except Exception as e:
         if not _rs_error_logged:
             print(f"WARNING: calculate_rs_rating failed: {type(e).__name__}: {e}", flush=True)
             _rs_error_logged = True
-        return np.nan
+        return {'1M': np.nan, '3M': np.nan, '6M': np.nan, '1Y': np.nan}
 
 # Dictionary to store daily aggregations for Stage 1-4
 historical_stages = {}
@@ -391,9 +397,11 @@ def run_ingest(market='US'):
             last = calculate_indicators(df)
             if last is not None:
                 success_count += 1
-                rs_raw = calculate_rs_rating(df, benchmark_data)
-                # Convert NaN to None so PostgreSQL stores it as NULL (not NaN)
-                rs_raw_clean = None if (rs_raw is None or pd.isna(rs_raw)) else float(rs_raw)
+                rs_raws = calculate_rs_rating(df, benchmark_data)
+                rs_raw_1m = None if pd.isna(rs_raws['1M']) else float(rs_raws['1M'])
+                rs_raw_3m = None if pd.isna(rs_raws['3M']) else float(rs_raws['3M'])
+                rs_raw_6m = None if pd.isna(rs_raws['6M']) else float(rs_raws['6M'])
+                rs_raw_1y = None if pd.isna(rs_raws['1Y']) else float(rs_raws['1Y'])
                 
                 try:
                     # Map indicators to the canonical order for screen_data
@@ -417,7 +425,10 @@ def run_ingest(market='US'):
                         _safe_bool(last['In_Stage_2']),
                         _safe_bool(last['Tight_Setup']),
                         _safe_bool(last['Near_Horizontal_Resistance']),
-                        rs_raw_clean,
+                        rs_raw_1y,
+                        rs_raw_1m,
+                        rs_raw_3m,
+                        rs_raw_6m,
                         _safe_bool(last['Inside_Bar']),
                         _safe_bool(last['Golden_Crossover']),
                         _safe_bool(last['Gap_Up']),
@@ -430,6 +441,9 @@ def run_ingest(market='US'):
                         _nan_to_none(last['Momentum_6M']),
                         _nan_to_none(last['Momentum_1Y']),
                         0.0, # Placeholder for RS_Rating
+                        0.0, # RS_Rating_1M
+                        0.0, # RS_Rating_3M
+                        0.0, # RS_Rating_6M
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
                         _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap')),
@@ -640,6 +654,9 @@ def run_ingest(market='US'):
             Tight_Setup {sql_types["BOOLEAN"]},
             Near_Horizontal_Resistance {sql_types["BOOLEAN"]},
             RS_Raw {sql_types["REAL"]},
+            RS_Raw_1M {sql_types["REAL"]},
+            RS_Raw_3M {sql_types["REAL"]},
+            RS_Raw_6M {sql_types["REAL"]},
             Inside_Bar {sql_types["BOOLEAN"]},
             Golden_Crossover {sql_types["BOOLEAN"]},
             Gap_Up {sql_types["BOOLEAN"]},
@@ -652,6 +669,9 @@ def run_ingest(market='US'):
             Momentum_6M {sql_types["REAL"]},
             Momentum_1Y {sql_types["REAL"]},
             RS_Rating {sql_types["REAL"]},
+            RS_Rating_1M {sql_types["REAL"]},
+            RS_Rating_3M {sql_types["REAL"]},
+            RS_Rating_6M {sql_types["REAL"]},
             Sector {sql_types["TEXT"]},
             Industry {sql_types["TEXT"]},
             Market_Cap {sql_types["REAL"]},
@@ -747,8 +767,9 @@ def run_ingest(market='US'):
     SCREEN_DATA_COLS = [
         "Ticker", "Market", "Date", "Close", "Volume", "SMA_5", "SMA_9", "SMA_10", "SMA_20", "SMA_21", "SMA_50", "SMA_100", "SMA_200",
         "RVOL", "ADR_20", "Pct_From_52W_High", "In_Stage_2", "Tight_Setup", "Near_Horizontal_Resistance", 
-        "RS_Raw", "Inside_Bar", "Golden_Crossover", "Gap_Up", "Gap_Down", "VCP_Approximation", 
-        "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", "RS_Rating",
+        "RS_Raw", "RS_Raw_1M", "RS_Raw_3M", "RS_Raw_6M", "Inside_Bar", "Golden_Crossover", "Gap_Up", "Gap_Down", "VCP_Approximation", 
+        "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", 
+        "RS_Rating", "RS_Rating_1M", "RS_Rating_3M", "RS_Rating_6M",
         "Sector", "Industry", "Market_Cap", "Stage"
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
@@ -835,30 +856,38 @@ def run_ingest(market='US'):
     print(f"Successfully inserted {len(all_ohlcv):,} historical OHLCV records.", flush=True)
     
     
-    print("Calculating RS_Rating from RS_Raw percentile ranks...", flush=True)
-    cursor.execute(f"SELECT Ticker, RS_Raw FROM screen_data WHERE Market = '{market}' AND RS_Raw IS NOT NULL")
+    print("Calculating multi-timeframe RS Ratings from RS_Raw percentile ranks...", flush=True)
+    cursor.execute(f"SELECT Ticker, RS_Raw, RS_Raw_1M, RS_Raw_3M, RS_Raw_6M FROM screen_data WHERE Market = '{market}' AND RS_Raw IS NOT NULL")
     rows = cursor.fetchall()
-    # Handle list of tuples directly (default for both sqlite3 and psycopg2 without DictRow)
-    df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw'])
-    # Extra safety: drop any NaN values that slipped through
+    df_db = pd.DataFrame(rows, columns=['Ticker', 'RS_Raw', 'RS_Raw_1M', 'RS_Raw_3M', 'RS_Raw_6M'])
     df_db = df_db.dropna(subset=['RS_Raw'])
     
     print(f"Found {len(df_db)} tickers with valid RS_Raw values.", flush=True)
     
     if not df_db.empty:
         df_db['RS_Rating'] = df_db['RS_Raw'].rank(pct=True) * 99
-        update_data = [(float(r), t) for r, t in zip(df_db['RS_Rating'], df_db['Ticker'])]
+        df_db['RS_Rating_1M'] = df_db['RS_Raw_1M'].rank(pct=True) * 99
+        df_db['RS_Rating_3M'] = df_db['RS_Raw_3M'].rank(pct=True) * 99
+        df_db['RS_Rating_6M'] = df_db['RS_Raw_6M'].rank(pct=True) * 99
+        
+        update_data = []
+        for _, row in df_db.iterrows():
+            r1 = None if pd.isna(row['RS_Rating']) else float(row['RS_Rating'])
+            r2 = None if pd.isna(row['RS_Rating_1M']) else float(row['RS_Rating_1M'])
+            r3 = None if pd.isna(row['RS_Rating_3M']) else float(row['RS_Rating_3M'])
+            r4 = None if pd.isna(row['RS_Rating_6M']) else float(row['RS_Rating_6M'])
+            update_data.append((r1, r2, r3, r4, row['Ticker']))
         
         for i in range(0, len(update_data), batch_size):
             batch = update_data[i:i + batch_size]
             print(f"  Updating RS_Rating batch {i//batch_size + 1} for {len(batch)} tickers...", flush=True)
             if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-                cursor.executemany("UPDATE screen_data SET RS_Rating = %s WHERE Ticker = %s", batch)
+                cursor.executemany("UPDATE screen_data SET RS_Rating = %s, RS_Rating_1M = %s, RS_Rating_3M = %s, RS_Rating_6M = %s WHERE Ticker = %s", batch)
             else:
-                cursor.executemany("UPDATE screen_data SET RS_Rating = ? WHERE Ticker = ?", batch)
+                cursor.executemany("UPDATE screen_data SET RS_Rating = ?, RS_Rating_1M = ?, RS_Rating_3M = ?, RS_Rating_6M = ? WHERE Ticker = ?", batch)
             conn.commit()
         
-        print(f"Successfully updated RS_Rating for {len(update_data)} tickers.", flush=True)
+        print(f"Successfully updated multi-timeframe RS Ratings for {len(update_data)} tickers.", flush=True)
             
     # ---------------------------------------------------------
     # Build the Pre-Computed Scanner Cache
@@ -1043,6 +1072,18 @@ def main():
     if target_market in ['US', 'BOTH']:
         print("\n=== STARTING US MARKET INGESTION ===", flush=True)
         run_ingest(market='US')
+        
+        print("\n=== UPDATING PORTFOLIO SIMULATION ===", flush=True)
+        try:
+            from api.services.portfolio_engine import run_all_variants, store_results
+            results = run_all_variants()
+            if results:
+                store_results(results)
+                print("✅ Portfolio Simulation complete and stored.", flush=True)
+            else:
+                print("⚠️ Portfolio Simulation yielded no data.", flush=True)
+        except Exception as e:
+            print(f"❌ Portfolio Simulation Error: {e}", flush=True)
         
     if target_market in ['IN', 'BOTH']:
         print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
