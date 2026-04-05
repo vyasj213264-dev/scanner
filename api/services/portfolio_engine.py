@@ -54,49 +54,41 @@ VARIANTS = [
 # Data Loading
 # ──────────────────────────────────────────────────────────────────
 def load_ohlcv_data() -> Dict[str, pd.DataFrame]:
-    """Load all US daily OHLCV from database, return dict of ticker -> DataFrame."""
+    """Load historical OHLCV data directly into a bulk DataFrame for massive memory savings."""
+    print("   -> Fetching raw rows from DB...", flush=True)
     with get_db() as conn:
-        is_pg = hasattr(conn, 'info') or hasattr(conn, 'dsn')
         cursor = conn.cursor()
-
         query = """
             SELECT Ticker, Date, Open, High, Low, Close, Volume
             FROM daily_ohlcv
-            WHERE Market = 'US' AND Date >= '2023-01-01'
-            ORDER BY Ticker, Date ASC
+            WHERE Market = 'US' AND Date >= '2024-01-01'
         """
-        if is_pg:
-            cursor.execute(query)
-            cols = [desc[0] for desc in cursor.description]
-            rows = [dict(zip(cols, r)) for r in cursor.fetchall()]
-        else:
-            import sqlite3
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(query)
-            rows = [dict(r) for r in cursor.fetchall()]
+        cursor.execute(query)
+        # fetchall() natively returns list of tuples for psycopg2 and standard sqlite3.
+        # This is strictly Memory-Optimized (no Python dict overhead).
+        rows = cursor.fetchall()
 
-    # Group into per-ticker DataFrames
-    ticker_data: Dict[str, List[dict]] = defaultdict(list)
-    for r in rows:
-        ticker_data[r['Ticker'] if 'Ticker' in r else r['ticker']].append(r)
+    print(f"   -> DB fetch complete ({len(rows)} rows). Converting to bulk DataFrame...", flush=True)
+    columns = ['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+    df = pd.DataFrame(rows, columns=columns)
+    
+    # 🚨 Crucial: Free the raw tuple list from Python memory!
+    del rows
+    
+    print("   -> Normalizing types...", flush=True)
+    df['Date'] = pd.to_datetime(df['Date'])
+    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+    df = df.dropna(subset=['Close'])
 
+    print("   -> Splitting and computing indicators per ticker...", flush=True)
     result = {}
-    for ticker, records in ticker_data.items():
-        df = pd.DataFrame(records)
-        # Normalize column names
-        col_map = {c: c.capitalize() if c[0].islower() else c for c in df.columns}
-        df = df.rename(columns=col_map)
-        for c in ['Open', 'High', 'Low', 'Close', 'Volume']:
-            if c in df.columns:
-                df[c] = pd.to_numeric(df[c], errors='coerce')
-        df['Date'] = pd.to_datetime(df['Date'])
-        df = df.sort_values('Date').reset_index(drop=True)
-        df = df.dropna(subset=['Close'])
-        if len(df) >= 30:  # Need minimum history for indicators
+    for ticker, group in df.groupby('Ticker'):
+        group = group.sort_values('Date').reset_index(drop=True)
+        if len(group) >= 30:  # Need minimum history for indicators
             # Apply indicators at the source
-            df = compute_indicators(df)
-            result[ticker] = df
+            result[ticker] = compute_indicators(group)
 
     return result
 
