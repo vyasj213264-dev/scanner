@@ -9,6 +9,8 @@ Endpoints for the US Portfolio Simulator:
 
 import json
 import traceback
+import os
+import requests
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Depends
 
@@ -135,35 +137,43 @@ def get_variant(variant_id: str):
         raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")
 
 
-@router.post("/simulate", summary="Trigger simulation of all 8 portfolio variants")
+@router.post("/simulate", summary="Trigger simulation asynchronously via GitHub Actions")
 def trigger_simulation():
-    """Runs the full portfolio simulation engine and stores results."""
+    """Dispatches the heavy portfolio simulation engine to GitHub Actions."""
     try:
-        from api.services.portfolio_engine import run_all_variants, store_results
+        pat = os.environ.get("GITHUB_PAT")
+        if not pat:
+            return {"status": "warning", "message": "Simulation cannot start! Ensure you have set the GITHUB_PAT environment variable in Render."}
 
-        results = run_all_variants()
-
-        if not results:
-            return {"status": "warning", "message": "No results generated. Check that QQQ and SPY data are available."}
-
-        store_results(results)
-
-        summary = []
-        for r in results:
-            m = r.get('metrics', {})
-            summary.append({
-                "variant_id": r['variant_id'],
-                "total_return_pct": m.get('total_return_pct', 0),
-                "total_trades": m.get('total_trades', 0),
-                "win_rate_pct": m.get('win_rate_pct', 0),
-            })
-
-        return {
-            "status": "success",
-            "message": f"Simulation complete. {len(results)} variants computed.",
-            "summary": summary
+        owner = "vyasj213264-dev"
+        repo = "scanner"
+        workflow_id = "simulate_portfolio.yml"
+        
+        url = f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches"
+        
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": f"token {pat}",
+            "User-Agent": "Chartmaze-App"
         }
+        
+        data = {
+            "ref": "main"
+        }
+        
+        # We don't wait for completion. A 204 means successfully dispatched.
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 204:
+            return {
+                "status": "accepted",
+                "message": "Simulation successfully queued on GitHub Actions! Results will be ready in ~1 minute."
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"GitHub API Error: {response.text}")
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Portfolio simulation error: {e}\n{traceback.format_exc()}", flush=True)
-        raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")
+        print(f"Portfolio simulation dispatch error: {e}\\n{traceback.format_exc()}", flush=True)
+        raise HTTPException(status_code=500, detail=f"{e}\\n{traceback.format_exc()}")

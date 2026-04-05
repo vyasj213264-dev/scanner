@@ -6511,13 +6511,29 @@
 
         async function triggerPortfolioSim() {
             const area = document.getElementById('grid-area');
-            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Running simulation across 8 strategy variants...<br><span style="font-size:0.8rem; color:var(--text-muted)">This may take 30-60 seconds</span></div></div>';
+            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Dispatching simulation to GitHub computing clusters...</div></div>';
             try {
                 const res = await fetchApi('/portfolio/simulate', { method: 'POST' });
-                if (!res.ok) throw new Error(`API ${res.status}`);
-                runPortfolio(true);
+                
+                if (res.status === 'accepted') {
+                     area.innerHTML = `
+                     <div style="max-width:700px; margin:60px auto; text-align:center;">
+                         <div style="font-size:3rem; margin-bottom:16px;">☁️</div>
+                         <h2 style="color:var(--green); margin-bottom:12px;">Simulation Dispatched!</h2>
+                         <p style="color:var(--text-secondary); margin-bottom:24px;">
+                             ${res.message}<br><br>
+                             Since computing 3,100 US stocks takes enormous power, we've passed this math to our dedicated GitHub Action runners.<br>
+                             Please grab a coffee and <b>refresh the page in about 1 to 2 minutes</b>.
+                         </p>
+                     </div>`;
+                } else if (res.status === 'warning') {
+                     area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Simulation Warning: ${res.message}</div>`;
+                } else {
+                     area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Unexpected response: ${JSON.stringify(res)}</div>`;
+                }
+
             } catch(e) {
-                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Simulation failed: ${e.message}</div>`;
+                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Simulation failed to launch: ${e.message}</div>`;
             }
         }
 
