@@ -12,8 +12,8 @@ Entry at T+1 Open after signal on T. InitialStop = previous bar's StopLine.
 Version: 1.0.0
 """
 
-import math
 import json
+import time
 import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
@@ -94,6 +94,8 @@ def load_ohlcv_data() -> Dict[str, pd.DataFrame]:
         df = df.sort_values('Date').reset_index(drop=True)
         df = df.dropna(subset=['Close'])
         if len(df) >= 30:  # Need minimum history for indicators
+            # Apply indicators at the source
+            df = compute_indicators(df)
             result[ticker] = df
 
     return result
@@ -153,6 +155,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['Dollar_Volume'] = df['Close'] * df['Volume']
     df['Avg_Dollar_Vol_50'] = df['Dollar_Volume'].rolling(window=50).mean()
 
+    # Pre-shift StopLine for initial stop access (T-1)
+    df['Prev_StopLine'] = df['StopLine'].shift(1)
+
     return df
 
 
@@ -203,6 +208,60 @@ def compute_1m_rs_percentiles(all_data: Dict[str, pd.DataFrame], spy_df: pd.Data
     return all_data
 
 
+def precompute_signals(all_data: Dict[str, pd.DataFrame], ibd_rs: Dict[str, float]) -> Dict[str, List[dict]]:
+    """
+    Vectorized filter to find all valid entry candidates upfront.
+    Returns: dict mapping date string -> list of candidate dicts.
+    """
+    signals_by_date = defaultdict(list)
+    print("   🚀 Precomputing vectorized entry signals...", flush=True)
+
+    for ticker, df in all_data.items():
+        if ticker in ('SPY', 'QQQ', 'IWM', 'DIA'):
+            continue
+
+        rs_ibd = ibd_rs.get(ticker, 0)
+        rs_1m_col = df.get('1M_RS_Pctile', pd.Series(0, index=df.index))
+
+        # Vectorized logical mask mapping Zanger/Darvas entry requirements
+        mask = (
+            (df['Close'] >= MIN_PRICE) &
+            (df['Avg_Dollar_Vol_50'] >= MIN_AVG_DOLLAR_VOL) &
+            (df['Bullish_Structure'] == True) &
+            (df['Pullback_OK'] == True) &
+            (df['Close'] > df['StopLine']) &
+            ((rs_ibd >= RS_THRESHOLD) | (rs_1m_col >= RS_THRESHOLD))
+        )
+
+        valid_df = df[mask]
+        if valid_df.empty:
+            continue
+
+        for _, row in valid_df.iterrows():
+            date_val = row['Date']
+            if isinstance(date_val, pd.Timestamp):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val)
+
+            pctile = row.get('1M_RS_Pctile', np.nan)
+            initial_stop = float(row.get('Prev_StopLine', np.nan))
+
+            if pd.isna(initial_stop) or initial_stop <= 0:
+                continue
+
+            signals_by_date[date_str].append({
+                "ticker": ticker,
+                "close": float(row['Close']),
+                "initial_stop": initial_stop,
+                "rs_ibd": rs_ibd,
+                "rs_1m": float(pctile) if not pd.isna(pctile) else 0,
+                "ema_high_8": float(row['EMA_High_8'])
+            })
+
+    return dict(signals_by_date)
+
+
 # ──────────────────────────────────────────────────────────────────
 # Position & Trade Tracking
 # ──────────────────────────────────────────────────────────────────
@@ -251,7 +310,7 @@ def make_trade_record(date: str, ticker: str, action: str, qty: int,
 # Simulation Core
 # ──────────────────────────────────────────────────────────────────
 def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
-                qqq_df: pd.DataFrame, ibd_rs: Dict[str, float],
+                qqq_df: pd.DataFrame, signals_by_date: Dict[str, List[dict]],
                 trading_dates: List[str]) -> dict:
     """
     Run a single variant simulation day-by-day.
@@ -264,7 +323,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
     variant_label = variant["label"]
 
     # Pre-compute QQQ gate series
-    qqq_indexed = qqq_df.set_index('Date')
+    qqq_indexed = qqq_df  # Now already indexed by Date
     sma_col = f'SMA_{gate_sma}'
 
     # State
@@ -285,25 +344,29 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
         for pos in positions:
             if pos.ticker in all_data:
                 df = all_data[pos.ticker]
-                day_row = df[df['Date'] == date_str]
-                if not day_row.empty:
-                    total += pos.shares * float(day_row.iloc[0]['Close'])
-                else:
-                    # Use entry price as fallback
+                try:
+                    row = df.loc[date_str]
+                    if isinstance(row, pd.DataFrame):
+                        row = row.iloc[0]
+                    total += pos.shares * float(row['Close'])
+                except KeyError:
                     total += pos.shares * pos.entry_price
             else:
                 total += pos.shares * pos.entry_price
         return total
 
     def get_ticker_row(ticker: str, date_str: str) -> Optional[pd.Series]:
-        """Get a ticker's data row for a specific date."""
+        """Get a ticker's data row for a specific date (O(1) index lookup)."""
         if ticker not in all_data:
             return None
         df = all_data[ticker]
-        rows = df[df['Date'] == date_str]
-        if rows.empty:
+        try:
+            row = df.loc[date_str]
+            if isinstance(row, pd.DataFrame):
+                return row.iloc[0]
+            return row
+        except KeyError:
             return None
-        return rows.iloc[0]
 
     for i, date_str in enumerate(trading_dates):
 
@@ -514,90 +577,46 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
         # ── Step 4: Generate Entry Signals (for execution on T+1) ──
         open_slots = MAX_POSITIONS - len(positions) - len(pending_entries)
         if gate_on and open_slots > 0:
-            # Find candidates
             held_tickers = {p.ticker for p in positions}
             pending_tickers = {e['ticker'] for e in pending_entries}
 
-            candidates = []
-            for ticker, df in all_data.items():
-                if ticker in ('SPY', 'QQQ', 'IWM', 'DIA'):
-                    continue
+            # Retrieve pre-computed candidates for today in O(1) time
+            day_signals = signals_by_date.get(date_str, [])
+            valid_candidates = []
+
+            for cand in day_signals:
+                ticker = cand['ticker']
                 if ticker in held_tickers or ticker in pending_tickers:
                     continue
 
-                row = df[df['Date'] == date_str]
-                if row.empty:
-                    continue
-                row = row.iloc[0]
-
-                # Liquidity filter
-                close_val = float(row['Close'])
-                if close_val < MIN_PRICE:
-                    continue
-                avg_dv = row.get('Avg_Dollar_Vol_50')
-                if pd.isna(avg_dv) or float(avg_dv) < MIN_AVG_DOLLAR_VOL:
-                    continue
-
-                # Bullish structure
-                if not row.get('Bullish_Structure', False):
-                    continue
-
-                # Pullback filter
-                if not row.get('Pullback_OK', False):
-                    continue
-
-                # Uptrend context: Close > StopLine
-                stop_line = row.get('StopLine')
-                if pd.isna(stop_line) or close_val <= float(stop_line):
-                    continue
-
-                # RS eligibility (prior close = today's end-of-day values)
+                # RS mode verification
                 if rs_mode == "ibd":
-                    rs_val = ibd_rs.get(ticker, 0)
-                    if rs_val < RS_THRESHOLD:
-                        continue
-                    rs_str = f"IBD RS={rs_val:.0f}"
-                elif rs_mode == "1m":
-                    pctile = row.get('1M_RS_Pctile')
-                    if pd.isna(pctile) or float(pctile) < RS_THRESHOLD:
-                        continue
-                    rs_str = f"1M RS pctile={float(pctile):.0f}"
+                    if cand['rs_ibd'] < RS_THRESHOLD: continue
+                    rs_str = f"IBD RS={cand['rs_ibd']:.0f}"
+                    sort_val = cand['rs_ibd']
                 else:
-                    continue
-
-                # InitialStop = previous bar's StopLine (day T-1)
-                signal_idx = df.index[df['Date'] == date_str]
-                if len(signal_idx) == 0:
-                    continue
-                idx_pos = signal_idx[0]
-                if idx_pos < 1:
-                    continue
-                # The signal bar is day T (today). InitialStop uses T-1's StopLine.
-                prev_bar = df.iloc[idx_pos - 1]
-                initial_stop = float(prev_bar['StopLine']) if pd.notna(prev_bar.get('StopLine')) else None
-
-                if initial_stop is None or initial_stop <= 0:
-                    continue
+                    if cand['rs_1m'] < RS_THRESHOLD: continue
+                    rs_str = f"1M RS pctile={cand['rs_1m']:.0f}"
+                    sort_val = cand['rs_1m']
 
                 gate_label = f"QQQ>{gate_sma}SMA"
                 reason = (
                     f"Entry: {rs_str}, bullish 8EMA structure, "
-                    f"pullback {((close_val / float(row['EMA_High_8'])) - 1) * 100:.1f}% from EMA cluster; "
+                    f"pullback {((cand['close'] / cand['ema_high_8']) - 1) * 100:.1f}% from EMA cluster; "
                     f"{gate_label} gate ON"
                 )
 
-                candidates.append({
+                valid_candidates.append({
                     "ticker": ticker,
-                    "close": close_val,
-                    "initial_stop": initial_stop,
-                    "rs_val": rs_val if rs_mode == "ibd" else float(pctile) if not pd.isna(pctile) else 0,
+                    "initial_stop": cand['initial_stop'],
+                    "rs_val": sort_val,
                     "reason": reason
                 })
 
             # Sort by RS (highest first) and take top N to fill slots
-            candidates.sort(key=lambda c: c['rs_val'], reverse=True)
-            for cand in candidates[:open_slots]:
-                pending_entries.append(cand)
+            valid_candidates.sort(key=lambda c: c['rs_val'], reverse=True)
+            for vc in valid_candidates[:open_slots]:
+                pending_entries.append(vc)
 
         # ── Step 5: Record Daily Equity ──
         total_equity = get_equity(date_str)
@@ -850,6 +869,7 @@ def run_all_variants() -> List[dict]:
     Run all 8 strategy variants and return results.
     This is the main entry point called by the API.
     """
+    start_time = time.time()
     print("📊 Portfolio Engine: Loading OHLCV data...", flush=True)
     all_data = load_ohlcv_data()
     print(f"   Loaded {len(all_data)} tickers with OHLCV data", flush=True)
@@ -864,7 +884,7 @@ def run_all_variants() -> List[dict]:
 
     # Compute indicators for all tickers
     print("📊 Portfolio Engine: Computing indicators...", flush=True)
-    for ticker in all_data:
+    for ticker in list(all_data.keys()):
         all_data[ticker] = compute_indicators(all_data[ticker])
 
     # Compute 1M RS percentiles
@@ -877,12 +897,19 @@ def run_all_variants() -> List[dict]:
     ibd_rs = load_rs_ratings()
     print(f"   Loaded RS ratings for {len(ibd_rs)} tickers", flush=True)
 
+    # Convert all DataFrames to string-indexed Date for O(1) lookups
+    for ticker in list(all_data.keys()):
+        df = all_data[ticker]
+        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+        df = df.set_index('Date', drop=False)
+        all_data[ticker] = df
+
     # Get QQQ DataFrame with indicators
     qqq_df = all_data['QQQ']
 
     # Build trading dates list (from QQQ as the master calendar)
-    qqq_dates = qqq_df[qqq_df['Date'] >= pd.Timestamp(SIM_START_DATE)]['Date']
-    trading_dates = [d.strftime('%Y-%m-%d') for d in sorted(qqq_dates)]
+    qqq_dates = qqq_df[qqq_df['Date'] >= SIM_START_DATE]['Date']
+    trading_dates = sorted(qqq_dates.tolist())
 
     if not trading_dates:
         print("   ⚠️  No trading dates found after SIM_START_DATE", flush=True)
@@ -890,24 +917,21 @@ def run_all_variants() -> List[dict]:
 
     print(f"   Simulation window: {trading_dates[0]} to {trading_dates[-1]} ({len(trading_dates)} days)", flush=True)
 
-    # Convert dates in all DataFrames to string for consistent lookup
-    for ticker in all_data:
-        all_data[ticker]['Date'] = all_data[ticker]['Date'].dt.strftime('%Y-%m-%d')
-
-    # Re-acquire QQQ reference AFTER date conversion (previous ref is now stale)
-    qqq_df = all_data['QQQ']
+    # Precompute all possible entry signals using vectorized logic
+    signals_by_date = precompute_signals(all_data, ibd_rs)
 
     # Run each variant
     results = []
     for variant in VARIANTS:
         print(f"   Running variant {variant['id']}: {variant['label']}...", flush=True)
-        result = run_variant(variant, all_data, qqq_df, ibd_rs, trading_dates)
+        result = run_variant(variant, all_data, qqq_df, signals_by_date, trading_dates)
         results.append(result)
         t_count = result['metrics'].get('total_trades', 0)
         ret = result['metrics'].get('total_return_pct', 0)
         print(f"   ✅ {variant['id']}: {t_count} trades, {ret:+.1f}% return", flush=True)
 
-    print(f"📊 Portfolio Engine: All {len(results)} variants complete!", flush=True)
+    elapsed = time.time() - start_time
+    print(f"📊 Portfolio Engine: All {len(results)} variants complete in {elapsed:.1f} seconds!", flush=True)
     return results
 
 
