@@ -451,12 +451,11 @@ def run_ingest(market='US'):
                     )
                     all_data.append(record)
                     
-                    # Store up to 1 year of daily trailing OHLCV data for Lightweight Charts
-                    trailing_year = df.tail(252).copy()
+                    # Store all trailing OHLCV data for comprehensive Simulation and Charting Lookbacks
+                    historical_data = df.copy()
                     
-                    # yfinance uses MultiIndex columns if group_by='ticker' wasn't perfectly parsed, but here we have standard columns
                     # We need to extract Date (index), Open, High, Low, Close, Volume
-                    for date_idx, row_data in trailing_year.iterrows():
+                    for date_idx, row_data in historical_data.iterrows():
                         # Handle potential numpy types / pandas timestamp
                         date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
                         
@@ -529,7 +528,7 @@ def run_ingest(market='US'):
                     else:
                         df_etf = etf_data.dropna(subset=['Close'])
                     
-                    trailing = df_etf.tail(252)
+                    trailing = df_etf.copy()
                     etf_count = 0
                     for date_idx, row_data in trailing.iterrows():
                         date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
