@@ -9,8 +9,6 @@ Endpoints for the US Portfolio Simulator:
 
 import json
 import traceback
-import os
-import requests
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Depends
 
@@ -137,43 +135,10 @@ def get_variant(variant_id: str):
         raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")
 
 
-@router.post("/simulate", summary="Trigger simulation asynchronously via GitHub Actions")
+@router.post("/simulate", summary="Trigger simulation instructions")
 def trigger_simulation():
-    """Dispatches the heavy portfolio simulation engine to GitHub Actions."""
-    try:
-        pat = os.environ.get("GITHUB_PAT")
-        if not pat:
-            return {"status": "warning", "message": "Simulation cannot start! Ensure you have set the GITHUB_PAT environment variable in Render."}
-
-        owner = "vyasj213264-dev"
-        repo = "scanner"
-        workflow_id = "simulate_portfolio.yml"
-        
-        url = f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches"
-        
-        headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {pat}",
-            "User-Agent": "Chartmaze-App"
-        }
-        
-        data = {
-            "ref": "main"
-        }
-        
-        # We don't wait for completion. A 204 means successfully dispatched.
-        response = requests.post(url, headers=headers, json=data)
-        
-        if response.status_code == 204:
-            return {
-                "status": "accepted",
-                "message": "Simulation successfully queued on GitHub Actions! Results will be ready in ~1 minute."
-            }
-        else:
-            raise HTTPException(status_code=500, detail=f"GitHub API Error: {response.text}")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Portfolio simulation dispatch error: {e}\\n{traceback.format_exc()}", flush=True)
-        raise HTTPException(status_code=500, detail=f"{e}\\n{traceback.format_exc()}")
+    """Tells the user that simulations must now be run via GitHub Actions."""
+    return {
+        "status": "warning",
+        "message": "Due to massive memory requirements (1.5GB+), the simulation engine has been permanently decoupled from this Web API. It now runs on your robust 7GB GitHub Runners.\\n\\nTo run the simulation manually:\\n1. Go to your GitHub Repository.\\n2. Click the 'Actions' tab.\\n3. Select 'Portfolio Simulator Engine'.\\n4. Click 'Run workflow'.\\n\\nThe results will automatically populate here once finished! (It will also automatically run every night during standard ingestion)."
+    }
