@@ -603,6 +603,30 @@ def run_ingest(market='US'):
     print(f"Total OHLCV records (stocks + ETFs): {len(all_ohlcv):,}", flush=True)
 
     # ---------------------------------------------------------
+    # 2c. Trim OHLCV to fit Neon 512 MB storage limit
+    # ---------------------------------------------------------
+    # We download full history for accurate indicator calculation (200 SMA, RS)
+    # but only persist last ~2 years per ticker for charting & simulation.
+    # This reduces OHLCV from ~5M to ~1.6M rows (~210 MB vs ~650 MB).
+    OHLCV_RETENTION_DAYS = 504  # ~2 years of trading days
+    print(f"Trimming OHLCV to last {OHLCV_RETENTION_DAYS} trading days per ticker...", flush=True)
+    ohlcv_by_ticker = {}
+    for row in all_ohlcv:
+        ticker = row[0]
+        if ticker not in ohlcv_by_ticker:
+            ohlcv_by_ticker[ticker] = []
+        ohlcv_by_ticker[ticker].append(row)
+
+    trimmed_ohlcv = []
+    for ticker, rows in ohlcv_by_ticker.items():
+        rows.sort(key=lambda r: r[1])  # YYYY-MM-DD sorts lexicographically
+        trimmed_ohlcv.extend(rows[-OHLCV_RETENTION_DAYS:])
+
+    print(f"Trimmed OHLCV from {len(all_ohlcv):,} to {len(trimmed_ohlcv):,} rows ({len(all_ohlcv) - len(trimmed_ohlcv):,} rows pruned)", flush=True)
+    all_ohlcv = trimmed_ohlcv
+    del ohlcv_by_ticker, trimmed_ohlcv  # free memory
+
+    # ---------------------------------------------------------
     # 3. Database Connection & Schema Initialization
     # ---------------------------------------------------------
     # ONLY connect right before we are ready to write.
@@ -792,10 +816,29 @@ def run_ingest(market='US'):
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
 
-    # Before inserting, selectively clear existing data for the current market
-    print(f"[{market}] Clearing existing target database records...", flush=True)
+    # Before inserting, aggressively clean old data to stay within Neon 512 MB limit
+    print(f"[{market}] Performing full database cleanup...", flush=True)
+    
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        # Remove ALL lingering Indian market data from every table (no longer ingested)
+        for tbl in ['screen_data', 'scanner_results', 'market_breadth_history', 'industry_ranks']:
+            try:
+                cursor.execute(f"DELETE FROM {tbl} WHERE Market = 'IN'")
+            except Exception:
+                conn.rollback()
+        conn.commit()
+        
+        # TRUNCATE daily_ohlcv (immediately reclaims disk space in PostgreSQL,
+        # unlike DELETE which leaves dead tuples that still count toward Neon size limit)
+        cursor.execute("TRUNCATE TABLE daily_ohlcv")
+        conn.commit()
+        print(f"[{market}] TRUNCATEd daily_ohlcv to reclaim disk space.", flush=True)
+    else:
+        # SQLite: simple DELETE is fine (no dead tuple bloat)
+        cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
+    
+    # Clear current market's data from remaining tables
     cursor.execute(f"DELETE FROM screen_data WHERE Market = '{market}'")
-    cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
     cursor.execute(f"DELETE FROM scanner_results WHERE Market = '{market}'")
     cursor.execute(f"DELETE FROM market_breadth_history WHERE Market = '{market}'")
     conn.commit()
