@@ -1888,8 +1888,20 @@
         <div class="stock-panel-content">
             <div class="sp-grid">
                 <div class="sp-stat-box">
-                    <div class="sp-stat-label">RS Rating</div>
+                    <div class="sp-stat-label">RS 1Y</div>
                     <div class="sp-stat-val" id="sp-stat-rs">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">RS 6M</div>
+                    <div class="sp-stat-val" id="sp-stat-rs-6m">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">RS 3M</div>
+                    <div class="sp-stat-val" id="sp-stat-rs-3m">--</div>
+                </div>
+                <div class="sp-stat-box">
+                    <div class="sp-stat-label">RS 1M</div>
+                    <div class="sp-stat-val" id="sp-stat-rs-1m">--</div>
                 </div>
                 <div class="sp-stat-box">
                     <div class="sp-stat-label">Market Cap</div>
@@ -2021,6 +2033,9 @@
                     </button>
                     <button class="scanner-btn" id="btn-trade-portal" onclick="runTradePortal()">
                         <span class="btn-label" style="font-weight: 600;">🤖 AI Trade Portal</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-portfolio" onclick="runPortfolio()">
+                        <span class="btn-label" style="font-weight: 600;">🏆 Portfolio Sim</span>
                     </button>
                     <button class="scanner-btn" id="btn-screener" onclick="runScreener()">
                         <span class="btn-label" style="font-weight: 600;">⚙️ Custom Screener</span>
@@ -2668,7 +2683,7 @@
             document.getElementById('sp-scanner-badges').style.display = 'none';
             document.getElementById('sp-badges-list').innerHTML = '';
             
-            const statIds = ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'];
+            const statIds = ['sp-price', 'sp-change', 'sp-stat-rs', 'sp-stat-rs-6m', 'sp-stat-rs-3m', 'sp-stat-rs-1m', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-stage', 'sp-stat-mom'];
             statIds.forEach(id => {
                 const el = document.getElementById(id);
                 el.textContent = "--";
@@ -2716,7 +2731,7 @@
 
                     // Show Stage and hide others for Indian Custom Indices
                     if (currentMarket === 'IN') {
-                        const idsToHide = ['sp-stat-rs', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-mom', 'sp-price', 'sp-change'];
+                        const idsToHide = ['sp-stat-rs', 'sp-stat-rs-6m', 'sp-stat-rs-3m', 'sp-stat-rs-1m', 'sp-stat-mcap', 'sp-stat-adr', 'sp-stat-rvol', 'sp-stat-mom', 'sp-price', 'sp-change'];
                         idsToHide.forEach(id => {
                             const el = document.getElementById(id);
                             if (el.parentElement.classList.contains('sp-stat-box')) {
@@ -2776,6 +2791,9 @@
                 }
 
                 document.getElementById('sp-stat-rs').textContent = fmt(d.rs_rating, 0);
+                document.getElementById('sp-stat-rs-6m').textContent = fmt(d.rs_rating_6m, 0);
+                document.getElementById('sp-stat-rs-3m').textContent = fmt(d.rs_rating_3m, 0);
+                document.getElementById('sp-stat-rs-1m').textContent = fmt(d.rs_rating_1m, 0);
                 const mcPrefix = currentMarket === 'IN' ? '₹' : '$';
                 document.getElementById('sp-stat-mcap').textContent = d.market_cap ? (d.market_cap >= 1e9 ? `${mcPrefix}${(d.market_cap / 1e9).toFixed(1)}B` : `${mcPrefix}${(d.market_cap / 1e6).toFixed(1)}M`) : '--';
                 document.getElementById('sp-stat-adr').textContent = fmt(d.adr_20, 1, '%');
@@ -3420,6 +3438,8 @@
                 runUniverse();
             } else if (scannerId === 'trade-portal') {
                 runTradePortal(true);
+            } else if (scannerId === 'portfolio') {
+                runPortfolio(true);
             } else if (scannerId === 'lev-etf') {
                 runLevEtf(true);
             } else if (scannerId && scannerId.startsWith('wl-')) {
@@ -3827,7 +3847,10 @@
                                     <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                                     <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                                     <th data-ksort="adr_20" class="sortable">ATR%</th>
-                                    <th data-ksort="rs_rating" class="sortable">RS</th>
+                                    <th data-ksort="rs_rating_1m" class="sortable" title="Relative Strength 1 Month">RS1M</th>
+                                    <th data-ksort="rs_rating_3m" class="sortable" title="Relative Strength 3 Months">RS3M</th>
+                                    <th data-ksort="rs_rating_6m" class="sortable" title="Relative Strength 6 Months">RS6M</th>
+                                    <th data-ksort="rs_rating" class="sortable" title="Relative Strength 1 Year">RS1Y</th>
                                     <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                                     <th data-ksort="rvol" class="sortable">RVOL</th>
                                     <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
@@ -3863,6 +3886,9 @@
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>` : ''}
                                     <td>${fmtMcap(s.market_cap)}</td>
                                     <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
+                                    <td style="color:${s.rs_rating_1m >= 90 ? 'var(--pos)' : s.rs_rating_1m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_1m != null ? s.rs_rating_1m.toFixed(0) : '—'}</td>
+                                    <td style="color:${s.rs_rating_3m >= 90 ? 'var(--pos)' : s.rs_rating_3m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_3m != null ? s.rs_rating_3m.toFixed(0) : '—'}</td>
+                                    <td style="color:${s.rs_rating_6m >= 90 ? 'var(--pos)' : s.rs_rating_6m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_6m != null ? s.rs_rating_6m.toFixed(0) : '—'}</td>
                                     <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
                                     <td>${s.stage ? getStageBadge(s.stage) : '—'}</td>
                                     <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
@@ -4185,7 +4211,12 @@
                                         <span style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);">${t.quality_score || 0}/100</span>
                                     </div>
                                     <div class="portal-trade-industry">${t.industry || 'General Equity'}</div>
-                                    <div class="portal-trade-rs">RS ${t.rs_rating}</div>
+                                    <div style="display: flex; gap: 4px;">
+                                        <div class="portal-trade-rs" title="1-Year RS">RS ${t.rs_rating}</div>
+                                        <div class="portal-trade-rs" style="background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.2); color: var(--text-secondary);" title="6-Month RS">6M ${t.rs_rating_6m != null ? t.rs_rating_6m : '-'}</div>
+                                        <div class="portal-trade-rs" style="background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.2); color: var(--text-secondary);" title="3-Month RS">3M ${t.rs_rating_3m != null ? t.rs_rating_3m : '-'}</div>
+                                        <div class="portal-trade-rs" style="background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.2); color: var(--text-secondary);" title="1-Month RS">1M ${t.rs_rating_1m != null ? t.rs_rating_1m : '-'}</div>
+                                    </div>
                                 </div>
                                 
                                 <div style="font-size:0.75rem;color:var(--text-muted);padding:0 20px 8px;font-style:italic;">${t.score_factors || ''}</div>
@@ -4302,6 +4333,9 @@
                 const pseudo = {
                     ticker: etf.ticker,
                     rs_rating: etf.rs_rating,
+                    rs_rating_1m: etf.rs_rating_1m,
+                    rs_rating_3m: etf.rs_rating_3m,
+                    rs_rating_6m: etf.rs_rating_6m,
                     rvol: etf.rvol,
                     momentum_1y: null,
                     momentum_1m: etf.momentum_1m,
@@ -4411,7 +4445,10 @@
         function createChartCard(stock, grid) {
             const containerId = `tv-${(stock.ticker || '').replace(/[^a-zA-Z0-9]/g, '')}-${++tvWidgetCount}`;
 
-            const rs = fmt(stock.rs_rating);
+            const rs = fmt(stock.rs_rating, 0);
+            const rs6m = fmt(stock.rs_rating_6m, 0);
+            const rs3m = fmt(stock.rs_rating_3m, 0);
+            const rs1m = fmt(stock.rs_rating_1m, 0);
             const rvol = fmt(stock.rvol, 2);
             const mom_1y = fmt(stock.momentum_1y != null ? stock.momentum_1y * 100 : null, 1, '%');
             const w52 = fmt(stock.pct_from_52w_high, 1, '%');
@@ -4420,6 +4457,9 @@
             const price = fmtPrice(stock.close);
 
             const rsClass = stock.rs_rating >= 90 ? 'positive' : stock.rs_rating >= 70 ? 'highlight' : '';
+            const rs6mClass = stock.rs_rating_6m >= 90 ? 'positive' : stock.rs_rating_6m >= 70 ? 'highlight' : '';
+            const rs3mClass = stock.rs_rating_3m >= 90 ? 'positive' : stock.rs_rating_3m >= 70 ? 'highlight' : '';
+            const rs1mClass = stock.rs_rating_1m >= 90 ? 'positive' : stock.rs_rating_1m >= 70 ? 'highlight' : '';
             const rvolClass = stock.rvol >= 2 ? 'positive' : '';
             const mom1yClass = stock.momentum_1y > 0 ? 'positive' : stock.momentum_1y < 0 ? 'negative' : '';
             const w52Class = stock.pct_from_52w_high >= -5 ? 'positive' : '';
@@ -4454,12 +4494,13 @@
               </div>
           </div>
           <div class="card-metrics">
-            <span class="metric-chip ${rsClass}">RS&nbsp;${rs}</span>
-            <span class="metric-chip ${rvolClass}">RVOL&nbsp;${rvol}</span>
-            <span class="metric-chip ${mom1yClass}">52W&nbsp;${mom_1y}</span>
-            <span class="metric-chip ${w52Class}">vs Hi&nbsp;${w52}</span>
-            <span class="metric-chip ${mom1mClass}">1M&nbsp;${mom_1m}</span>
-            <span class="metric-chip ${mom1dClass}">1D&nbsp;${mom_1d}</span>
+            <span class="metric-chip ${rsClass}" title="RS 1Y">RS&nbsp;${rs}</span>
+            <span class="metric-chip ${rs6mClass}" title="RS 6M">6M&nbsp;${rs6m}</span>
+            <span class="metric-chip ${rs3mClass}" title="RS 3M">3M&nbsp;${rs3m}</span>
+            <span class="metric-chip ${rs1mClass}" title="RS 1M">1M&nbsp;${rs1m}</span>
+            <span class="metric-chip ${rvolClass}" title="Relative Volume">RVOL&nbsp;${rvol}</span>
+            <span class="metric-chip ${w52Class}" title="Distance from 52W High">vs Hi&nbsp;${w52}</span>
+            <span class="metric-chip ${mom1mClass}" title="Momentum 1M">Mom1M&nbsp;${mom_1m}</span>
             <span class="metric-chip">${price}</span>
           </div>
         </div>
@@ -4557,7 +4598,10 @@
                         <tr>
                             <th style="width: 40px;"></th>
                             <th data-ksort="ticker" class="sortable">Ticker</th>
-                            <th data-ksort="rs_rating" class="sortable" title="Relative Strength Rating">RS</th>
+                            <th data-ksort="rs_rating_1m" class="sortable" title="Relative Strength 1 Month">RS1M</th>
+                            <th data-ksort="rs_rating_3m" class="sortable" title="Relative Strength 3 Months">RS3M</th>
+                            <th data-ksort="rs_rating_6m" class="sortable" title="Relative Strength 6 Months">RS6M</th>
+                            <th data-ksort="rs_rating" class="sortable" title="Relative Strength 1 Year">RS1Y</th>
                             <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                             <th data-ksort="close" class="sortable">Price</th>
                             ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
@@ -4614,6 +4658,9 @@
                 <tr>
                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(row.ticker)}</td>
                     <td style="display:flex;align-items:center;">${getStageBadge(row.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${row.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${row.ticker}</a></td>
+                    <td style="color:${row.rs_rating_1m >= 90 ? 'var(--pos)' : row.rs_rating_1m >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating_1m >= 90 ? '700' : '400'}">${row.rs_rating_1m != null ? row.rs_rating_1m.toFixed(0) : '—'}</td>
+                    <td style="color:${row.rs_rating_3m >= 90 ? 'var(--pos)' : row.rs_rating_3m >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating_3m >= 90 ? '700' : '400'}">${row.rs_rating_3m != null ? row.rs_rating_3m.toFixed(0) : '—'}</td>
+                    <td style="color:${row.rs_rating_6m >= 90 ? 'var(--pos)' : row.rs_rating_6m >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating_6m >= 90 ? '700' : '400'}">${row.rs_rating_6m != null ? row.rs_rating_6m.toFixed(0) : '—'}</td>
                     <td style="color:${row.rs_rating >= 90 ? 'var(--pos)' : row.rs_rating >= 70 ? '#fbbf24' : 'inherit'}; font-weight:${row.rs_rating >= 90 ? '700' : '400'}">${row.rs_rating != null ? row.rs_rating.toFixed(0) : '—'}</td>
                     <td>${row.stage ? getStageBadge(row.stage) : '—'}</td>
                     <td>${fmtPrice(row.close)}</td>
@@ -6076,7 +6123,10 @@
                             <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                             <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                             <th data-ksort="adr_20" class="sortable">ATR%</th>
-                            <th data-ksort="rs_rating" class="sortable">RS</th>
+                            <th data-ksort="rs_rating_1m" class="sortable" title="Relative Strength 1 Month">RS1M</th>
+                            <th data-ksort="rs_rating_3m" class="sortable" title="Relative Strength 3 Months">RS3M</th>
+                            <th data-ksort="rs_rating_6m" class="sortable" title="Relative Strength 6 Months">RS6M</th>
+                            <th data-ksort="rs_rating" class="sortable" title="Relative Strength 1 Year">RS1Y</th>
                             <th data-ksort="stage" class="sortable" title="Weinstein Stage (50DMA)">Stage</th>
                             <th data-ksort="rvol" class="sortable">RVOL</th>
                             <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
@@ -6111,6 +6161,9 @@
                             <td style="color:var(--text-secondary);font-size:0.8rem;">${s.industry_rank_6m || '—'}</td>` : ''}
                             <td>${localFmtMcap(s.market_cap)}</td>
                             <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
+                            <td style="color:${s.rs_rating_1m >= 90 ? 'var(--pos)' : s.rs_rating_1m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_1m != null ? s.rs_rating_1m.toFixed(0) : '—'}</td>
+                            <td style="color:${s.rs_rating_3m >= 90 ? 'var(--pos)' : s.rs_rating_3m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_3m != null ? s.rs_rating_3m.toFixed(0) : '—'}</td>
+                            <td style="color:${s.rs_rating_6m >= 90 ? 'var(--pos)' : s.rs_rating_6m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_6m != null ? s.rs_rating_6m.toFixed(0) : '—'}</td>
                             <td style="color:${s.rs_rating >= 90 ? 'var(--pos)' : s.rs_rating >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating != null ? s.rs_rating.toFixed(0) : '—'}</td>
                             <td>${s.stage ? getStageBadge(s.stage) : '—'}</td>
                             <td style="color:${s.rvol >= 2 ? 'var(--pos)' : 'inherit'}">${s.rvol != null ? s.rvol.toFixed(2) : '—'}</td>
@@ -6398,6 +6451,410 @@
             // Indicator toggling is handled natively by TradingView's Advanced Chart UI.
             // This stub is kept for backward compatibility.
             if (btn) btn.classList.toggle('active');
+        }
+
+        // ── Portfolio Simulator ─────────────────────────────────
+        let _portfolioVariants = null;
+        let _portfolioSelectedVariant = null;
+        let _portfolioEquityChart = null;
+
+        async function runPortfolio(force = false) {
+            if (!force && activeScanner === 'portfolio') return;
+            activeScanner = 'portfolio';
+            activeWatchlist = null;
+            themesCategory = null;
+            themesLevel = 'top';
+
+            if (!force) pushScannerToHistory('portfolio');
+
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-portfolio');
+            if (btn) btn.classList.add('active');
+
+            document.getElementById('results-title').textContent = '🏆 Portfolio Simulator';
+            document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">8-variant rules-based backtest engine</span>';
+            document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'none';
+
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            const area = document.getElementById('grid-area');
+            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Loading portfolio simulation data...</div></div>';
+
+            logEvent('run_scanner', { scanner: 'portfolio' });
+
+            try {
+                const res = await fetchApi('/portfolio/variants');
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                const json = await res.json();
+
+                if (json.status === 'empty' || !json.variants || json.variants.length === 0) {
+                    area.innerHTML = `
+                    <div style="max-width:700px; margin:60px auto; text-align:center;">
+                        <div style="font-size:3rem; margin-bottom:16px;">📊</div>
+                        <h2 style="color:var(--text-primary); margin-bottom:12px;">No Simulation Results Yet</h2>
+                        <p style="color:var(--text-secondary); margin-bottom:24px;">The portfolio simulation hasn't been run yet. Click below to trigger the first computation.</p>
+                        <button onclick="triggerPortfolioSim()" style="background:var(--accent); color:#fff; border:none; padding:12px 28px; border-radius:var(--radius-sm); font-size:0.95rem; font-weight:600; cursor:pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(59,130,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">🚀 Run Simulation</button>
+                    </div>`;
+                    return;
+                }
+
+                _portfolioVariants = json.variants;
+                _portfolioSelectedVariant = json.variants[0].variant_id;
+                renderPortfolioPage(area);
+                loadVariantDetail(_portfolioSelectedVariant);
+            } catch (e) {
+                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Error loading portfolio data: ${e.message}</div>`;
+            }
+        }
+
+        async function triggerPortfolioSim() {
+            const area = document.getElementById('grid-area');
+            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Running simulation across 8 strategy variants...<br><span style="font-size:0.8rem; color:var(--text-muted)">This may take 30-60 seconds</span></div></div>';
+            try {
+                const res = await fetchApi('/portfolio/simulate', { method: 'POST' });
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                runPortfolio(true);
+            } catch(e) {
+                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Simulation failed: ${e.message}</div>`;
+            }
+        }
+
+        function renderPortfolioPage(area) {
+            const variants = _portfolioVariants;
+            const variantPills = variants.map(v => {
+                const retColor = v.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)';
+                const isActive = v.variant_id === _portfolioSelectedVariant;
+                return `<button class="pf-variant-pill ${isActive ? 'active' : ''}" data-vid="${v.variant_id}" onclick="selectPortfolioVariant('${v.variant_id}')">
+                    <span class="pf-pill-label">${v.variant_label}</span>
+                    <span class="pf-pill-return" style="color:${retColor}">${v.total_return_pct >= 0 ? '+' : ''}${v.total_return_pct.toFixed(1)}%</span>
+                </button>`;
+            }).join('');
+
+            area.innerHTML = `
+            <style>
+                .pf-page { max-width: 1200px; margin: 0 auto; padding: 20px 24px 60px; }
+                .pf-variant-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+                .pf-variant-pill { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 130px; }
+                .pf-variant-pill:hover { border-color: var(--accent); background: var(--accent-glow); color: var(--text-primary); }
+                .pf-variant-pill.active { border-color: var(--accent); background: rgba(59,130,246,0.15); color: #93c5fd; box-shadow: 0 0 12px rgba(59,130,246,0.2); }
+                .pf-pill-label { font-size: 0.68rem; font-weight: 600; text-align: center; line-height: 1.3; }
+                .pf-pill-return { font-size: 0.85rem; font-weight: 800; font-family: 'Inter', monospace; }
+                .pf-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+                @media (max-width: 768px) { .pf-summary-grid { grid-template-columns: repeat(2, 1fr); } }
+                .pf-summary-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: border-color 0.2s, box-shadow 0.2s; }
+                .pf-summary-card:hover { border-color: var(--border-light); box-shadow: var(--shadow-md); }
+                .pf-summary-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+                .pf-summary-value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; }
+                .pf-summary-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+                .pf-section { margin-bottom: 24px; }
+                .pf-section-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+                .pf-equity-chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; height: 350px; }
+                .pf-live-grid { display: grid; grid-template-columns: 1fr auto; gap: 16px; }
+                @media (max-width: 768px) { .pf-live-grid { grid-template-columns: 1fr; } }
+                .pf-live-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+                .pf-gate-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+                .pf-gate-on { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+                .pf-gate-off { background: rgba(244,63,94,0.12); color: #fb7185; border: 1px solid rgba(244,63,94,0.3); }
+                .pf-positions-table, .pf-trades-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+                .pf-positions-table th, .pf-trades-table th { text-align: left; padding: 8px 10px; color: var(--text-muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+                .pf-positions-table td, .pf-trades-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+                .pf-positions-table tr:hover td, .pf-trades-table tr:hover td { background: var(--card-hover); }
+                .pf-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+                @media (max-width: 768px) { .pf-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+                .pf-stat-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+                .pf-stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+                .pf-stat-value { font-size: 1.15rem; font-weight: 700; }
+                .pf-action-buy { color: var(--green); font-weight: 700; }
+                .pf-action-sell { color: var(--red); font-weight: 700; }
+                .pf-action-partial { color: var(--yellow); font-weight: 700; }
+                .pf-action-stop { color: #f87171; font-weight: 700; }
+                .pf-resim-btn { background: transparent; border: 1px solid var(--border-light); color: var(--text-secondary); padding: 6px 16px; border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+                .pf-resim-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+            </style>
+            <div class="pf-page">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div style="font-size:0.75rem; color:var(--text-muted);">Select a strategy variant to view detailed results</div>
+                    <button class="pf-resim-btn" onclick="triggerPortfolioSim()">🔄 Re-run Simulation</button>
+                </div>
+                <div class="pf-variant-bar" id="pf-variant-bar">${variantPills}</div>
+                <div id="pf-summary-section"></div>
+                <div class="pf-section">
+                    <div class="pf-section-title">📈 Equity Curve</div>
+                    <div class="pf-equity-chart-wrap" id="pf-equity-chart"></div>
+                </div>
+                <div id="pf-live-section"></div>
+                <div id="pf-trades-section"></div>
+                <div id="pf-stats-section"></div>
+            </div>`;
+        }
+
+        function selectPortfolioVariant(variantId) {
+            _portfolioSelectedVariant = variantId;
+            document.querySelectorAll('.pf-variant-pill').forEach(p => {
+                p.classList.toggle('active', p.dataset.vid === variantId);
+            });
+            loadVariantDetail(variantId);
+        }
+
+        async function loadVariantDetail(variantId) {
+            // Show loading in sections
+            const summaryEl = document.getElementById('pf-summary-section');
+            const liveEl = document.getElementById('pf-live-section');
+            const tradesEl = document.getElementById('pf-trades-section');
+            const statsEl = document.getElementById('pf-stats-section');
+            if (summaryEl) summaryEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">Loading...</div>';
+
+            try {
+                const res = await fetchApi(`/portfolio/${variantId}`);
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                const json = await res.json();
+                const data = json.data;
+
+                renderSummaryCards(data.metrics, summaryEl);
+                renderEquityChart(data.equity_curve);
+                renderLiveSection(data, liveEl);
+                renderTradesTable(data.trades, tradesEl);
+                renderStatsPanel(data.metrics, statsEl);
+            } catch(e) {
+                if (summaryEl) summaryEl.innerHTML = `<div style="color:var(--red); padding:20px;">Error: ${e.message}</div>`;
+            }
+        }
+
+        function renderSummaryCards(m, el) {
+            const retColor = m.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)';
+            const ddColor = 'var(--red)';
+            el.innerHTML = `
+            <div class="pf-summary-grid">
+                <div class="pf-summary-card">
+                    <div class="pf-summary-label">Total Return</div>
+                    <div class="pf-summary-value" style="color:${retColor}">${m.total_return_pct >= 0 ? '+' : ''}${m.total_return_pct.toFixed(1)}%</div>
+                    <div class="pf-summary-sub">CAGR: ${m.cagr_pct.toFixed(1)}% · $${m.ending_equity.toLocaleString()}</div>
+                </div>
+                <div class="pf-summary-card">
+                    <div class="pf-summary-label">Max Drawdown</div>
+                    <div class="pf-summary-value" style="color:${ddColor}">-${m.max_drawdown_pct.toFixed(1)}%</div>
+                    <div class="pf-summary-sub">$${m.max_drawdown_dollar.toLocaleString()}</div>
+                </div>
+                <div class="pf-summary-card">
+                    <div class="pf-summary-label">Win Rate</div>
+                    <div class="pf-summary-value" style="color:var(--accent)">${m.win_rate_pct.toFixed(0)}%</div>
+                    <div class="pf-summary-sub">${m.win_count}W / ${m.loss_count}L · ${m.total_trades} trades</div>
+                </div>
+                <div class="pf-summary-card">
+                    <div class="pf-summary-label">Profit Factor</div>
+                    <div class="pf-summary-value" style="color:${m.profit_factor >= 1.5 ? 'var(--green)' : m.profit_factor >= 1 ? 'var(--yellow)' : 'var(--red)'}">${m.profit_factor.toFixed(2)}</div>
+                    <div class="pf-summary-sub">Expectancy: ${m.expectancy_r >= 0 ? '+' : ''}${m.expectancy_r.toFixed(2)}R</div>
+                </div>
+            </div>`;
+        }
+
+        function renderEquityChart(curve) {
+            const container = document.getElementById('pf-equity-chart');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (_portfolioEquityChart) {
+                _portfolioEquityChart.remove();
+                _portfolioEquityChart = null;
+            }
+
+            if (!curve || curve.length === 0) {
+                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted)">No equity data</div>';
+                return;
+            }
+
+            const chart = LightweightCharts.createChart(container, {
+                layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#8b9ec0', fontSize: 11 },
+                grid: { vertLines: { color: 'rgba(42,56,89,0.3)' }, horzLines: { color: 'rgba(42,56,89,0.3)' } },
+                width: container.clientWidth,
+                height: 340,
+                timeScale: { borderColor: 'rgba(42,56,89,0.5)', timeVisible: false },
+                rightPriceScale: { borderColor: 'rgba(42,56,89,0.5)' },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            });
+
+            // Equity line
+            const equitySeries = chart.addAreaSeries({
+                lineColor: '#3b82f6',
+                topColor: 'rgba(59,130,246,0.25)',
+                bottomColor: 'rgba(59,130,246,0.02)',
+                lineWidth: 2,
+            });
+
+            equitySeries.setData(curve.map(pt => ({
+                time: pt.date,
+                value: pt.equity
+            })));
+
+            // Gate ON/OFF background markers
+            const markers = [];
+            let prevGate = null;
+            for (const pt of curve) {
+                if (pt.gate_on !== prevGate) {
+                    markers.push({
+                        time: pt.date,
+                        position: 'belowBar',
+                        color: pt.gate_on ? '#10b981' : '#f43f5e',
+                        shape: pt.gate_on ? 'arrowUp' : 'arrowDown',
+                        text: pt.gate_on ? 'Gate ON' : 'Gate OFF',
+                    });
+                    prevGate = pt.gate_on;
+                }
+            }
+            equitySeries.setMarkers(markers);
+
+            // Starting capital baseline
+            const baselineSeries = chart.addLineSeries({
+                color: 'rgba(139,158,192,0.3)',
+                lineWidth: 1,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+            });
+            baselineSeries.setData([
+                { time: curve[0].date, value: 100000 },
+                { time: curve[curve.length - 1].date, value: 100000 }
+            ]);
+
+            chart.timeScale().fitContent();
+            _portfolioEquityChart = chart;
+
+            // Resize handler
+            const ro = new ResizeObserver(() => {
+                chart.applyOptions({ width: container.clientWidth });
+            });
+            ro.observe(container);
+        }
+
+        function renderLiveSection(data, el) {
+            if (!el) return;
+            const positions = data.open_positions || [];
+            const cash = data.cash || 0;
+            const gate = data.gate_status || {};
+            const gateClass = gate.gate_on ? 'pf-gate-on' : 'pf-gate-off';
+            const gateText = gate.gate_on ? '● GATE ON — New entries allowed' : '● GATE OFF — No new entries';
+            const gateDot = gate.gate_on ? '🟢' : '🔴';
+
+            let posRows = '';
+            if (positions.length === 0) {
+                posRows = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">No open positions</td></tr>';
+            } else {
+                posRows = positions.map(p => {
+                    const pnlColor = p.unrealized_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+                    return `<tr>
+                        <td style="font-weight:700; color:var(--text-primary)">${p.ticker}</td>
+                        <td>${p.qty}</td>
+                        <td>$${p.avg_entry.toFixed(2)}</td>
+                        <td>$${p.last_close.toFixed(2)}</td>
+                        <td style="color:${pnlColor}; font-weight:600">${p.unrealized_pnl >= 0 ? '+' : ''}$${p.unrealized_pnl.toLocaleString()} (${p.unrealized_pnl_pct >= 0 ? '+' : ''}${p.unrealized_pnl_pct.toFixed(1)}%)</td>
+                        <td>$${p.current_stop_line.toFixed(2)}</td>
+                        <td>${p.distance_to_stop_pct.toFixed(1)}%</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            el.innerHTML = `
+            <div class="pf-section">
+                <div class="pf-section-title">📡 Live Portfolio — Today</div>
+                <div class="pf-live-grid">
+                    <div class="pf-live-card">
+                        <table class="pf-positions-table">
+                            <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Last Close</th><th>Unrealized P&L</th><th>StopLine</th><th>Dist. to Stop</th></tr></thead>
+                            <tbody>${posRows}</tbody>
+                        </table>
+                    </div>
+                    <div class="pf-live-card" style="min-width:200px;">
+                        <div style="margin-bottom:16px;">
+                            <div class="pf-stat-label">Cash Balance</div>
+                            <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary)">$${cash.toLocaleString()}</div>
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div class="pf-stat-label">Open Positions</div>
+                            <div style="font-size:1.3rem; font-weight:800; color:var(--accent)">${positions.length} / ${4}</div>
+                        </div>
+                        <div>
+                            <div class="pf-stat-label">QQQ Gate Status</div>
+                            <div class="pf-gate-indicator ${gateClass}" style="margin-top:6px;">${gateDot} ${gate.gate_on ? 'ON' : 'OFF'}</div>
+                            ${gate.qqq_close ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">QQQ: $${gate.qqq_close} · SMA: $${gate.qqq_sma || 'N/A'}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderTradesTable(trades, el) {
+            if (!el) return;
+
+            const tradeRows = (trades || []).slice().reverse().map(t => {
+                let actionClass = 'pf-action-buy';
+                if (t.action === 'SELL') actionClass = 'pf-action-sell';
+                else if (t.action === 'PARTIAL') actionClass = 'pf-action-partial';
+                else if (t.action === 'STOP') actionClass = 'pf-action-stop';
+
+                const pnlColor = t.pnl > 0 ? 'var(--green)' : t.pnl < 0 ? 'var(--red)' : 'var(--text-muted)';
+                const rStr = t.r_multiple != null ? `${t.r_multiple >= 0 ? '+' : ''}${t.r_multiple.toFixed(2)}R` : '—';
+
+                return `<tr>
+                    <td>${t.date}</td>
+                    <td style="font-weight:700; color:var(--text-primary)">${t.ticker}</td>
+                    <td class="${actionClass}">${t.action}</td>
+                    <td>${t.qty}</td>
+                    <td>$${t.price.toFixed(2)}</td>
+                    <td style="color:${pnlColor}; font-weight:600">${t.pnl !== 0 ? (t.pnl > 0 ? '+' : '') + '$' + t.pnl.toLocaleString() : '—'}</td>
+                    <td style="color:${pnlColor}">${rStr}</td>
+                    <td>$${t.cumulative_equity.toLocaleString()}</td>
+                    <td style="max-width:280px; font-size:0.72rem; color:var(--text-muted); line-height:1.3;">${t.reason}</td>
+                </tr>`;
+            }).join('');
+
+            el.innerHTML = `
+            <div class="pf-section">
+                <div class="pf-section-title">📋 Trade History <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">${(trades || []).length} records</span></div>
+                <div class="pf-live-card" style="overflow-x:auto;">
+                    <table class="pf-trades-table">
+                        <thead><tr><th>Date</th><th>Symbol</th><th>Action</th><th>Qty</th><th>Price</th><th>P&L</th><th>R-Multiple</th><th>Equity</th><th>Reason</th></tr></thead>
+                        <tbody>${tradeRows || '<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">No trades yet</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        function renderStatsPanel(m, el) {
+            if (!el) return;
+
+            const stat = (label, value, color) => `
+                <div class="pf-stat-item">
+                    <div class="pf-stat-label">${label}</div>
+                    <div class="pf-stat-value" style="color:${color || 'var(--text-primary)'}">${value}</div>
+                </div>`;
+
+            const pfColor = m.profit_factor >= 1.5 ? 'var(--green)' : m.profit_factor >= 1 ? 'var(--yellow)' : 'var(--red)';
+            const wrColor = m.win_rate_pct >= 50 ? 'var(--green)' : m.win_rate_pct >= 35 ? 'var(--yellow)' : 'var(--red)';
+
+            el.innerHTML = `
+            <div class="pf-section">
+                <div class="pf-section-title">🏅 Champion-Grade Statistics</div>
+                <div class="pf-stats-grid">
+                    ${stat('Total Return', `${m.total_return_pct >= 0 ? '+' : ''}${m.total_return_pct.toFixed(1)}%`, m.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)')}
+                    ${stat('CAGR', `${m.cagr_pct.toFixed(1)}%`, 'var(--accent)')}
+                    ${stat('Max Drawdown', `-${m.max_drawdown_pct.toFixed(1)}%`, 'var(--red)')}
+                    ${stat('Win Rate', `${m.win_rate_pct.toFixed(0)}% (${m.win_count}/${m.total_trades})`, wrColor)}
+                    ${stat('Avg Win', `+$${m.avg_win_dollar.toLocaleString()} (+${m.avg_win_r.toFixed(2)}R)`, 'var(--green)')}
+                    ${stat('Avg Loss', `$${m.avg_loss_dollar.toLocaleString()} (${m.avg_loss_r.toFixed(2)}R)`, 'var(--red)')}
+                    ${stat('Payoff Ratio', `${m.payoff_ratio.toFixed(2)}x`, pfColor)}
+                    ${stat('Profit Factor', `${m.profit_factor.toFixed(2)}`, pfColor)}
+                    ${stat('Expectancy (R)', `${m.expectancy_r >= 0 ? '+' : ''}${m.expectancy_r.toFixed(3)}R`, m.expectancy_r >= 0 ? 'var(--green)' : 'var(--red)')}
+                    ${stat('Expectancy ($)', `${m.expectancy_dollar >= 0 ? '+' : ''}$${m.expectancy_dollar.toLocaleString()}`, m.expectancy_dollar >= 0 ? 'var(--green)' : 'var(--red)')}
+                    ${stat('Best Trade', `+$${m.best_trade_dollar.toLocaleString()} (+${m.best_trade_r.toFixed(2)}R)`, 'var(--green)')}
+                    ${stat('Worst Trade', `$${m.worst_trade_dollar.toLocaleString()} (${m.worst_trade_r.toFixed(2)}R)`, 'var(--red)')}
+                    ${stat('Avg Holding', `${m.avg_holding_days.toFixed(0)} days`, 'var(--text-primary)')}
+                    ${stat('Partial Exits', `${m.partial_exit_count}`, 'var(--yellow)')}
+                    ${stat('Max Win Streak', `${m.max_consecutive_wins}`, 'var(--green)')}
+                    ${stat('Max Loss Streak', `${m.max_consecutive_losses}`, 'var(--red)')}
+                    ${stat('Avg Exposure', `${m.avg_exposure_pct.toFixed(0)}%`, 'var(--accent)')}
+                    ${stat('Time in Market', `${m.time_in_market_pct.toFixed(0)}% (${m.days_in_market}/${m.total_trading_days} days)`, 'var(--text-secondary)')}
+                </div>
+            </div>`;
         }
 
         // ── Init ─────────────────────────────────────────────────
