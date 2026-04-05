@@ -679,6 +679,20 @@ def run_ingest(market='US'):
         )
     ''')
     
+    # Defensive schema migration for PostgreSQL to append missing RS multi-timeframes dynamically
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        try:
+            cursor.execute("SELECT RS_Rating_1M FROM screen_data LIMIT 1")
+        except Exception:
+            conn.rollback()
+            print("Migrating screen_data to include multi-timeframe RS columns...", flush=True)
+            for new_col in ["RS_Rating_1M", "RS_Rating_3M", "RS_Rating_6M", "RS_Raw_1M", "RS_Raw_3M", "RS_Raw_6M"]:
+                try:
+                    cursor.execute(f"ALTER TABLE screen_data ADD COLUMN {new_col} REAL")
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+    
     # Defensive schema migration for PostgreSQL to append missing Market column dynamically
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
         # Check if Market column exists in industry_ranks
