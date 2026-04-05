@@ -6494,8 +6494,15 @@
                     <div style="max-width:700px; margin:60px auto; text-align:center;">
                         <div style="font-size:3rem; margin-bottom:16px;">📊</div>
                         <h2 style="color:var(--text-primary); margin-bottom:12px;">No Simulation Results Yet</h2>
-                        <p style="color:var(--text-secondary); margin-bottom:24px;">The portfolio simulation hasn't been run yet. Click below to trigger the first computation.</p>
-                        <button onclick="triggerPortfolioSim()" style="background:var(--accent); color:#fff; border:none; padding:12px 28px; border-radius:var(--radius-sm); font-size:0.95rem; font-weight:600; cursor:pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(59,130,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">🚀 Run Simulation</button>
+                        <p style="color:var(--text-secondary); margin-bottom:24px; line-height:1.6;">
+                            The portfolio engine hasn't processed data yet. <br>
+                            To process massive historical datasets without crashing, please trigger the action manually:<br><br>
+                            1. Go to your GitHub repository.<br>
+                            2. Click the <b>Actions</b> tab -> select <b>Portfolio Simulator Engine</b>.<br>
+                            3. Click <b>Run workflow</b>.<br><br>
+                            Once the action finishes, click the button below to load the results.
+                        </p>
+                        <button onclick="triggerPortfolioSim()" style="background:var(--accent); color:#fff; border:none; padding:12px 28px; border-radius:var(--radius-sm); font-size:0.95rem; font-weight:600; cursor:pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(59,130,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">🔄 Check For Results</button>
                     </div>`;
                     return;
                 }
@@ -6511,23 +6518,13 @@
 
         async function triggerPortfolioSim() {
             const area = document.getElementById('grid-area');
-            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Connecting to simulation grid...</div></div>';
+            area.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="spinner"></div><div style="margin-top:20px; color:var(--text-secondary);">Checking database for simulation results...</div></div>';
             try {
-                const res = await fetchApi('/portfolio/simulate', { method: 'POST' });
-                
-                if (res.status === 'warning') {
-                     area.innerHTML = `
-                     <div style="max-width:700px; margin:60px auto; text-align:center;">
-                         <div style="font-size:3rem; margin-bottom:16px;">☁️</div>
-                         <h2 style="color:var(--text-primary); margin-bottom:12px;">Simulation Moved to Cloud</h2>
-                         <p style="white-space:pre-wrap; color:var(--text-secondary); text-align:left; background:var(--surface); padding:20px; border-radius:8px; border:1px solid var(--border);">${res.message}</p>
-                     </div>`;
-                } else {
-                     area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Unexpected response: ${JSON.stringify(res)}</div>`;
-                }
-
+                // Just aggressively re-run the portfolio load sequence.
+                // It will hit GET /variants and grab the freshly computed JSON from the GitHub Action.
+                await runPortfolio(true);
             } catch(e) {
-                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Simulation check failed: ${e.message}</div>`;
+                area.innerHTML = `<div style="padding:40px; text-align:center; color:var(--red);">Check failed: ${e.message}</div>`;
             }
         }
 
