@@ -1153,7 +1153,7 @@ def run_ingest(market='US'):
     if market == 'US':
         try:
             from api.services.portfolio_engine import run_all_variants, store_results
-            results = run_all_variants(in_memory_data=sim_data_dict, in_memory_ibd=ibd_rs_dict)
+            results = run_all_variants(in_memory_data=sim_data_dict)
             if results:
                 store_results(results)
                 print("✅ Successfully updated portfolio simulation results.", flush=True)

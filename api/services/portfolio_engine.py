@@ -153,76 +153,138 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def compute_1m_rs_percentiles(all_data: Dict[str, pd.DataFrame], spy_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def compute_rolling_rs_percentiles(all_data: Dict[str, pd.DataFrame], spy_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     """
-    Compute 1-month (21 trading day) relative strength vs SPY for each ticker,
-    then rank across the universe to produce daily percentiles.
-    Returns dict of ticker -> DataFrame with '1M_RS_Pctile' column added.
+    Compute ROLLING cross-sectional RS percentile rankings for EVERY trading date.
+    This eliminates lookahead bias by ensuring each date only uses data available up to that date.
+
+    Produces two columns per ticker DataFrame:
+      - '1M_RS_Pctile':  1-month (21d) RS vs SPY, ranked across universe (0-100)
+      - 'IBD_RS_Pctile': IBD-style composite RS (weighted multi-timeframe), ranked across universe (0-99)
+
+    IBD composite formula: 40% * Q1_perf + 20% * Q2_perf + 20% * Q3_perf + 20% * Q4_perf
+    where Q1 = most recent 63 days, Q2 = days 64-126, Q3 = days 127-189, Q4 = days 190-252.
+    Each is computed as (stock_return / spy_return) for that period.
     """
-    # Build a date-aligned universe of 1M returns ratio vs SPY
-    spy_dates = spy_df.set_index('Date')['Close']
+    spy_close = spy_df.set_index('Date')['Close']
+    if isinstance(spy_close, pd.DataFrame):
+        spy_close = spy_close.iloc[:, 0]
 
-    # Compute SPY 21d return for all dates
-    spy_ret_21 = spy_dates / spy_dates.shift(21)
+    # ── 1M RS (21d) ratios ──
+    spy_ret_21 = spy_close / spy_close.shift(21)
 
-    # For each ticker, compute ratio
-    ticker_ratios: Dict[str, pd.Series] = {}
+    # ── IBD composite: quarterly returns for weighted score ──
+    # Q1 = most recent 63 days performance
+    spy_ret_q1 = spy_close / spy_close.shift(63)
+    # Q2 = performance from day 126 back to day 63 ago (i.e. shift(126)/shift(63))
+    spy_ret_q2 = spy_close.shift(63) / spy_close.shift(126)
+    # Q3 = performance from day 189 back to day 126  
+    spy_ret_q3 = spy_close.shift(126) / spy_close.shift(189)
+    # Q4 = performance from day 252 back to day 189
+    spy_ret_q4 = spy_close.shift(189) / spy_close.shift(252)
+
+    index_tickers = {'SPY', 'QQQ', 'IWM', 'DIA', 'XLK', 'XLF', 'XLY', 'XLV',
+                     'XLE', 'XLI', 'XLC', 'XLU', 'XLP', 'XLRE', 'XLB'}
+
+    ticker_1m_ratios: Dict[str, pd.Series] = {}
+    ticker_ibd_scores: Dict[str, pd.Series] = {}
+
     for ticker, df in all_data.items():
-        if ticker in ('SPY', 'QQQ', 'IWM'):
+        if ticker in index_tickers:
             continue
+
         ts = df.set_index('Date')['Close']
+        if isinstance(ts, pd.DataFrame):
+            ts = ts.iloc[:, 0]
+
+        # ── 1M ratio ──
         stock_ret_21 = ts / ts.shift(21)
-        # Align with SPY
-        ratio = stock_ret_21 / spy_ret_21.reindex(stock_ret_21.index)
-        ratio = ratio.dropna()
-        if len(ratio) > 0:
-            ticker_ratios[ticker] = ratio
+        ratio_1m = stock_ret_21 / spy_ret_21.reindex(stock_ret_21.index)
+        ratio_1m = ratio_1m.dropna()
+        if len(ratio_1m) > 0:
+            ticker_1m_ratios[ticker] = ratio_1m
 
-    if not ticker_ratios:
-        return all_data
+        # ── IBD composite ──
+        s_q1 = ts / ts.shift(63)
+        s_q2 = ts.shift(63) / ts.shift(126)
+        s_q3 = ts.shift(126) / ts.shift(189)
+        s_q4 = ts.shift(189) / ts.shift(252)
 
-    # Build a combined DataFrame to compute cross-sectional percentiles per date
-    combined = pd.DataFrame(ticker_ratios)
-    # Percentile rank across tickers for each date (0-100 scale)
-    percentiles = combined.rank(axis=1, pct=True) * 100
+        # Relative to SPY for each quarter
+        r_q1 = s_q1 / spy_ret_q1.reindex(s_q1.index)
+        r_q2 = s_q2 / spy_ret_q2.reindex(s_q2.index)
+        r_q3 = s_q3 / spy_ret_q3.reindex(s_q3.index)
+        r_q4 = s_q4 / spy_ret_q4.reindex(s_q4.index)
 
-    # Merge back into each ticker's DataFrame
+        # Weighted composite (IBD weights most recent quarter heaviest)
+        ibd_raw = 0.4 * r_q1 + 0.2 * r_q2 + 0.2 * r_q3 + 0.2 * r_q4
+        ibd_raw = ibd_raw.dropna()
+        if len(ibd_raw) > 0:
+            ticker_ibd_scores[ticker] = ibd_raw
+
+    print(f"   📈 Computing rolling RS for {len(ticker_1m_ratios)} tickers (1M) and {len(ticker_ibd_scores)} tickers (IBD)...", flush=True)
+
+    # ── Cross-sectional percentile ranking per date ──
+    # 1M percentiles
+    if ticker_1m_ratios:
+        combined_1m = pd.DataFrame(ticker_1m_ratios)
+        pctiles_1m = combined_1m.rank(axis=1, pct=True) * 100
+    else:
+        pctiles_1m = pd.DataFrame()
+
+    # IBD percentiles (0-99 scale to match IBD convention)
+    if ticker_ibd_scores:
+        combined_ibd = pd.DataFrame(ticker_ibd_scores)
+        pctiles_ibd = combined_ibd.rank(axis=1, pct=True) * 99
+    else:
+        pctiles_ibd = pd.DataFrame()
+
+    # ── Merge back into each ticker's DataFrame ──
     for ticker, df in all_data.items():
-        if ticker in percentiles.columns:
-            pctile_series = percentiles[ticker]
-            df = df.set_index('Date')
-            df['1M_RS_Pctile'] = pctile_series
-            df = df.reset_index()
-            all_data[ticker] = df
+        df_indexed = df.set_index('Date')
+
+        if ticker in pctiles_1m.columns:
+            df_indexed['1M_RS_Pctile'] = pctiles_1m[ticker]
         else:
-            df['1M_RS_Pctile'] = np.nan
+            df_indexed['1M_RS_Pctile'] = np.nan
+
+        if ticker in pctiles_ibd.columns:
+            df_indexed['IBD_RS_Pctile'] = pctiles_ibd[ticker]
+        else:
+            df_indexed['IBD_RS_Pctile'] = np.nan
+
+        all_data[ticker] = df_indexed.reset_index()
 
     return all_data
 
 
-def precompute_signals(all_data: Dict[str, pd.DataFrame], ibd_rs: Dict[str, float]) -> Dict[str, List[dict]]:
+def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict]]:
     """
     Vectorized filter to find all valid entry candidates upfront.
+    Uses per-date rolling RS percentiles (no lookahead bias).
     Returns: dict mapping date string -> list of candidate dicts.
     """
     signals_by_date = defaultdict(list)
-    print("   🚀 Precomputing vectorized entry signals...", flush=True)
+    print("   🚀 Precomputing vectorized entry signals (lookahead-free)...", flush=True)
+
+    index_tickers = {'SPY', 'QQQ', 'IWM', 'DIA', 'XLK', 'XLF', 'XLY', 'XLV',
+                     'XLE', 'XLI', 'XLC', 'XLU', 'XLP', 'XLRE', 'XLB'}
 
     for ticker, df in all_data.items():
-        if ticker in ('SPY', 'QQQ', 'IWM', 'DIA'):
+        if ticker in index_tickers:
             continue
 
-        rs_ibd = ibd_rs.get(ticker, 0)
+        ibd_rs_col = df.get('IBD_RS_Pctile', pd.Series(0, index=df.index))
         rs_1m_col = df.get('1M_RS_Pctile', pd.Series(0, index=df.index))
 
-        # Vectorized logical mask mapping Zanger/Darvas entry requirements
+        # Vectorized logical mask — RS threshold now uses rolling per-date values
         mask = (
             (df['Close'] >= MIN_PRICE) &
             (df['Avg_Dollar_Vol_50'] >= MIN_AVG_DOLLAR_VOL) &
             (df['Bullish_Structure'] == True) &
             (df['Pullback_OK'] == True) &
             (df['Close'] > df['StopLine']) &
-            ((rs_ibd >= RS_THRESHOLD) | (rs_1m_col >= RS_THRESHOLD))
+            ((ibd_rs_col >= RS_THRESHOLD) | (rs_1m_col >= RS_THRESHOLD))
         )
 
         valid_df = df[mask]
@@ -236,7 +298,8 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame], ibd_rs: Dict[str, floa
             else:
                 date_str = str(date_val)
 
-            pctile = row.get('1M_RS_Pctile', np.nan)
+            pctile_1m = row.get('1M_RS_Pctile', np.nan)
+            pctile_ibd = row.get('IBD_RS_Pctile', np.nan)
             initial_stop = float(row.get('Prev_StopLine', np.nan))
 
             if pd.isna(initial_stop) or initial_stop <= 0:
@@ -246,8 +309,8 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame], ibd_rs: Dict[str, floa
                 "ticker": ticker,
                 "close": float(row['Close']),
                 "initial_stop": initial_stop,
-                "rs_ibd": rs_ibd,
-                "rs_1m": float(pctile) if not pd.isna(pctile) else 0,
+                "rs_ibd": float(pctile_ibd) if not pd.isna(pctile_ibd) else 0,
+                "rs_1m": float(pctile_1m) if not pd.isna(pctile_1m) else 0,
                 "ema_high_8": float(row['EMA_High_8'])
             })
 
@@ -876,11 +939,11 @@ def compute_metrics(equity_curve: List[dict], closed_trades: List[dict],
 # ──────────────────────────────────────────────────────────────────
 # Main Entry Point
 # ──────────────────────────────────────────────────────────────────
-def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, in_memory_ibd: Dict[str, float] = None) -> List[dict]:
+def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, **kwargs) -> List[dict]:
     """
-    Main entry point. Loads OHLCV data once, precomputes indicators,
-    and runs all variants simultaneously without recalculating.
-    Pass in_memory_data and in_memory_ibd to run directly from RAM.
+    Main entry point. Loads OHLCV data once, precomputes indicators and
+    rolling RS percentiles (lookahead-free), then runs all 8 variants.
+    Pass in_memory_data to run directly from RAM (bypasses DB).
     """
     start_time = time.time()
 
@@ -896,7 +959,7 @@ def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, in_memory_i
         return []
 
     if 'SPY' not in all_data:
-        print("   ⚠️  SPY not found in data — cannot compute 1M RS", flush=True)
+        print("   ⚠️  SPY not found in data — cannot compute RS", flush=True)
         return []
 
     # Compute indicators for all tickers
@@ -904,18 +967,10 @@ def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, in_memory_i
     for ticker in list(all_data.keys()):
         all_data[ticker] = compute_indicators(all_data[ticker])
 
-    # Compute 1M RS percentiles
-    print("📊 Portfolio Engine: Computing 1M RS percentiles...", flush=True)
+    # Compute ROLLING RS percentiles (both 1M and IBD) — NO lookahead bias
+    print("📊 Portfolio Engine: Computing rolling RS percentiles (1M + IBD)...", flush=True)
     spy_df = all_data['SPY']
-    all_data = compute_1m_rs_percentiles(all_data, spy_df)
-
-    # Load IBD-style RS ratings from screen_data
-    print("📊 Portfolio Engine: Loading IBD RS ratings...", flush=True)
-    if in_memory_ibd is not None:
-        ibd_rs = in_memory_ibd
-    else:
-        ibd_rs = load_rs_ratings()
-    print(f"   Loaded RS ratings for {len(ibd_rs)} tickers", flush=True)
+    all_data = compute_rolling_rs_percentiles(all_data, spy_df)
 
     # Convert all DataFrames to string-indexed Date for O(1) lookups
     for ticker in list(all_data.keys()):
@@ -937,8 +992,8 @@ def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, in_memory_i
 
     print(f"   Simulation window: {trading_dates[0]} to {trading_dates[-1]} ({len(trading_dates)} days)", flush=True)
 
-    # Precompute all possible entry signals using vectorized logic
-    signals_by_date = precompute_signals(all_data, ibd_rs)
+    # Precompute all possible entry signals using vectorized logic (lookahead-free)
+    signals_by_date = precompute_signals(all_data)
 
     # Run each variant
     results = []
