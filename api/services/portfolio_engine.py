@@ -16,7 +16,7 @@ import json
 import time
 import datetime
 from typing import Dict, List, Optional, Tuple, Any
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import pandas as pd
 import numpy as np
@@ -28,8 +28,7 @@ from api.database import get_db
 # ──────────────────────────────────────────────────────────────────
 STARTING_CAPITAL = 100_000.0
 MAX_POSITIONS = 4
-TARGET_WEIGHT = 0.25  # 25% of equity per position
-SIM_START_DATE = "2016-01-01"
+SIM_START_DATE = "2020-01-01"
 EMA_PERIOD = 8
 RS_THRESHOLD = 97
 MIN_PRICE = 10.0
@@ -37,7 +36,7 @@ MIN_AVG_DOLLAR_VOL = 5_000_000.0  # $5M/day
 PULLBACK_PCT = 0.02  # 2% pullback filter
 VERSION = "1.0.0"
 
-# 6 Strategy Variant Definitions (Strict Market Regime applied universally)
+# 8 Strategy Variant Definitions (Strict Market Regime applied universally)
 VARIANTS = [
     {"id": "G1_R1_E1", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1"},
     {"id": "G1_R1_E2", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2"},
@@ -45,6 +44,8 @@ VARIANTS = [
     {"id": "G1_R2_E2", "label": "QQQ>21>50>200 · 1M RS≥97 · Pure Ride",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2"},
     {"id": "G1_R2_E1_MB", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout"},
     {"id": "G1_R2_E1_MP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback"},
+    {"id": "G1_R2_E1_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep"},
+    {"id": "G1_R2_E2_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep"},
 ]
 
 
@@ -59,7 +60,7 @@ def load_ohlcv_data() -> Dict[str, pd.DataFrame]:
         query = """
             SELECT Ticker, Date, Open, High, Low, Close, Volume
             FROM daily_ohlcv
-            WHERE Market = 'US' AND Date >= '2016-01-01'
+            WHERE Market = 'US' AND Date >= '2020-01-01'
         """
         cursor.execute(query)
         # fetchall() natively returns list of tuples for psycopg2 and standard sqlite3.
@@ -172,11 +173,14 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     rolling_min = df['Close'].rolling(4).min()
     df['Tight_Setup'] = ((df['Close'].rolling(4).max() - rolling_min) / rolling_min) < 0.02
 
+    df['Gap_Up_Pct'] = (df['Open'] / df['Close'].shift(1)) - 1.0
+
     df['Is_Modern_Breakout'] = (
         df['In_Stage_2'] & 
         (df['Pct_From_52W_High'] > -20) & 
         (df['Tight_Setup'] | df['VCP_Approximation'] | df['Inside_Bar']) & 
-        (abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.06)
+        (abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.06) &
+        (df['RVOL'] > 1.5)
     )
 
     df['Is_Modern_Pullback'] = (
@@ -186,6 +190,12 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
         (df['RVOL'] < 1.0) & 
         ((abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.02) | (abs(df['Close'] - df['SMA_10']) / df['SMA_10'] <= 0.02)) & 
         (df['Inside_Bar'] | df['Tight_Setup'] | df['VCP_Approximation'])
+    )
+
+    df['Is_Episodic_Pivot'] = (
+        df['In_Stage_2'] &
+        (df['Gap_Up_Pct'] > 0.05) &
+        (df['RVOL'] > 3.0)
     )
 
     return df
@@ -324,7 +334,8 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
             (
                 ((df['Bullish_Structure'] == True) & (df['Pullback_OK'] == True)) |
                 (df['Is_Modern_Breakout'] == True) |
-                (df['Is_Modern_Pullback'] == True)
+                (df['Is_Modern_Pullback'] == True) |
+                (df['Is_Episodic_Pivot'] == True)
             )
         )
 
@@ -355,7 +366,8 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
                 "ema_high_8": float(row['EMA_High_8']),
                 "is_standard": bool(row['Bullish_Structure'] and row['Pullback_OK']),
                 "is_m_breakout": bool(row.get('Is_Modern_Breakout', False)),
-                "is_m_pullback": bool(row.get('Is_Modern_Pullback', False))
+                "is_m_pullback": bool(row.get('Is_Modern_Pullback', False)),
+                "is_ep": bool(row.get('Is_Episodic_Pivot', False))
             })
 
     return dict(signals_by_date)
@@ -436,6 +448,19 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
 
     # Pending entries: signals generated on day T, executed on T+1 open
     pending_entries: List[dict] = []
+    
+    # Dynamic Progressive Exposure: track last 5 R-multiples to adapt allocation size
+    recent_rs = deque(maxlen=5)
+
+    def get_dynamic_weight() -> float:
+        if len(recent_rs) < 5:
+            return 0.25
+        sum_r = sum(recent_rs)
+        if sum_r < -2.0:
+            return 0.10  # Cold streak: reduce to 10%
+        elif sum_r > 2.0:
+            return 0.35  # Hot streak: expand to 35%
+        return 0.25
 
     def get_equity(date_str: str) -> float:
         """Calculate total equity = cash + sum of position market values."""
@@ -511,9 +536,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 events_log.append({"date": date_str, "event": f"Skipped {ticker}: entry {entry_price:.2f} <= stop {initial_stop:.2f}"})
                 continue
 
-            # Position sizing: 25% of current equity
+            # Position sizing dynamically based on recent Progressive Exposure performance
             current_equity = get_equity(date_str)
-            alloc = current_equity * TARGET_WEIGHT
+            alloc = current_equity * get_dynamic_weight()
             shares = int(alloc / entry_price)
             if shares <= 0:
                 continue
@@ -598,8 +623,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         trades.append(make_trade_record(
                             date_str, pos.ticker, "SELL", pos.shares, close,
                             pnl, r_mult, cum_eq,
-                            f"Structural exit: Close {close:.2f} < StopLine {stop_line:.2f}"
+                            f"Final structural exit (post-scale): Close {close:.2f} < StopLine {stop_line:.2f}"
                         ))
+                        recent_rs.append(r_mult)
                         positions_to_remove.append(pos)
                         continue
 
@@ -623,10 +649,11 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         })
 
                         trades.append(make_trade_record(
-                            date_str, pos.ticker, "STOP", pos.shares, exit_price,
-                            pnl, r_mult, cum_eq,
-                            f"Breakeven stop hit: Low {low:.2f} <= Entry {pos.entry_price:.2f}"
-                        ))
+                        date_str, pos.ticker, "STOP", pos.shares, exit_price,
+                        pnl, r_mult, cum_eq,
+                        f"Initial stop hit: Low {low:.2f} <= Initial {initial_stop:.2f}"
+                    ))
+                        recent_rs.append(r_mult)
                         positions_to_remove.append(pos)
                         continue
 
@@ -651,6 +678,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         pnl, r_mult, cum_eq,
                         f"Structural exit (pre-3R): Close {close:.2f} < StopLine {stop_line:.2f}"
                     ))
+                    recent_rs.append(r_mult)
                     positions_to_remove.append(pos)
                     continue
 
@@ -676,6 +704,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         pnl, r_mult, cum_eq,
                         f"Pure ride structural exit: Close {close:.2f} < StopLine {stop_line:.2f}"
                     ))
+                    recent_rs.append(r_mult)
                     positions_to_remove.append(pos)
                     continue
 
