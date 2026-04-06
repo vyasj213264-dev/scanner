@@ -352,6 +352,7 @@ def run_ingest(market='US'):
     all_data = []
     all_ohlcv = []
     chunk_size = 100
+    OHLCV_RETENTION_DAYS = 504  # ~2 years of trading days (trim for DB, full history kept for sim)
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
@@ -462,9 +463,7 @@ def run_ingest(market='US'):
                     )
                     all_data.append(record)
                     
-                    # Store all trailing OHLCV data for comprehensive Simulation and Charting Lookbacks
-                    historical_data = df.copy()
-                    
+                    # Build sim DataFrame (full history for portfolio engine)
                     df_sim = df[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
                     df_sim.index.name = 'Date'
                     df_sim = df_sim.reset_index()
@@ -472,21 +471,16 @@ def run_ingest(market='US'):
                     df_sim['Ticker'] = ticker
                     sim_data_dict[ticker] = df_sim
                     
-                    # We need to extract Date (index), Open, High, Low, Close, Volume
-                    for date_idx, row_data in historical_data.iterrows():
-                        # Handle potential numpy types / pandas timestamp
-                        date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
-                        
-                        ohlcv_record = (
-                            ticker,
-                            date_str,
-                            _safe_float(row_data['Open']),
-                            _safe_float(row_data['High']),
-                            _safe_float(row_data['Low']),
-                            _safe_float(row_data['Close']),
-                            _safe_float(row_data['Volume'])
-                        )
-                        all_ohlcv.append(ohlcv_record)
+                    # Vectorized OHLCV tuple creation (replaces slow iterrows loop)
+                    # Trim to last OHLCV_RETENTION_DAYS for DB persistence only
+                    ohlcv_df = df[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
+                    ohlcv_df.index.name = 'Date'
+                    ohlcv_df = ohlcv_df.reset_index()
+                    ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
+                    ohlcv_df.insert(0, 'Ticker', ticker)
+                    # Convert NaN to None and build tuples in bulk
+                    ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
+                    all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
                         
                 except Exception as parse_e:
                     skipped_count += 1
@@ -546,8 +540,7 @@ def run_ingest(market='US'):
                     else:
                         df_etf = etf_data.dropna(subset=['Close'])
                     
-                    trailing = df_etf.copy()
-                    
+                    # Build sim DataFrame (full history for portfolio engine)
                     df_sim = df_etf[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
                     df_sim.index.name = 'Date'
                     df_sim = df_sim.reset_index()
@@ -555,19 +548,15 @@ def run_ingest(market='US'):
                     df_sim['Ticker'] = etf_ticker
                     sim_data_dict[etf_ticker] = df_sim
                     
-                    etf_count = 0
-                    for date_idx, row_data in trailing.iterrows():
-                        date_str = str(date_idx.date()) if hasattr(date_idx, 'date') else str(date_idx).split(' ')[0]
-                        all_ohlcv.append((
-                            etf_ticker,
-                            date_str,
-                            _safe_float(row_data['Open']),
-                            _safe_float(row_data['High']),
-                            _safe_float(row_data['Low']),
-                            _safe_float(row_data['Close']),
-                            _safe_float(row_data['Volume'])
-                        ))
-                        etf_count += 1
+                    # Vectorized OHLCV tuple creation (trimmed for DB)
+                    ohlcv_df = df_etf[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
+                    ohlcv_df.index.name = 'Date'
+                    ohlcv_df = ohlcv_df.reset_index()
+                    ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
+                    ohlcv_df.insert(0, 'Ticker', etf_ticker)
+                    ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
+                    etf_count = len(ohlcv_df)
+                    all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
                     
                     # ALSO compute indicators and add to screen_data (needed for Lev ETF scanner)
                     if len(df_etf) >= 5:
@@ -622,31 +611,7 @@ def run_ingest(market='US'):
         except Exception as etf_batch_err:
             print(f"  Warning: ETF batch download failed: {etf_batch_err}", flush=True)
     
-    print(f"Total OHLCV records (stocks + ETFs): {len(all_ohlcv):,}", flush=True)
-
-    # ---------------------------------------------------------
-    # 2c. Trim OHLCV to fit Neon 512 MB storage limit
-    # ---------------------------------------------------------
-    # We download full history for accurate indicator calculation (200 SMA, RS)
-    # but only persist last ~2 years per ticker for charting & simulation.
-    # This reduces OHLCV from ~5M to ~1.6M rows (~210 MB vs ~650 MB).
-    OHLCV_RETENTION_DAYS = 504  # ~2 years of trading days
-    print(f"Trimming OHLCV to last {OHLCV_RETENTION_DAYS} trading days per ticker...", flush=True)
-    ohlcv_by_ticker = {}
-    for row in all_ohlcv:
-        ticker = row[0]
-        if ticker not in ohlcv_by_ticker:
-            ohlcv_by_ticker[ticker] = []
-        ohlcv_by_ticker[ticker].append(row)
-
-    trimmed_ohlcv = []
-    for ticker, rows in ohlcv_by_ticker.items():
-        rows.sort(key=lambda r: r[1])  # YYYY-MM-DD sorts lexicographically
-        trimmed_ohlcv.extend(rows[-OHLCV_RETENTION_DAYS:])
-
-    print(f"Trimmed OHLCV from {len(all_ohlcv):,} to {len(trimmed_ohlcv):,} rows ({len(all_ohlcv) - len(trimmed_ohlcv):,} rows pruned)", flush=True)
-    all_ohlcv = trimmed_ohlcv
-    del ohlcv_by_ticker, trimmed_ohlcv  # free memory
+    print(f"Total OHLCV records for DB (pre-trimmed to {OHLCV_RETENTION_DAYS} days/ticker): {len(all_ohlcv):,}", flush=True)
 
     # ---------------------------------------------------------
     # 3. Database Connection & Schema Initialization
