@@ -47,6 +47,8 @@ VARIANTS = [
     {"id": "G2_R1_E2", "label": "QQQ>50SMA · IBD RS≥97 · Pure Ride", "gate_sma": 50, "rs_mode": "ibd",  "exit": "E2"},
     {"id": "G2_R2_E1", "label": "QQQ>50SMA · 1M RS≥97 · Scale+BE",   "gate_sma": 50, "rs_mode": "1m",   "exit": "E1"},
     {"id": "G2_R2_E2", "label": "QQQ>50SMA · 1M RS≥97 · Pure Ride",  "gate_sma": 50, "rs_mode": "1m",   "exit": "E2"},
+    {"id": "G1_R2_E1_MB", "label": "QQQ>21SMA · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout"},
+    {"id": "G1_R2_E1_MP", "label": "QQQ>21SMA · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback"},
 ]
 
 
@@ -149,6 +151,46 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     # Pre-shift StopLine for initial stop access (T-1)
     df['Prev_StopLine'] = df['StopLine'].shift(1)
+
+    # ── Advanced Indicators for Modern Scanners ──
+    df['SMA_10'] = df['Close'].rolling(window=10).mean()
+    df['SMA_20'] = df['Close'].rolling(window=20).mean()
+    df['SMA_150'] = df['Close'].rolling(window=150).mean()
+    df['SMA_200'] = df['Close'].rolling(window=200).mean()
+
+    df['SMA_200_Up'] = df['SMA_200'] > df['SMA_200'].shift(20)
+    df['In_Stage_2'] = (df['Close'] > df['SMA_150']) & (df['SMA_150'] > df['SMA_200']) & df['SMA_200_Up']
+
+    df['52W_High'] = df['High'].rolling(252).max()
+    df['Pct_From_52W_High'] = ((df['Close'] - df['52W_High']) / df['52W_High']) * 100
+
+    df['Volume_SMA_50'] = df['Volume'].rolling(50).mean()
+    df['RVOL'] = df['Volume'] / df['Volume_SMA_50']
+
+    avg_10d_range = df['High'].rolling(10).max() - df['Low'].rolling(10).min()
+    today_range = df['High'] - df['Low']
+    df['VCP_Approximation'] = (today_range < (0.3 * avg_10d_range)) & (df['Volume'] < df['Volume_SMA_50'])
+
+    df['Inside_Bar'] = (df['High'] < df['High'].shift(1)) & (df['Low'] > df['Low'].shift(1))
+
+    rolling_min = df['Close'].rolling(4).min()
+    df['Tight_Setup'] = ((df['Close'].rolling(4).max() - rolling_min) / rolling_min) < 0.02
+
+    df['Is_Modern_Breakout'] = (
+        df['In_Stage_2'] & 
+        (df['Pct_From_52W_High'] > -20) & 
+        (df['Tight_Setup'] | df['VCP_Approximation'] | df['Inside_Bar']) & 
+        (abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.06)
+    )
+
+    df['Is_Modern_Pullback'] = (
+        df['In_Stage_2'] & 
+        (df['Close'] >= df['SMA_50']) & 
+        (df['SMA_20'] >= df['SMA_50']) & 
+        (df['RVOL'] < 1.0) & 
+        ((abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.02) | (abs(df['Close'] - df['SMA_10']) / df['SMA_10'] <= 0.02)) & 
+        (df['Inside_Bar'] | df['Tight_Setup'] | df['VCP_Approximation'])
+    )
 
     return df
 
@@ -281,10 +323,13 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
         mask = (
             (df['Close'] >= MIN_PRICE) &
             (df['Avg_Dollar_Vol_50'] >= MIN_AVG_DOLLAR_VOL) &
-            (df['Bullish_Structure'] == True) &
-            (df['Pullback_OK'] == True) &
             (df['Close'] > df['StopLine']) &
-            ((ibd_rs_col >= RS_THRESHOLD) | (rs_1m_col >= RS_THRESHOLD))
+            ((ibd_rs_col >= RS_THRESHOLD) | (rs_1m_col >= RS_THRESHOLD)) &
+            (
+                ((df['Bullish_Structure'] == True) & (df['Pullback_OK'] == True)) |
+                (df['Is_Modern_Breakout'] == True) |
+                (df['Is_Modern_Pullback'] == True)
+            )
         )
 
         valid_df = df[mask]
@@ -311,7 +356,10 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
                 "initial_stop": initial_stop,
                 "rs_ibd": float(pctile_ibd) if not pd.isna(pctile_ibd) else 0,
                 "rs_1m": float(pctile_1m) if not pd.isna(pctile_1m) else 0,
-                "ema_high_8": float(row['EMA_High_8'])
+                "ema_high_8": float(row['EMA_High_8']),
+                "is_standard": bool(row['Bullish_Structure'] and row['Pullback_OK']),
+                "is_m_breakout": bool(row.get('Is_Modern_Breakout', False)),
+                "is_m_pullback": bool(row.get('Is_Modern_Pullback', False))
             })
 
     return dict(signals_by_date)
