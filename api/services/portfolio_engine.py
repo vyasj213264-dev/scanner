@@ -739,9 +739,11 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                     sort_val = cand['rs_1m']
 
                 gate_label = f"QQQ>{gate_sma}SMA"
+                ema_high = cand.get('ema_high_8', 0)
+                pb_pct = ((cand['close'] / ema_high) - 1) * 100 if ema_high else 0.0
                 reason = (
                     f"Entry: {rs_str}, bullish 8EMA structure, "
-                    f"pullback {((cand['close'] / cand['ema_high_8']) - 1) * 100:.1f}% from EMA cluster; "
+                    f"pullback {pb_pct:.1f}% from EMA cluster; "
                     f"{gate_label} gate ON"
                 )
 
