@@ -37,18 +37,14 @@ MIN_AVG_DOLLAR_VOL = 5_000_000.0  # $5M/day
 PULLBACK_PCT = 0.02  # 2% pullback filter
 VERSION = "1.0.0"
 
-# 8 Strategy Variant Definitions
+# 6 Strategy Variant Definitions (Strict Market Regime applied universally)
 VARIANTS = [
-    {"id": "G1_R1_E1", "label": "QQQ>21SMA · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1"},
-    {"id": "G1_R1_E2", "label": "QQQ>21SMA · IBD RS≥97 · Pure Ride", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2"},
-    {"id": "G1_R2_E1", "label": "QQQ>21SMA · 1M RS≥97 · Scale+BE",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1"},
-    {"id": "G1_R2_E2", "label": "QQQ>21SMA · 1M RS≥97 · Pure Ride",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2"},
-    {"id": "G2_R1_E1", "label": "QQQ>50SMA · IBD RS≥97 · Scale+BE",  "gate_sma": 50, "rs_mode": "ibd",  "exit": "E1"},
-    {"id": "G2_R1_E2", "label": "QQQ>50SMA · IBD RS≥97 · Pure Ride", "gate_sma": 50, "rs_mode": "ibd",  "exit": "E2"},
-    {"id": "G2_R2_E1", "label": "QQQ>50SMA · 1M RS≥97 · Scale+BE",   "gate_sma": 50, "rs_mode": "1m",   "exit": "E1"},
-    {"id": "G2_R2_E2", "label": "QQQ>50SMA · 1M RS≥97 · Pure Ride",  "gate_sma": 50, "rs_mode": "1m",   "exit": "E2"},
-    {"id": "G1_R2_E1_MB", "label": "QQQ>21SMA · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout"},
-    {"id": "G1_R2_E1_MP", "label": "QQQ>21SMA · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback"},
+    {"id": "G1_R1_E1", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1"},
+    {"id": "G1_R1_E2", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2"},
+    {"id": "G1_R2_E1", "label": "QQQ>21>50>200 · 1M RS≥97 · Scale+BE",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1"},
+    {"id": "G1_R2_E2", "label": "QQQ>21>50>200 · 1M RS≥97 · Pure Ride",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2"},
+    {"id": "G1_R2_E1_MB", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout"},
+    {"id": "G1_R2_E1_MP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback"},
 ]
 
 
@@ -473,19 +469,28 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
 
     for i, date_str in enumerate(trading_dates):
 
-        # ── Step 1: Check QQQ Gate ──
+        # ── Step 1: Check QQQ Gate (Strict Market Regime) ──
         qqq_row = None
         if date_str in qqq_indexed.index:
             qqq_row = qqq_indexed.loc[date_str]
+            
         gate_on = False
-        if qqq_row is not None and pd.notna(qqq_row.get(sma_col)):
-            gate_on = float(qqq_row['Close']) > float(qqq_row[sma_col])
+        c, s21 = None, None
+        
+        if qqq_row is not None:
+            c = float(qqq_row.get('Close', 0))
+            s21 = float(qqq_row.get('SMA_21', np.nan))
+            s50 = float(qqq_row.get('SMA_50', np.nan))
+            s200 = float(qqq_row.get('SMA_200', np.nan))
+            
+            if pd.notna(s21) and pd.notna(s50) and pd.notna(s200):
+                gate_on = (c > s21) and (s21 > s50) and (s50 > s200)
 
         gate_history.append({
             "date": date_str,
             "gate_on": gate_on,
-            "qqq_close": round(float(qqq_row['Close']), 2) if qqq_row is not None else None,
-            "qqq_sma": round(float(qqq_row[sma_col]), 2) if qqq_row is not None and pd.notna(qqq_row.get(sma_col)) else None
+            "qqq_close": round(c, 2) if c is not None else None,
+            "qqq_sma": round(s21, 2) if pd.notna(s21) else None
         })
 
         # ── Step 2: Execute Pending Entries (from yesterday's signals) ──
