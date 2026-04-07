@@ -2,9 +2,9 @@
 Portfolio Simulator API Router
 ===============================
 Endpoints for the US Portfolio Simulator:
-- GET  /variants       — List all 8 variants with summary metrics
+- GET  /variants       — List all 16 variants with summary metrics
 - GET  /{variant_id}   — Full result for one variant
-- POST /simulate       — Trigger re-computation of all 8 variants
+- POST /simulate       — Trigger re-computation of all 16 variants
 """
 
 import json
@@ -52,9 +52,9 @@ def init_portfolio_tables():
     print("✅ portfolio_results table initialized", flush=True)
 
 
-@router.get("/variants", summary="List all 8 portfolio variants with summary metrics")
+@router.get("/variants", summary="List all 16 portfolio variants with summary metrics")
 def list_variants():
-    """Returns summary data for all 8 strategy variants."""
+    """Returns summary data for all 16 strategy variants."""
     try:
         with get_db() as conn:
             is_pg = hasattr(conn, 'info') or hasattr(conn, 'dsn')

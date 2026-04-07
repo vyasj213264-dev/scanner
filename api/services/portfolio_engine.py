@@ -1,10 +1,13 @@
 """
 Portfolio Simulation Engine — US Market
 ========================================
-Runs 8 parallel strategy variants on daily OHLCV data producing:
+Runs 16 parallel strategy variants on daily OHLCV data producing:
 - Complete trade audit trail
 - Daily equity curve
 - Champion-grade trading statistics (Zanger / Darvas style)
+
+First 8 variants: Original RS-ranked entry selection (highest RS gets priority)
+Last 8 variants: ATH-proximity ranked entry selection (closest to 52W high gets priority, RS as tiebreaker)
 
 All "DMA" = SMA (Simple Moving Average) — confirmed in spec v0.2.
 Entry at T+1 Open after signal on T. InitialStop = previous bar's StopLine.
@@ -36,16 +39,29 @@ MIN_AVG_DOLLAR_VOL = 5_000_000.0  # $5M/day
 PULLBACK_PCT = 0.02  # 2% pullback filter
 VERSION = "1.0.0"
 
-# 8 Strategy Variant Definitions (Strict Market Regime applied universally)
+# 16 Strategy Variant Definitions (Strict Market Regime applied universally)
+# First 8: Original RS-ranked entry selection
+# Last 8: ATH-proximity ranked entry selection (closest to 52W high gets priority)
 VARIANTS = [
-    {"id": "G1_R1_E1", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1"},
-    {"id": "G1_R1_E2", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2"},
-    {"id": "G1_R2_E1", "label": "QQQ>21>50>200 · 1M RS≥97 · Scale+BE",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1"},
-    {"id": "G1_R2_E2", "label": "QQQ>21>50>200 · 1M RS≥97 · Pure Ride",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2"},
-    {"id": "G1_R2_E1_MB", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout"},
-    {"id": "G1_R2_E1_MP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback"},
-    {"id": "G1_R2_E1_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep"},
-    {"id": "G1_R2_E2_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep"},
+    # Original 8 variants (RS-ranked)
+    {"id": "G1_R1_E1", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1", "rank_by": "rs"},
+    {"id": "G1_R1_E2", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2", "rank_by": "rs"},
+    {"id": "G1_R2_E1", "label": "QQQ>21>50>200 · 1M RS≥97 · Scale+BE",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1", "rank_by": "rs"},
+    {"id": "G1_R2_E2", "label": "QQQ>21>50>200 · 1M RS≥97 · Pure Ride",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2", "rank_by": "rs"},
+    {"id": "G1_R2_E1_MB", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Breakout",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout", "rank_by": "rs"},
+    {"id": "G1_R2_E1_MP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback", "rank_by": "rs"},
+    {"id": "G1_R2_E1_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep", "rank_by": "rs"},
+    {"id": "G1_R2_E2_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep", "rank_by": "rs"},
+    
+    # New 8 variants (ATH-proximity ranked: closest to 52W high gets priority, RS as tiebreaker)
+    {"id": "G1_R1_E1_ATH", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE · ATH Priority",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1", "rank_by": "ath"},
+    {"id": "G1_R1_E2_ATH", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride · ATH Priority", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2", "rank_by": "ath"},
+    {"id": "G1_R2_E1_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Scale+BE · ATH Priority",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1", "rank_by": "ath"},
+    {"id": "G1_R2_E2_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Pure Ride · ATH Priority",  "gate_sma": 21, "rs_mode": "1m",   "exit": "E2", "rank_by": "ath"},
+    {"id": "G1_R2_E1_MB_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Breakout · ATH Priority",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_breakout", "rank_by": "ath"},
+    {"id": "G1_R2_E1_MP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback · ATH Priority",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback", "rank_by": "ath"},
+    {"id": "G1_R2_E1_EP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP · ATH Priority", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep", "rank_by": "ath"},
+    {"id": "G1_R2_E2_EP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure · ATH Priority", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep", "rank_by": "ath"},
 ]
 
 
@@ -357,6 +373,11 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
             if pd.isna(initial_stop) or initial_stop <= 0:
                 continue
 
+            # Calculate distance from 52W high (for ATH-proximity ranking)
+            pct_from_52w_high = row.get('Pct_From_52W_High', np.nan)
+            if pd.isna(pct_from_52w_high):
+                pct_from_52w_high = -100.0  # Default to far from high if not available
+
             signals_by_date[date_str].append({
                 "ticker": ticker,
                 "close": float(row['Close']),
@@ -364,6 +385,7 @@ def precompute_signals(all_data: Dict[str, pd.DataFrame]) -> Dict[str, List[dict
                 "rs_ibd": float(pctile_ibd) if not pd.isna(pctile_ibd) else 0,
                 "rs_1m": float(pctile_1m) if not pd.isna(pctile_1m) else 0,
                 "ema_high_8": float(row['EMA_High_8']),
+                "pct_from_52w_high": float(pct_from_52w_high),
                 "is_standard": bool(row['Bullish_Structure'] and row['Pullback_OK']),
                 "is_m_breakout": bool(row.get('Is_Modern_Breakout', False)),
                 "is_m_pullback": bool(row.get('Is_Modern_Pullback', False)),
@@ -432,6 +454,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
     exit_system = variant["exit"]
     variant_id = variant["id"]
     variant_label = variant["label"]
+    rank_by = variant.get("rank_by", "rs")  # Default to RS ranking for backward compatibility
 
     # Pre-compute QQQ gate series
     qqq_indexed = qqq_df  # Now already indexed by Date
@@ -732,30 +755,50 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 if rs_mode == "ibd":
                     if cand['rs_ibd'] < RS_THRESHOLD: continue
                     rs_str = f"IBD RS={cand['rs_ibd']:.0f}"
-                    sort_val = cand['rs_ibd']
+                    rs_val = cand['rs_ibd']
                 else:
                     if cand['rs_1m'] < RS_THRESHOLD: continue
                     rs_str = f"1M RS pctile={cand['rs_1m']:.0f}"
-                    sort_val = cand['rs_1m']
+                    rs_val = cand['rs_1m']
 
                 gate_label = f"QQQ>{gate_sma}SMA"
                 ema_high = cand.get('ema_high_8', 0)
                 pb_pct = ((cand['close'] / ema_high) - 1) * 100 if ema_high else 0.0
-                reason = (
-                    f"Entry: {rs_str}, bullish 8EMA structure, "
-                    f"pullback {pb_pct:.1f}% from EMA cluster; "
-                    f"{gate_label} gate ON"
-                )
+                
+                # Get ATH proximity data
+                pct_from_52w = cand.get('pct_from_52w_high', -100.0)
+                
+                # Build reason string based on ranking method
+                if rank_by == "ath":
+                    reason = (
+                        f"Entry: {rs_str}, {pct_from_52w:.1f}% from 52W high (ATH priority), "
+                        f"bullish 8EMA structure, pullback {pb_pct:.1f}% from EMA cluster; "
+                        f"{gate_label} gate ON"
+                    )
+                else:
+                    reason = (
+                        f"Entry: {rs_str}, bullish 8EMA structure, "
+                        f"pullback {pb_pct:.1f}% from EMA cluster; "
+                        f"{gate_label} gate ON"
+                    )
 
                 valid_candidates.append({
                     "ticker": ticker,
                     "initial_stop": cand['initial_stop'],
-                    "rs_val": sort_val,
+                    "rs_val": rs_val,
+                    "pct_from_52w_high": pct_from_52w,
                     "reason": reason
                 })
 
-            # Sort by RS (highest first) and take top N to fill slots
-            valid_candidates.sort(key=lambda c: c['rs_val'], reverse=True)
+            # Sort by ranking method: ATH-proximity (closest to high) or RS (highest)
+            if rank_by == "ath":
+                # Primary: closest to 52W high (highest pct_from_52w_high, which is negative)
+                # Secondary: highest RS as tiebreaker
+                valid_candidates.sort(key=lambda c: (-c['pct_from_52w_high'], -c['rs_val']))
+            else:
+                # Original: sort by RS (highest first)
+                valid_candidates.sort(key=lambda c: c['rs_val'], reverse=True)
+            
             for vc in valid_candidates[:open_slots]:
                 pending_entries.append(vc)
 
@@ -809,6 +852,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
             "gate_sma": gate_sma,
             "rs_mode": rs_mode,
             "exit_system": exit_system,
+            "rank_by": rank_by,
             "starting_capital": STARTING_CAPITAL,
             "max_positions": MAX_POSITIONS,
             "sim_start_date": SIM_START_DATE,
@@ -1026,7 +1070,7 @@ def compute_metrics(equity_curve: List[dict], closed_trades: List[dict],
 def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, **kwargs) -> List[dict]:
     """
     Main entry point. Loads OHLCV data once, precomputes indicators and
-    rolling RS percentiles (lookahead-free), then runs all 8 variants.
+    rolling RS percentiles (lookahead-free), then runs all 16 variants.
     Pass in_memory_data to run directly from RAM (bypasses DB).
     """
     start_time = time.time()
