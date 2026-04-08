@@ -1144,6 +1144,10 @@ def store_results(results: List[dict]):
         is_pg = hasattr(conn, 'info') or hasattr(conn, 'dsn')
         cursor = conn.cursor()
 
+        # Clear all existing portfolio results to avoid stale data
+        print("   🗑️  Clearing old portfolio results...", flush=True)
+        cursor.execute("DELETE FROM portfolio_results")
+        
         now = datetime.datetime.utcnow().isoformat()
 
         for result in results:
