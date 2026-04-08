@@ -621,7 +621,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                     trades.append(make_trade_record(
                         date_str, pos.ticker, "PARTIAL", sell_shares, close,
                         pnl, r_mult, cum_eq,
-                        f"3R profit reached ({unrealized_per_share / pos.R:.1f}R). Sold 1/3, stop moved to breakeven."
+                        f"3R profit reached ({unrealized_per_share / pos.R:.1f}R). Sold 1/3, stop moved to breakeven." if pos.R > 0 else "3R profit reached. Sold 1/3, stop moved to breakeven."
                     ))
 
                 # After scaling, check exits with precedence: structural first
