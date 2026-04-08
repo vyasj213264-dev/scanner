@@ -175,10 +175,10 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['In_Stage_2'] = (df['Close'] > df['SMA_150']) & (df['SMA_150'] > df['SMA_200']) & df['SMA_200_Up']
 
     df['52W_High'] = df['High'].rolling(252).max()
-    df['Pct_From_52W_High'] = ((df['Close'] - df['52W_High']) / df['52W_High']) * 100
+    df['Pct_From_52W_High'] = ((df['Close'] - df['52W_High']) / df['52W_High'].replace(0, np.nan)) * 100
 
     df['Volume_SMA_50'] = df['Volume'].rolling(50).mean()
-    df['RVOL'] = df['Volume'] / df['Volume_SMA_50']
+    df['RVOL'] = df['Volume'] / df['Volume_SMA_50'].replace(0, np.nan)
 
     avg_10d_range = df['High'].rolling(10).max() - df['Low'].rolling(10).min()
     today_range = df['High'] - df['Low']
@@ -187,15 +187,15 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['Inside_Bar'] = (df['High'] < df['High'].shift(1)) & (df['Low'] > df['Low'].shift(1))
 
     rolling_min = df['Close'].rolling(4).min()
-    df['Tight_Setup'] = ((df['Close'].rolling(4).max() - rolling_min) / rolling_min) < 0.02
+    df['Tight_Setup'] = ((df['Close'].rolling(4).max() - rolling_min) / rolling_min.replace(0, np.nan)) < 0.02
 
-    df['Gap_Up_Pct'] = (df['Open'] / df['Close'].shift(1)) - 1.0
+    df['Gap_Up_Pct'] = (df['Open'] / df['Close'].shift(1).replace(0, np.nan)) - 1.0
 
     df['Is_Modern_Breakout'] = (
         df['In_Stage_2'] & 
         (df['Pct_From_52W_High'] > -20) & 
         (df['Tight_Setup'] | df['VCP_Approximation'] | df['Inside_Bar']) & 
-        (abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.06) &
+        (abs(df['Close'] - df['SMA_20']) / df['SMA_20'].replace(0, np.nan) <= 0.06) &
         (df['RVOL'] > 1.5)
     )
 
@@ -204,7 +204,7 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
         (df['Close'] >= df['SMA_50']) & 
         (df['SMA_20'] >= df['SMA_50']) & 
         (df['RVOL'] < 1.0) & 
-        ((abs(df['Close'] - df['SMA_20']) / df['SMA_20'] <= 0.02) | (abs(df['Close'] - df['SMA_10']) / df['SMA_10'] <= 0.02)) & 
+        ((abs(df['Close'] - df['SMA_20']) / df['SMA_20'].replace(0, np.nan) <= 0.02) | (abs(df['Close'] - df['SMA_10']) / df['SMA_10'].replace(0, np.nan) <= 0.02)) & 
         (df['Inside_Bar'] | df['Tight_Setup'] | df['VCP_Approximation'])
     )
 
