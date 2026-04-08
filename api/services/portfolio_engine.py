@@ -554,9 +554,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 continue
 
             initial_stop = entry['initial_stop']
-            if entry_price <= initial_stop:
-                # Invalid risk — skip
-                events_log.append({"date": date_str, "event": f"Skipped {ticker}: entry {entry_price:.2f} <= stop {initial_stop:.2f}"})
+            if entry_price <= initial_stop or (entry_price - initial_stop) < 0.01:
+                # Invalid risk — skip (R must be at least $0.01)
+                events_log.append({"date": date_str, "event": f"Skipped {ticker}: entry {entry_price:.2f} <= stop {initial_stop:.2f} (insufficient R)"})
                 continue
 
             # Position sizing dynamically based on recent Progressive Exposure performance
