@@ -602,27 +602,42 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
 
             # ── E1: Scale at 3R + Breakeven Runner ──
             if pos.exit_system == "E1":
-                unrealized_per_share = close - pos.entry_price
+                try:
+                    unrealized_per_share = close - pos.entry_price
 
-                # Check if 3R reached and we haven't scaled yet
-                if not pos.has_scaled and pos.R > 0 and unrealized_per_share >= 3 * pos.R:
-                    # Sell 1/3 of shares
-                    sell_shares = max(1, pos.initial_shares // 3)
-                    sell_shares = min(sell_shares, pos.shares)
-                    pnl = sell_shares * (close - pos.entry_price)
-                    r_mult = unrealized_per_share / pos.R if pos.R > 0 else 0
+                    # Check if 3R reached and we haven't scaled yet
+                    if not pos.has_scaled and pos.R > 0 and unrealized_per_share >= 3 * pos.R:
+                        sell_shares = max(1, pos.initial_shares // 3)
+                        sell_shares = min(sell_shares, pos.shares)
+                        pnl = sell_shares * (close - pos.entry_price)
+                        r_mult = unrealized_per_share / pos.R if pos.R > 0 else 0
 
-                    pos.shares -= sell_shares
-                    cash += sell_shares * close
-                    pos.has_scaled = True
-                    pos.stop_moved_to_be = True  # Move stop to breakeven
+                        pos.shares -= sell_shares
+                        cash += sell_shares * close
+                        pos.has_scaled = True
+                        pos.stop_moved_to_be = True  # Move stop to breakeven
 
-                    cum_eq = get_equity(date_str)
-                    trades.append(make_trade_record(
-                        date_str, pos.ticker, "PARTIAL", sell_shares, close,
-                        pnl, r_mult, cum_eq,
-                        f"3R profit reached ({unrealized_per_share / pos.R:.1f}R). Sold 1/3, stop moved to breakeven." if pos.R > 0 else "3R profit reached. Sold 1/3, stop moved to breakeven."
-                    ))
+                        cum_eq = get_equity(date_str)
+                        trades.append(make_trade_record(
+                            date_str, pos.ticker, "PARTIAL", sell_shares, close,
+                            pnl, r_mult, cum_eq,
+                            f"3R profit reached ({unrealized_per_share / pos.R:.1f}R). Sold 1/3, stop moved to breakeven." if pos.R > 0 else "3R profit reached. Sold 1/3, stop moved to breakeven."
+                        ))
+                        
+                        if pos.shares == 0:
+                            closed_trades_for_stats.append({
+                                "ticker": pos.ticker, "entry_date": pos.entry_date,
+                                "exit_date": date_str, "entry_price": pos.entry_price,
+                                "exit_price": close, "shares": pos.initial_shares,
+                                "pnl": pnl, "r_multiple": r_mult,
+                                "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
+                                "exit_type": "scaled_full"
+                            })
+                            recent_rs.append(r_mult)
+                            positions_to_remove.append(pos)
+                except Exception as e:
+                    print(f"   ⚠️  Error in E1 exit for {pos.ticker} on {date_str}: {e} (pos.R={pos.R}, close={close}, entry={pos.entry_price})", flush=True)
+                    raise
 
                 # After scaling, check exits with precedence: structural first
                 if pos.has_scaled and pos.shares > 0:
@@ -831,7 +846,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
             "avg_entry": round(pos.entry_price, 2),
             "last_close": round(last_close, 2),
             "unrealized_pnl": round(unrealized, 2),
-            "unrealized_pnl_pct": round(unrealized / (pos.shares * pos.entry_price) * 100, 2) if pos.entry_price > 0 else 0,
+            "unrealized_pnl_pct": round(unrealized / (pos.shares * pos.entry_price) * 100, 2) if pos.entry_price > 0 and pos.shares > 0 else 0,
             "current_stop_line": round(stop_line, 2),
             "distance_to_stop_pct": round(dist_to_stop, 2),
             "R": round(pos.R, 2),
