@@ -455,6 +455,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
     variant_id = variant["id"]
     variant_label = variant["label"]
     rank_by = variant.get("rank_by", "rs")  # Default to RS ranking for backward compatibility
+    variant_filter = variant.get("filter", None)
 
     # Pre-compute QQQ gate series
     qqq_indexed = qqq_df  # Now already indexed by Date
@@ -775,6 +776,12 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                     if cand['rs_1m'] < RS_THRESHOLD: continue
                     rs_str = f"1M RS pctile={cand['rs_1m']:.0f}"
                     rs_val = cand['rs_1m']
+
+                # Enforce Setup Filter
+                if variant_filter == "modern_breakout" and not cand["is_m_breakout"]: continue
+                if variant_filter == "modern_pullback" and not cand["is_m_pullback"]: continue
+                if variant_filter == "modern_ep" and not cand["is_ep"]: continue
+                if variant_filter is None and not cand["is_standard"]: continue
 
                 gate_label = f"QQQ>{gate_sma}SMA"
                 ema_high = cand.get('ema_high_8', 0)
