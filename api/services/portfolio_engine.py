@@ -418,7 +418,8 @@ class Position:
     __slots__ = [
         'ticker', 'entry_date', 'entry_price', 'shares', 'initial_shares',
         'initial_stop', 'R', 'has_scaled', 'stop_moved_to_be',
-        'exit_system', 'reason', 'realized_pnl', 'partial_shares_sold'
+        'exit_system', 'reason', 'realized_pnl', 'partial_shares_sold',
+        'max_price', 'highest_r_reached'
     ]
 
     def __init__(self, ticker: str, entry_date: str, entry_price: float,
@@ -436,6 +437,8 @@ class Position:
         self.reason = reason
         self.realized_pnl = 0.0  # Accumulates PnL from partial exits
         self.partial_shares_sold = 0  # Track how many shares sold in partials
+        self.max_price = entry_price
+        self.highest_r_reached = 0.0
 
 
 def make_trade_record(date: str, ticker: str, action: str, qty: int,
@@ -583,8 +586,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
             risk_per_share = entry_price - initial_stop  # = R
 
             if sizing_mode == "atr":
-                # Championship: risk exactly ATR_RISK_PCT (1%) of equity per trade
-                dollar_risk = current_equity * ATR_RISK_PCT
+                # Championship: risk exactly ATR_RISK_PCT (2%) * progressive exposure health multiplier
+                health_multiplier = get_dynamic_weight() / 0.25
+                dollar_risk = current_equity * ATR_RISK_PCT * health_multiplier
                 shares = int(dollar_risk / risk_per_share) if risk_per_share > 0 else 0
                 # Cap at MAX_POSITION_PCT of equity
                 max_shares = int(current_equity * MAX_POSITION_PCT / entry_price)
@@ -625,11 +629,19 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 continue
 
             close = float(row['Close'])
+            high = float(row['High'])
             low = float(row['Low'])
             stop_line = float(row['StopLine']) if pd.notna(row.get('StopLine')) else None
 
             if stop_line is None:
                 continue
+
+            # Update highest marks for the position
+            if high > pos.max_price:
+                pos.max_price = high
+            current_r = (high - pos.entry_price) / pos.R if pos.R > 0 else 0
+            if current_r > pos.highest_r_reached:
+                pos.highest_r_reached = current_r
 
             # ── E1: Scale at 3R + Breakeven Runner ──
             if pos.exit_system == "E1":
@@ -784,11 +796,21 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                     positions_to_remove.append(pos)
                     continue
 
-            # ── E3: Championship (Pure Ride + Hard Stop + ATR Sizing) ──
+            # ── E3: Championship (Pure Ride + Hard Stop + ATR Sizing + Profit Protection) ──
             elif pos.exit_system == "E3":
-                hard_stop_price = pos.entry_price * (1 - HARD_STOP_PCT)
+                # Calculate dynamic hard stop (Profit Protection Ratchet)
+                # If we breached +2R, lock in +1R. If +4R, lock in +2R. 
+                # Otherwise, use the standard 8% hard stop.
+                if pos.highest_r_reached >= 5.0:
+                    hard_stop_price = pos.entry_price + (2.5 * pos.R)
+                elif pos.highest_r_reached >= 3.0:
+                    hard_stop_price = pos.entry_price + (1.5 * pos.R)
+                elif pos.highest_r_reached >= 2.0:
+                    hard_stop_price = pos.entry_price + (1.0 * pos.R)
+                else:
+                    hard_stop_price = pos.entry_price * (1 - HARD_STOP_PCT)
 
-                # Priority 1: Hard max loss stop (intraday) — NEVER let a trade exceed 8% loss
+                # Priority 1: Hard max loss stop or profit protection hit (intraday)
                 if low <= hard_stop_price:
                     open_price = float(row['Open'])
                     # If gapped below hard stop, take the open; otherwise take the hard stop level
@@ -798,19 +820,20 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                     cash += pos.shares * exit_price
                     cum_eq = get_equity(date_str)
 
+                    exit_reason = f"Profit lock hit: Low {low:.2f} <= {hard_stop_price:.2f} (from {pos.highest_r_reached:.1f}R peak)" if pos.highest_r_reached >= 2.0 else f"Hard stop hit: Low {low:.2f} <= {HARD_STOP_PCT*100:.0f}% stop at {hard_stop_price:.2f}"
+
                     closed_trades_for_stats.append({
                         "ticker": pos.ticker, "entry_date": pos.entry_date,
                         "exit_date": date_str, "entry_price": pos.entry_price,
                         "exit_price": exit_price, "shares": pos.initial_shares,
                         "pnl": pnl, "r_multiple": r_mult,
                         "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
-                        "exit_type": "hard_stop"
+                        "exit_type": "profit_protection" if pos.highest_r_reached >= 2.0 else "hard_stop"
                     })
 
                     trades.append(make_trade_record(
                         date_str, pos.ticker, "STOP", pos.shares, exit_price,
-                        pnl, r_mult, cum_eq,
-                        f"Hard stop hit: Low {low:.2f} <= {HARD_STOP_PCT*100:.0f}% stop at {hard_stop_price:.2f}"
+                        pnl, r_mult, cum_eq, exit_reason
                     ))
                     recent_rs.append(r_mult)
                     positions_to_remove.append(pos)
