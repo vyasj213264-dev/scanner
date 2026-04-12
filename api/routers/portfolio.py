@@ -92,6 +92,7 @@ def list_variants():
                 "expectancy_r": metrics.get('expectancy_r', 0),
                 "ending_equity": metrics.get('ending_equity', 0),
                 "open_positions_count": len(result.get('open_positions', [])),
+                "sim_period": result.get('sim_period', {}),
                 "computed_at": row.get('computed_at', ''),
                 "data_through": row.get('data_through', '')
             })

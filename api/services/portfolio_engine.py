@@ -26,18 +26,23 @@ import numpy as np
 
 from api.database import get_db
 
+import os
+
 # ──────────────────────────────────────────────────────────────────
 # Constants
 # ──────────────────────────────────────────────────────────────────
 STARTING_CAPITAL = 100_000.0
 MAX_POSITIONS = 4
+# Dynamic: computed from data. Legacy fallback only.
 SIM_START_DATE = "2020-01-01"
+# Configurable lookback period (change to 1, 3, or 5 years anytime)
+SIM_LOOKBACK_YEARS = int(os.environ.get('SIM_LOOKBACK_YEARS', '5'))
 EMA_PERIOD = 8
 RS_THRESHOLD = 97
 MIN_PRICE = 10.0
 MIN_AVG_DOLLAR_VOL = 5_000_000.0  # $5M/day
 PULLBACK_PCT = 0.02  # 2% pullback filter
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # 16 Strategy Variant Definitions (Strict Market Regime applied universally)
 # First 8: Original RS-ranked entry selection
@@ -403,7 +408,7 @@ class Position:
     __slots__ = [
         'ticker', 'entry_date', 'entry_price', 'shares', 'initial_shares',
         'initial_stop', 'R', 'has_scaled', 'stop_moved_to_be',
-        'exit_system', 'reason'
+        'exit_system', 'reason', 'realized_pnl', 'partial_shares_sold'
     ]
 
     def __init__(self, ticker: str, entry_date: str, entry_price: float,
@@ -419,6 +424,8 @@ class Position:
         self.stop_moved_to_be = False
         self.exit_system = exit_system
         self.reason = reason
+        self.realized_pnl = 0.0  # Accumulates PnL from partial exits
+        self.partial_shares_sold = 0  # Track how many shares sold in partials
 
 
 def make_trade_record(date: str, ticker: str, action: str, qty: int,
@@ -613,6 +620,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         pnl = sell_shares * (close - pos.entry_price)
                         r_mult = unrealized_per_share / pos.R if pos.R > 0 else 0
 
+                        # Track partial exit PnL for accurate statistics
+                        pos.realized_pnl += pnl
+                        pos.partial_shares_sold += sell_shares
                         pos.shares -= sell_shares
                         cash += sell_shares * close
                         pos.has_scaled = True
@@ -626,15 +636,18 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         ))
                         
                         if pos.shares == 0:
+                            # All shares sold via partial — record total PnL
+                            total_pnl = pos.realized_pnl
+                            total_r = total_pnl / (pos.initial_shares * pos.R) if pos.R > 0 else 0
                             closed_trades_for_stats.append({
                                 "ticker": pos.ticker, "entry_date": pos.entry_date,
                                 "exit_date": date_str, "entry_price": pos.entry_price,
                                 "exit_price": close, "shares": pos.initial_shares,
-                                "pnl": pnl, "r_multiple": r_mult,
+                                "pnl": total_pnl, "r_multiple": total_r,
                                 "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
                                 "exit_type": "scaled_full"
                             })
-                            recent_rs.append(r_mult)
+                            recent_rs.append(total_r)
                             positions_to_remove.append(pos)
                 except Exception as e:
                     print(f"   ⚠️  Error in E1 exit for {pos.ticker} on {date_str}: {e} (pos.R={pos.R}, close={close}, entry={pos.entry_price})", flush=True)
@@ -644,27 +657,27 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 if pos.has_scaled and pos.shares > 0:
                     # Structural exit: Close < StopLine
                     if close < stop_line:
-                        pnl = pos.shares * (close - pos.entry_price)
-                        r_mult = (close - pos.entry_price) / pos.R if pos.R > 0 else 0
+                        remaining_pnl = pos.shares * (close - pos.entry_price)
+                        total_pnl = pos.realized_pnl + remaining_pnl
+                        total_r = total_pnl / (pos.initial_shares * pos.R) if pos.R > 0 else 0
                         cash += pos.shares * close
                         cum_eq = get_equity(date_str)
-                        pnl_total = (pos.initial_shares - pos.shares) * 0 + pnl  # partial already booked
 
                         closed_trades_for_stats.append({
                             "ticker": pos.ticker, "entry_date": pos.entry_date,
                             "exit_date": date_str, "entry_price": pos.entry_price,
                             "exit_price": close, "shares": pos.initial_shares,
-                            "pnl": pnl, "r_multiple": r_mult,
+                            "pnl": total_pnl, "r_multiple": total_r,
                             "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
                             "exit_type": "structural_after_partial"
                         })
 
                         trades.append(make_trade_record(
                             date_str, pos.ticker, "SELL", pos.shares, close,
-                            pnl, r_mult, cum_eq,
+                            remaining_pnl, (close - pos.entry_price) / pos.R if pos.R > 0 else 0, cum_eq,
                             f"Final structural exit (post-scale): Close {close:.2f} < StopLine {stop_line:.2f}"
                         ))
-                        recent_rs.append(r_mult)
+                        recent_rs.append(total_r)
                         positions_to_remove.append(pos)
                         continue
 
@@ -673,8 +686,9 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         open_price = float(row['Open'])
                         # If it gapped down past our entry, we suffer slippage to the open price.
                         exit_price = pos.entry_price if open_price >= pos.entry_price else open_price
-                        pnl = pos.shares * (exit_price - pos.entry_price)
-                        r_mult = (exit_price - pos.entry_price) / pos.R if pos.R > 0 else 0.0
+                        remaining_pnl = pos.shares * (exit_price - pos.entry_price)
+                        total_pnl = pos.realized_pnl + remaining_pnl
+                        total_r = total_pnl / (pos.initial_shares * pos.R) if pos.R > 0 else 0.0
                         cash += pos.shares * exit_price
                         cum_eq = get_equity(date_str)
 
@@ -682,17 +696,17 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                             "ticker": pos.ticker, "entry_date": pos.entry_date,
                             "exit_date": date_str, "entry_price": pos.entry_price,
                             "exit_price": exit_price, "shares": pos.initial_shares,
-                            "pnl": pnl, "r_multiple": r_mult,
+                            "pnl": total_pnl, "r_multiple": total_r,
                             "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
                             "exit_type": "breakeven_stop"
                         })
 
                         trades.append(make_trade_record(
-                        date_str, pos.ticker, "STOP", pos.shares, exit_price,
-                        pnl, r_mult, cum_eq,
-                        f"Initial stop hit: Low {low:.2f} <= Initial {initial_stop:.2f}"
-                    ))
-                        recent_rs.append(r_mult)
+                            date_str, pos.ticker, "STOP", pos.shares, exit_price,
+                            remaining_pnl, (exit_price - pos.entry_price) / pos.R if pos.R > 0 else 0, cum_eq,
+                            f"Breakeven stop hit: Low {low:.2f} <= Entry {pos.entry_price:.2f}"
+                        ))
+                        recent_rs.append(total_r)
                         positions_to_remove.append(pos)
                         continue
 
@@ -1087,17 +1101,80 @@ def compute_metrics(equity_curve: List[dict], closed_trades: List[dict],
 
 
 # ──────────────────────────────────────────────────────────────────
+# Dynamic Start Date Computation
+# ──────────────────────────────────────────────────────────────────
+def compute_dynamic_start_date(qqq_df: pd.DataFrame, lookback_years: int) -> str:
+    """
+    Compute the simulation start date dynamically based on available data
+    and the requested lookback period.
+
+    Ensures:
+    1. At least 252 trading days of warm-up for IBD RS computation
+    2. SMA_200 is valid (needs 200+ days of history before sim start)
+    3. The start date is at most `lookback_years` before the latest data date
+    """
+    all_dates = sorted(qqq_df['Date'].unique())
+    latest_date = pd.Timestamp(all_dates[-1])
+    earliest_date = pd.Timestamp(all_dates[0])
+
+    # Target start = latest_date - lookback_years
+    target_start = latest_date - pd.DateOffset(years=lookback_years)
+
+    # We need at least 252 trading days of data BEFORE the sim start
+    # for IBD RS warm-up (252d lookback) and SMA_200 (200d lookback)
+    WARM_UP_DAYS = 252
+    if len(all_dates) <= WARM_UP_DAYS:
+        # Not enough data even for warm-up — use whatever we have
+        # Start after the warm-up period
+        if len(all_dates) > 50:  # At least use data after 50-day SMA is valid
+            sim_start = all_dates[50]
+        else:
+            sim_start = all_dates[0]
+        print(f"   ⚠️  Limited data ({len(all_dates)} days). Starting sim at {sim_start} with reduced warm-up.", flush=True)
+        return sim_start
+
+    # Find the index of the date closest to our target  
+    warm_up_end_date = pd.Timestamp(all_dates[WARM_UP_DAYS])
+
+    # Sim start must be AFTER the warm-up period
+    effective_start = max(target_start, warm_up_end_date)
+
+    # Find the actual closest trading date >= effective_start
+    sim_start = None
+    for d in all_dates:
+        if pd.Timestamp(d) >= effective_start:
+            sim_start = d
+            break
+
+    if sim_start is None:
+        sim_start = all_dates[WARM_UP_DAYS]
+
+    total_available = (latest_date - earliest_date).days / 365.25
+    sim_span = (latest_date - pd.Timestamp(sim_start)).days / 365.25
+    print(f"   📅 Dynamic start date: {sim_start} (data spans {total_available:.1f}y, sim spans {sim_span:.1f}y, warm-up: {WARM_UP_DAYS}d)", flush=True)
+
+    return sim_start
+
+
+# ──────────────────────────────────────────────────────────────────
 # Main Entry Point
 # ──────────────────────────────────────────────────────────────────
-def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, **kwargs) -> List[dict]:
+def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, lookback_years: int = None, **kwargs) -> List[dict]:
     """
     Main entry point. Loads OHLCV data once, precomputes indicators and
     rolling RS percentiles (lookahead-free), then runs all 16 variants.
     Pass in_memory_data to run directly from RAM (bypasses DB).
+    
+    Args:
+        in_memory_data: Dict of ticker -> DataFrame (bypasses DB load)
+        lookback_years: Simulation lookback period in years (default: SIM_LOOKBACK_YEARS env var or 5)
     """
+    if lookback_years is None:
+        lookback_years = SIM_LOOKBACK_YEARS
+
     start_time = time.time()
 
-    print("📊 Portfolio Engine: Loading data...", flush=True)
+    print(f"📊 Portfolio Engine v{VERSION}: Loading data (lookback={lookback_years}y)...", flush=True)
     if in_memory_data is not None:
         all_data = {t: df.copy() for t, df in in_memory_data.items()}
     else:
@@ -1132,15 +1209,30 @@ def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, **kwargs) -
     # Get QQQ DataFrame with indicators
     qqq_df = all_data['QQQ']
 
+    # Dynamically compute sim start date based on available data
+    dynamic_start = compute_dynamic_start_date(qqq_df, lookback_years)
+
     # Build trading dates list (from QQQ as the master calendar)
-    qqq_dates = qqq_df[qqq_df['Date'] >= SIM_START_DATE]['Date']
+    qqq_dates = qqq_df[qqq_df['Date'] >= dynamic_start]['Date']
     trading_dates = sorted(qqq_dates.tolist())
 
     if not trading_dates:
-        print("   ⚠️  No trading dates found after SIM_START_DATE", flush=True)
+        print("   ⚠️  No trading dates found after computed start date", flush=True)
         return []
 
-    print(f"   Simulation window: {trading_dates[0]} to {trading_dates[-1]} ({len(trading_dates)} days)", flush=True)
+    sim_years = (pd.Timestamp(trading_dates[-1]) - pd.Timestamp(trading_dates[0])).days / 365.25
+    print(f"   Simulation window: {trading_dates[0]} to {trading_dates[-1]} ({len(trading_dates)} days, {sim_years:.1f} years)", flush=True)
+
+    # Data quality warnings
+    warnings = []
+    if sim_years < 1.0:
+        warnings.append(f"Very short simulation period ({sim_years:.1f} years). Results may not be statistically significant.")
+    if len(all_data) < 100:
+        warnings.append(f"Small universe ({len(all_data)} tickers). RS rankings may be less meaningful.")
+    if sim_years < lookback_years * 0.8:
+        warnings.append(f"Requested {lookback_years}Y lookback but only {sim_years:.1f}Y of data available.")
+    for w in warnings:
+        print(f"   ⚠️  {w}", flush=True)
 
     # Precompute all possible entry signals using vectorized logic (lookahead-free)
     signals_by_date = precompute_signals(all_data)
@@ -1150,10 +1242,22 @@ def run_all_variants(in_memory_data: Dict[str, pd.DataFrame] = None, **kwargs) -
     for variant in VARIANTS:
         print(f"   Running variant {variant['id']}: {variant['label']}...", flush=True)
         result = run_variant(variant, all_data, qqq_df, signals_by_date, trading_dates)
+        # Attach simulation metadata
+        result['sim_period'] = {
+            'start_date': trading_dates[0],
+            'end_date': trading_dates[-1],
+            'trading_days': len(trading_dates),
+            'years': round(sim_years, 2),
+            'lookback_years_requested': lookback_years,
+            'universe_size': len(all_data),
+            'warnings': warnings
+        }
         results.append(result)
         t_count = result['metrics'].get('total_trades', 0)
         ret = result['metrics'].get('total_return_pct', 0)
-        print(f"   ✅ {variant['id']}: {t_count} trades, {ret:+.1f}% return", flush=True)
+        cagr = result['metrics'].get('cagr_pct', 0)
+        pf = result['metrics'].get('profit_factor', 0)
+        print(f"   ✅ {variant['id']}: {t_count} trades, {ret:+.1f}% total, {cagr:.1f}% CAGR, PF {pf:.2f}", flush=True)
 
     elapsed = time.time() - start_time
     print(f"📊 Portfolio Engine: All {len(results)} variants complete in {elapsed:.1f} seconds!", flush=True)
