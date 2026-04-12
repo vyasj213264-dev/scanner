@@ -42,11 +42,17 @@ RS_THRESHOLD = 97
 MIN_PRICE = 10.0
 MIN_AVG_DOLLAR_VOL = 5_000_000.0  # $5M/day
 PULLBACK_PCT = 0.02  # 2% pullback filter
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
-# 16 Strategy Variant Definitions (Strict Market Regime applied universally)
+# Championship (E3) Constants
+HARD_STOP_PCT = 0.08       # 8% hard max loss from entry price
+ATR_RISK_PCT = 0.02        # Risk 2% of equity per trade (optimized via sweep)
+MAX_POSITION_PCT = 0.33    # Max 33% of equity in any single position
+
+# Strategy Variant Definitions
 # First 8: Original RS-ranked entry selection
-# Last 8: ATH-proximity ranked entry selection (closest to 52W high gets priority)
+# Next 8: ATH-proximity ranked entry selection
+# Last 2: Championship variants (ATR sizing + hard stop)
 VARIANTS = [
     # Original 8 variants (RS-ranked)
     {"id": "G1_R1_E1", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1", "rank_by": "rs"},
@@ -58,7 +64,7 @@ VARIANTS = [
     {"id": "G1_R2_E1_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep", "rank_by": "rs"},
     {"id": "G1_R2_E2_EP", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep", "rank_by": "rs"},
     
-    # New 8 variants (ATH-proximity ranked: closest to 52W high gets priority, RS as tiebreaker)
+    # 8 ATH-proximity ranked variants
     {"id": "G1_R1_E1_ATH", "label": "QQQ>21>50>200 · IBD RS≥97 · Scale+BE · ATH Priority",  "gate_sma": 21, "rs_mode": "ibd",  "exit": "E1", "rank_by": "ath"},
     {"id": "G1_R1_E2_ATH", "label": "QQQ>21>50>200 · IBD RS≥97 · Pure Ride · ATH Priority", "gate_sma": 21, "rs_mode": "ibd",  "exit": "E2", "rank_by": "ath"},
     {"id": "G1_R2_E1_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Scale+BE · ATH Priority",   "gate_sma": 21, "rs_mode": "1m",   "exit": "E1", "rank_by": "ath"},
@@ -67,6 +73,10 @@ VARIANTS = [
     {"id": "G1_R2_E1_MP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. Pullback · ATH Priority",  "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_pullback", "rank_by": "ath"},
     {"id": "G1_R2_E1_EP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP · ATH Priority", "gate_sma": 21, "rs_mode": "1m", "exit": "E1", "filter": "modern_ep", "rank_by": "ath"},
     {"id": "G1_R2_E2_EP_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Mod. EP Pure · ATH Priority", "gate_sma": 21, "rs_mode": "1m", "exit": "E2", "filter": "modern_ep", "rank_by": "ath"},
+
+    # Championship variants: ATR-based sizing (risk 1% per trade) + 8% hard stop + Pure Ride trailing
+    {"id": "G1_R2_E3", "label": "QQQ>21>50>200 · 1M RS≥97 · Championship",  "gate_sma": 21, "rs_mode": "1m", "exit": "E3", "rank_by": "rs", "sizing": "atr"},
+    {"id": "G1_R2_E3_ATH", "label": "QQQ>21>50>200 · 1M RS≥97 · Championship · ATH Priority",  "gate_sma": 21, "rs_mode": "1m", "exit": "E3", "rank_by": "ath", "sizing": "atr"},
 ]
 
 
@@ -463,6 +473,7 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
     variant_label = variant["label"]
     rank_by = variant.get("rank_by", "rs")  # Default to RS ranking for backward compatibility
     variant_filter = variant.get("filter", None)
+    sizing_mode = variant.get("sizing", "fixed")  # "fixed" (25% alloc) or "atr" (risk 1% per trade)
 
     # Pre-compute QQQ gate series
     qqq_indexed = qqq_df  # Now already indexed by Date
@@ -567,10 +578,22 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                 events_log.append({"date": date_str, "event": f"Skipped {ticker}: entry {entry_price:.2f} <= stop {initial_stop:.2f} (insufficient R)"})
                 continue
 
-            # Position sizing dynamically based on recent Progressive Exposure performance
+            # Position sizing
             current_equity = get_equity(date_str)
-            alloc = current_equity * get_dynamic_weight()
-            shares = int(alloc / entry_price)
+            risk_per_share = entry_price - initial_stop  # = R
+
+            if sizing_mode == "atr":
+                # Championship: risk exactly ATR_RISK_PCT (1%) of equity per trade
+                dollar_risk = current_equity * ATR_RISK_PCT
+                shares = int(dollar_risk / risk_per_share) if risk_per_share > 0 else 0
+                # Cap at MAX_POSITION_PCT of equity
+                max_shares = int(current_equity * MAX_POSITION_PCT / entry_price)
+                shares = min(shares, max_shares)
+            else:
+                # Standard: fixed allocation based on progressive exposure
+                alloc = current_equity * get_dynamic_weight()
+                shares = int(alloc / entry_price)
+
             if shares <= 0:
                 continue
 
@@ -756,6 +779,63 @@ def run_variant(variant: dict, all_data: Dict[str, pd.DataFrame],
                         date_str, pos.ticker, "SELL", pos.shares, close,
                         pnl, r_mult, cum_eq,
                         f"Pure ride structural exit: Close {close:.2f} < StopLine {stop_line:.2f}"
+                    ))
+                    recent_rs.append(r_mult)
+                    positions_to_remove.append(pos)
+                    continue
+
+            # ── E3: Championship (Pure Ride + Hard Stop + ATR Sizing) ──
+            elif pos.exit_system == "E3":
+                hard_stop_price = pos.entry_price * (1 - HARD_STOP_PCT)
+
+                # Priority 1: Hard max loss stop (intraday) — NEVER let a trade exceed 8% loss
+                if low <= hard_stop_price:
+                    open_price = float(row['Open'])
+                    # If gapped below hard stop, take the open; otherwise take the hard stop level
+                    exit_price = min(open_price, hard_stop_price) if open_price <= hard_stop_price else hard_stop_price
+                    pnl = pos.shares * (exit_price - pos.entry_price)
+                    r_mult = (exit_price - pos.entry_price) / pos.R if pos.R > 0 else 0
+                    cash += pos.shares * exit_price
+                    cum_eq = get_equity(date_str)
+
+                    closed_trades_for_stats.append({
+                        "ticker": pos.ticker, "entry_date": pos.entry_date,
+                        "exit_date": date_str, "entry_price": pos.entry_price,
+                        "exit_price": exit_price, "shares": pos.initial_shares,
+                        "pnl": pnl, "r_multiple": r_mult,
+                        "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
+                        "exit_type": "hard_stop"
+                    })
+
+                    trades.append(make_trade_record(
+                        date_str, pos.ticker, "STOP", pos.shares, exit_price,
+                        pnl, r_mult, cum_eq,
+                        f"Hard stop hit: Low {low:.2f} <= {HARD_STOP_PCT*100:.0f}% stop at {hard_stop_price:.2f}"
+                    ))
+                    recent_rs.append(r_mult)
+                    positions_to_remove.append(pos)
+                    continue
+
+                # Priority 2: Structural exit (same as Pure Ride): Close < StopLine
+                elif close < stop_line:
+                    pnl = pos.shares * (close - pos.entry_price)
+                    r_mult = (close - pos.entry_price) / pos.R if pos.R > 0 else 0
+                    cash += pos.shares * close
+                    cum_eq = get_equity(date_str)
+
+                    closed_trades_for_stats.append({
+                        "ticker": pos.ticker, "entry_date": pos.entry_date,
+                        "exit_date": date_str, "entry_price": pos.entry_price,
+                        "exit_price": close, "shares": pos.initial_shares,
+                        "pnl": pnl, "r_multiple": r_mult,
+                        "holding_days": (pd.Timestamp(date_str) - pd.Timestamp(pos.entry_date)).days,
+                        "exit_type": "structural_championship"
+                    })
+
+                    trades.append(make_trade_record(
+                        date_str, pos.ticker, "SELL", pos.shares, close,
+                        pnl, r_mult, cum_eq,
+                        f"Championship structural exit: Close {close:.2f} < StopLine {stop_line:.2f}"
                     ))
                     recent_rs.append(r_mult)
                     positions_to_remove.append(pos)
