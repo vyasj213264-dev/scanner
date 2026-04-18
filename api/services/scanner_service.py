@@ -316,7 +316,7 @@ def run_scan(
         f"ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W, "
         f"ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M "
         f"FROM screen_data d "
-        f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker "
+        f"INNER JOIN scanner_results r ON d.Ticker = r.Ticker AND r.Market = '{market}' "
         f"LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "

@@ -3461,8 +3461,13 @@
             activeWatchlist = null; // Clear watchlist context
             themesCategory = null;
             themesLevel = 'top';
-            filterSectors = {};
-            filterIndustries = {};
+            // Only reset sector/industry filters when switching to a NEW scanner,
+            // NOT when reapplying filters (force=true from applyFilters)
+            if (!force) {
+                filterSectors = {};
+                filterIndustries = {};
+                updateFilterButtons();
+            }
 
             // Reflect the active scanner in the URL (only on user clicks, not on popstate)
             if (!force) pushScannerToHistory(scannerId);
