@@ -1053,6 +1053,7 @@ def run_ingest(market='US'):
             "AND SMA_3_Slope BETWEEN -0.03 AND -0.005 "
             "AND Close > SMA_50 "
             "AND Close >= SMA_21 * 0.95 "
+            "AND RS_Rating_6M >= 80 "
             "AND (Upside_Reversal OR Tight_Setup OR Inside_Bar OR Double_Inside_Day OR VCP_Approximation)"
         ),
     }
