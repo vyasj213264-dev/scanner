@@ -131,6 +131,49 @@ def calculate_indicators(df):
     # Inside Bar
     df['Inside_Bar'] = (df['High'] < df['High'].shift(1)) & (df['Low'] > df['Low'].shift(1))
 
+    # Double Inside Day (two consecutive inside bars — extreme volatility contraction)
+    df['Double_Inside_Day'] = df['Inside_Bar'] & df['Inside_Bar'].shift(1)
+
+    # 3-day SMA and its slope (for pullback velocity measurement)
+    df['SMA_3'] = df['Close'].rolling(window=3).mean()
+    df['SMA_3_Slope'] = (df['SMA_3'] / df['SMA_3'].shift(3)) - 1.0  # 3-day change in 3SMA
+
+    # 20-day average dollar volume (institutional liquidity filter)
+    df['Volume_SMA_20'] = df['Volume'].rolling(window=20).mean()
+    df['Avg_Dollar_Vol_20'] = df['Close'] * df['Volume_SMA_20']
+
+    # Upside Reversal — 3 signal types (any qualifies)
+    # Signal A: Classic Bullish Reversal Bar
+    #   Low probes below previous low, but closes above previous close, in upper 60% of range
+    day_range = df['High'] - df['Low']
+    close_in_upper_range = (df['Close'] - df['Low']) >= (0.6 * day_range)
+    signal_a = (
+        (df['Low'] < df['Low'].shift(1)) &
+        (df['Close'] > df['Close'].shift(1)) &
+        close_in_upper_range
+    )
+
+    # Signal B: Hammer / Pin Bar
+    #   Lower wick >= 2x upper wick, meaningful range, green candle
+    lower_wick = df['Close'] - df['Low']
+    upper_wick = df['High'] - df['Close']
+    signal_b = (
+        (lower_wick >= 2 * upper_wick.replace(0, 0.001)) &
+        (day_range > df['ADR_20'].shift(1) * df['Close'].shift(1) / 100 * 0.5) &
+        (df['Close'] > df['Open'])
+    )
+
+    # Signal C: Volume Reversal
+    #   Green candle, 30%+ above avg volume, made new short-term low, closed in upper half
+    signal_c = (
+        (df['Close'] > df['Open']) &
+        (df['Volume'] > df['Volume_SMA_20'] * 1.3) &
+        (df['Low'] < df['Low'].shift(1)) &
+        (df['Close'] > (df['High'] + df['Low']) / 2)
+    )
+
+    df['Upside_Reversal'] = signal_a | signal_b | signal_c
+
     # Golden Crossover (50 SMA crosses above 200 SMA today)
     df['Golden_Crossover'] = (df['SMA_50'] > df['SMA_200']) & (df['SMA_50'].shift(1) <= df['SMA_200'].shift(1))
 
@@ -458,7 +501,11 @@ def run_ingest(market='US'):
                         ticker_meta.get(ticker, {}).get('sector', 'Unknown'),
                         ticker_meta.get(ticker, {}).get('industry', 'Unknown'),
                         _parse_market_cap(ticker_meta.get(ticker, {}).get('market_cap')),
-                        int(last['Stage']) if pd.notna(last['Stage']) else None
+                        int(last['Stage']) if pd.notna(last['Stage']) else None,
+                        _nan_to_none(last['Avg_Dollar_Vol_20']),
+                        _nan_to_none(last['SMA_3_Slope']),
+                        _safe_bool(last['Upside_Reversal']),
+                        _safe_bool(last['Double_Inside_Day'])
                     )
                     all_data.append(record)
                     
@@ -585,6 +632,9 @@ def run_ingest(market='US'):
                                 _safe_bool(last_etf['Tight_Setup']),
                                 _safe_bool(last_etf['Near_Horizontal_Resistance']),
                                 rs_raw_clean_etf,
+                                None,  # RS_Raw_1M
+                                None,  # RS_Raw_3M
+                                None,  # RS_Raw_6M
                                 _safe_bool(last_etf['Inside_Bar']),
                                 _safe_bool(last_etf['Golden_Crossover']),
                                 _safe_bool(last_etf['Gap_Up']),
@@ -597,10 +647,17 @@ def run_ingest(market='US'):
                                 _nan_to_none(last_etf['Momentum_6M']),
                                 _nan_to_none(last_etf['Momentum_1Y']),
                                 0.0, # Placeholder for RS_Rating
+                                0.0, # RS_Rating_1M
+                                0.0, # RS_Rating_3M
+                                0.0, # RS_Rating_6M
                                 'ETF', # Sector
                                 'ETF', # Industry
                                 0.0, # Market Cap
-                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None
+                                int(last_etf['Stage']) if pd.notna(last_etf['Stage']) else None,
+                                _nan_to_none(last_etf['Avg_Dollar_Vol_20']),
+                                _nan_to_none(last_etf['SMA_3_Slope']),
+                                _safe_bool(last_etf['Upside_Reversal']),
+                                _safe_bool(last_etf['Double_Inside_Day'])
                             )
                             all_data.append(etf_record)
                             
@@ -688,7 +745,11 @@ def run_ingest(market='US'):
             Sector {sql_types["TEXT"]},
             Industry {sql_types["TEXT"]},
             Market_Cap {sql_types["REAL"]},
-            Stage {sql_types["INTEGER"]}
+            Stage {sql_types["INTEGER"]},
+            Avg_Dollar_Vol_20 {sql_types["REAL"]},
+            SMA_3_Slope {sql_types["REAL"]},
+            Upside_Reversal {sql_types["BOOLEAN"]},
+            Double_Inside_Day {sql_types["BOOLEAN"]}
         )
     ''')
     
@@ -703,6 +764,20 @@ def run_ingest(market='US'):
                 try:
                     cursor.execute(f"ALTER TABLE screen_data ADD COLUMN {new_col} REAL")
                     conn.commit()
+                except Exception:
+                    conn.rollback()
+
+    # Defensive schema migration: Power Pullback columns
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        for new_col, col_type in [("Avg_Dollar_Vol_20", "REAL"), ("SMA_3_Slope", "REAL"), ("Upside_Reversal", "BOOLEAN"), ("Double_Inside_Day", "BOOLEAN")]:
+            try:
+                cursor.execute(f"SELECT {new_col} FROM screen_data LIMIT 1")
+            except Exception:
+                conn.rollback()
+                try:
+                    cursor.execute(f"ALTER TABLE screen_data ADD COLUMN {new_col} {col_type}")
+                    conn.commit()
+                    print(f"Migrated screen_data: added {new_col} column.", flush=True)
                 except Exception:
                     conn.rollback()
     
@@ -797,7 +872,8 @@ def run_ingest(market='US'):
         "RS_Raw", "RS_Raw_1M", "RS_Raw_3M", "RS_Raw_6M", "Inside_Bar", "Golden_Crossover", "Gap_Up", "Gap_Down", "VCP_Approximation", 
         "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", 
         "RS_Rating", "RS_Rating_1M", "RS_Rating_3M", "RS_Rating_6M",
-        "Sector", "Industry", "Market_Cap", "Stage"
+        "Sector", "Industry", "Market_Cap", "Stage",
+        "Avg_Dollar_Vol_20", "SMA_3_Slope", "Upside_Reversal", "Double_Inside_Day"
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
@@ -972,6 +1048,13 @@ def run_ingest(market='US'):
             "AND ((abs(Close - SMA_20) / SMA_20 <= 0.02) OR (abs(Close - SMA_10) / SMA_10 <= 0.02)) "
             "AND (Inside_Bar OR Tight_Setup OR VCP_Approximation)"
         ),
+        "power-pullback":         (
+            "Avg_Dollar_Vol_20 > 20000000 "
+            "AND SMA_3_Slope BETWEEN -0.03 AND -0.005 "
+            "AND Close > SMA_50 "
+            "AND Close >= SMA_21 * 0.95 "
+            "AND (Upside_Reversal OR Tight_Setup OR Inside_Bar OR Double_Inside_Day OR VCP_Approximation)"
+        ),
     }
     
     baseline = "Close >= 5" if market == "US" else "Close > 0"
@@ -986,6 +1069,47 @@ def run_ingest(market='US'):
             # handle both sqlite.Row and psycopg2.extras.DictRow
             ticker_val = row['Ticker'] if 'Ticker' in row else row[0]
             cache_records.append((scanner_id, ticker_val))
+
+    # Power Pullback: apply industry rank top-50% post-filter (requires JOIN to industry_ranks)
+    # Get the industry rank cutoff (total industries / 2)
+    if market == 'US':
+        latest_date_q = f"SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}'"
+        cursor.execute(f"SELECT COUNT(*) FROM industry_ranks WHERE Category = 'Industry' AND Market = '{market}' AND Date = ({latest_date_q})")
+        industry_count_row = cursor.fetchone()
+        total_industries = (industry_count_row[0] if industry_count_row else 0)
+        top_50_cutoff = max(1, total_industries // 2)
+        
+        if total_industries > 0:
+            # Get industries in top 50% by 1M or 3M rank
+            cursor.execute(f"""
+                SELECT Name FROM industry_ranks 
+                WHERE Category = 'Industry' AND Market = '{market}' AND Date = ({latest_date_q})
+                AND (Rank_1M <= {top_50_cutoff} OR Rank_3M <= {top_50_cutoff})
+            """)
+            top_industries = {row[0] for row in cursor.fetchall()}
+            
+            # Filter power-pullback candidates: keep only those IN a top-50% industry
+            original_count = sum(1 for sid, _ in cache_records if sid == 'power-pullback')
+            
+            # Batch lookup industries for all power-pullback candidates
+            pp_tickers = [ticker for sid, ticker in cache_records if sid == 'power-pullback']
+            if pp_tickers:
+                placeholder = ','.join(["'"+t.replace("'","''")+"'" for t in pp_tickers])
+                cursor.execute(f"SELECT Ticker, Industry FROM screen_data WHERE Ticker IN ({placeholder}) AND Market = '{market}'")
+                ticker_industry = {row[0]: row[1] for row in cursor.fetchall()}
+                
+                filtered_count = 0
+                new_cache = []
+                for sid, ticker in cache_records:
+                    if sid == 'power-pullback':
+                        industry = ticker_industry.get(ticker, '')
+                        if industry in top_industries:
+                            new_cache.append((sid, ticker))
+                            filtered_count += 1
+                    else:
+                        new_cache.append((sid, ticker))
+                cache_records = new_cache
+                print(f"  Power Pullback: {original_count} → {filtered_count} after industry rank top-50% filter (cutoff: rank ≤ {top_50_cutoff} of {total_industries})", flush=True)
             
     if cache_records:
         batch_size = 500

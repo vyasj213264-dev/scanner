@@ -63,6 +63,10 @@ class StockResult(BaseModel):
     stage: Optional[int] = Field(None, validation_alias="Stage")
     peg_ratio: Optional[float] = Field(None, validation_alias="peg_ratio")
     revenue_growth_3y: Optional[float] = Field(None, validation_alias="revenue_growth_3y")
+    avg_dollar_vol_20: Optional[float] = Field(None, validation_alias="Avg_Dollar_Vol_20")
+    sma_3_slope: Optional[float] = Field(None, validation_alias="SMA_3_Slope")
+    upside_reversal: Optional[bool] = Field(None, validation_alias="Upside_Reversal")
+    double_inside_day: Optional[bool] = Field(None, validation_alias="Double_Inside_Day")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)

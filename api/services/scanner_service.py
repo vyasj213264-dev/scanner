@@ -139,6 +139,13 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         description="Stage 2 leaders (RS ≥ 90) pulling back to the 10/20 DMA with volume contraction and tight patterns — continuation entry setups.",
         category="Pullbacks",
     ),
+    # Elite Scanners
+    ScannerMeta(
+        id="power-pullback",
+        label="🔥 Power Pullback",
+        description="Institutional-grade pullback scanner: liquid stocks ($20M+ avg daily $ vol) in a gentle 3SMA pullback (-0.5% to -3%), above key MAs, in a top-50% performing industry, showing a reversal/pause signal (upside reversal, tight setup, inside day, double inside day, or VCP).",
+        category="Elite Scanners",
+    ),
 ]
 
 # Lookup by id for O(1) access
@@ -190,6 +197,13 @@ _FILTERS: dict = {
         "AND RVOL < 1.0 "
         "AND ((abs(Close - SMA_20) / SMA_20 <= 0.02) OR (abs(Close - SMA_10) / SMA_10 <= 0.02)) "
         "AND (Inside_Bar OR Tight_Setup OR VCP_Approximation)"
+    ),
+    "power-pullback":         (
+        "Avg_Dollar_Vol_20 > 20000000 "
+        "AND SMA_3_Slope BETWEEN -0.03 AND -0.005 "
+        "AND Close > SMA_50 "
+        "AND Close >= SMA_21 * 0.95 "
+        "AND (Upside_Reversal OR Tight_Setup OR Inside_Bar OR Double_Inside_Day OR VCP_Approximation)"
     ),
 }
 
