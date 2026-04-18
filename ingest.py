@@ -302,31 +302,30 @@ def run_ingest(market='US'):
             except Exception as sec_e:
                 print(f"Error: SEC fallback also failed: {sec_e}", flush=True)
                 
-    # TODO: Uncomment when ready to ingest Indian market data again
-    # elif market == 'IN':
-    #     print("Fetching Indian Tickers (NSE/BSE)...", flush=True)
-    #     in_tickers, in_meta = fetch_indian_tickers()
-    #     tickers.extend(in_tickers)
-    #     ticker_meta.update(in_meta)
-    #     
-    #     # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
-    #     import concurrent.futures
-    #     print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
-    #     actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
-    #     
-    #     def _fetch_mc(t):
-    #         try:
-    #             import yfinance as yf
-    #             return t, yf.Ticker(t).fast_info.get('marketCap')
-    #         except:
-    #             return t, None
-    # 
-    #     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-    #         for t, mc in executor.map(_fetch_mc, actual_stocks):
-    #             if mc:
-    #                 ticker_meta[t]['market_cap'] = mc
-    #                 
-    #     print("Indian Market Cap fetch complete.", flush=True)
+    elif market == 'IN':
+        print("Fetching Indian Tickers (NSE/BSE)...", flush=True)
+        in_tickers, in_meta = fetch_indian_tickers()
+        tickers.extend(in_tickers)
+        ticker_meta.update(in_meta)
+        
+        # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
+        import concurrent.futures
+        print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
+        actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
+        
+        def _fetch_mc(t):
+            try:
+                import yfinance as yf
+                return t, yf.Ticker(t).fast_info.get('marketCap')
+            except:
+                return t, None
+    
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            for t, mc in executor.map(_fetch_mc, actual_stocks):
+                if mc:
+                    ticker_meta[t]['market_cap'] = mc
+                    
+        print("Indian Market Cap fetch complete.", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
@@ -807,19 +806,11 @@ def run_ingest(market='US'):
     print(f"[{market}] Performing full database cleanup...", flush=True)
     
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        # Remove ALL lingering Indian market data from every table (no longer ingested)
-        for tbl in ['screen_data', 'scanner_results', 'market_breadth_history', 'industry_ranks']:
-            try:
-                cursor.execute(f"DELETE FROM {tbl} WHERE Market = 'IN'")
-            except Exception:
-                conn.rollback()
+        # Market-scoped DELETE to reclaim space for this market's old data only.
+        # Using DELETE (not TRUNCATE) so both US and IN data can coexist in the same table.
+        cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
         conn.commit()
-        
-        # TRUNCATE daily_ohlcv (immediately reclaims disk space in PostgreSQL,
-        # unlike DELETE which leaves dead tuples that still count toward Neon size limit)
-        cursor.execute("TRUNCATE TABLE daily_ohlcv")
-        conn.commit()
-        print(f"[{market}] TRUNCATEd daily_ohlcv to reclaim disk space.", flush=True)
+        print(f"[{market}] Cleaned old daily_ohlcv rows for market={market}.", flush=True)
     else:
         # SQLite: simple DELETE is fine (no dead tuple bloat)
         cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
@@ -1114,18 +1105,20 @@ def run_ingest(market='US'):
         print(f"[{market}] Database connection closed.", flush=True)
     print(f"[{market}] Ingestion complete.", flush=True)
 
-    print(f"[{market}] Running portfolio simulation...", flush=True)
-    if market == 'US':
-        try:
-            from api.services.portfolio_engine import run_all_variants, store_results
-            results = run_all_variants(in_memory_data=sim_data_dict)
-            if results:
-                store_results(results)
-                print("✅ Successfully updated portfolio simulation results.", flush=True)
-            else:
-                print("⚠️ Portfolio Simulation yielded no data.", flush=True)
-        except Exception as e:
-            print(f"❌ Portfolio Simulation Error: {e}", flush=True)
+    # Portfolio simulation is run separately (via GitHub Actions schedule or manual trigger).
+    # Uncomment below to re-enable inline simulation after ingestion.
+    # print(f"[{market}] Running portfolio simulation...", flush=True)
+    # if market == 'US':
+    #     try:
+    #         from api.services.portfolio_engine import run_all_variants, store_results
+    #         results = run_all_variants(in_memory_data=sim_data_dict)
+    #         if results:
+    #             store_results(results)
+    #             print("✅ Successfully updated portfolio simulation results.", flush=True)
+    #         else:
+    #             print("⚠️ Portfolio Simulation yielded no data.", flush=True)
+    #     except Exception as e:
+    #         print(f"❌ Portfolio Simulation Error: {e}", flush=True)
 
 def main():
     import sys
@@ -1135,10 +1128,9 @@ def main():
         print("\n=== STARTING US MARKET INGESTION ===", flush=True)
         run_ingest(market='US')
         
-    # TODO: Uncomment the following block when ready to ingest Indian market data again
-    # if target_market in ['IN', 'BOTH']:
-    #     print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
-    #     run_ingest(market='IN')
+    if target_market in ['IN', 'BOTH']:
+        print("\n=== STARTING INDIAN MARKET INGESTION ===", flush=True)
+        run_ingest(market='IN')
 
 if __name__ == "__main__":
     main()
