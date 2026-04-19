@@ -5029,7 +5029,14 @@
 
                     <!-- Stage Analysis Visualizer -->
                     <div class="sp-stat-box" style="padding: 24px;">
-                        <div class="theme-section-header" style="margin-bottom: 24px; font-size: 1.1rem; color: var(--text-primary);">Stage Analysis</div>
+                        <div class="theme-section-header" style="margin-bottom: 8px; font-size: 1.1rem; color: var(--text-primary);">Stan Weinstein's 50-DMA Stage Distribution</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.4;">
+                            Categorizes every stock into cyclical phases based strictly on short-term 50-Day Moving Average momentum:<br>
+                            <span style="color:var(--text-primary); font-weight:600;">Stage 1 (Basing):</span> Price &ge; 50 DMA, but 50 DMA is flat or declining (slope &le; 1% month-over-month).<br>
+                            <span style="color:var(--text-primary); font-weight:600;">Stage 2 (Advancing):</span> Price &ge; 50 DMA, and 50 DMA is in a confirmed uptrend (slope &gt; 1%).<br>
+                            <span style="color:var(--text-primary); font-weight:600;">Stage 3 (Topping):</span> Price &lt; 50 DMA, but 50 DMA is flat or rising (slope &ge; -1%).<br>
+                            <span style="color:var(--text-primary); font-weight:600;">Stage 4 (Declining):</span> Price &lt; 50 DMA, and 50 DMA is in a confirmed downtrend (slope &lt; -1%).
+                        </div>
                         
                         <!-- Progress Bar -->
                         <div style="display: flex; height: 12px; width: 100%; border-radius: 6px; overflow: hidden; margin-bottom: 32px; background: var(--surface);">
