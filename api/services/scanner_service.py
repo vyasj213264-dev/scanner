@@ -120,12 +120,12 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         description="Price within +/- 2% of the 50-day moving average.",
         category="Pullbacks",
     ),
-    ScannerMeta(
-        id="long-term-pf",
-        label="🎯 Long Term PF (Fundamental Growth)",
-        description="Indian Market specific: Small/Midcaps (> 500Cr), PEG Ratio < 1.5, Revenue doubled over the last 3-4 years, and firmly in Stage 2 trend. Designed for core long-term holdings.",
-        category="Trend & Breakout",
-    ),
+    # ScannerMeta(
+    #     id="long-term-pf",
+    #     label="🎯 Long Term PF (Fundamental Growth)",
+    #     description="Indian Market specific: Small/Midcaps (> 500Cr), PEG Ratio < 1.5, Revenue doubled over the last 3-4 years, and firmly in Stage 2 trend. Designed for core long-term holdings.",
+    #     category="Trend & Breakout",
+    # ),
     # Modern Swing Scanners
     ScannerMeta(
         id="modern-breakout",
