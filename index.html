@@ -557,6 +557,27 @@
             white-space: nowrap;
         }
 
+        .header-know-more {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.72rem;
+            color: var(--accent);
+            background: var(--accent-glow);
+            border: 1px solid rgba(79, 142, 247, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-left: 6px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .header-know-more:hover {
+            background: rgba(79, 142, 247, 0.15);
+            border-color: rgba(79, 142, 247, 0.4);
+        }
+
         .results-meta {
             font-size: 0.75rem;
             color: var(--text-secondary);
@@ -2286,8 +2307,11 @@
             <!-- Results Header -->
             <div class="results-header">
                 <div class="results-title" id="results-title">Select a scanner</div>
+                <button id="results-know-more" class="header-know-more" style="display:none;" onclick="if(activeScanner) showScannerInfo(activeScanner)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Know more</span>
+                </button>
                 <div class="results-meta" id="results-meta"></div>
-                
             </div>
             <div class="control-bars-container"
                 style="padding: 0 20px 10px 20px; border-bottom: 1px solid var(--border);">
@@ -3190,7 +3214,7 @@
             const wl = watchlists.find(w => w.id === id);
             const title = wl ? wl.name : 'Watchlist';
 
-            document.getElementById('results-title').textContent = title;
+            setResultsTitle(title);
             document.getElementById('grid-area').innerHTML = `
                 <div style="padding:40px; text-align:center; color:var(--text-muted);">
                     Loading watchlist...
@@ -3705,6 +3729,14 @@
         }
         
 
+
+        function setResultsTitle(title) {
+            const el = document.getElementById('results-title');
+            if (el) el.textContent = title;
+            const btn = document.getElementById('results-know-more');
+            if (btn) btn.style.display = 'none';
+        }
+        
         // ── Run Scanner ──────────────────────────────────────────
         async function runScanner(scannerId, scannerLabel, force = false) {
             if (!force && activeScanner === scannerId) return;
@@ -3732,7 +3764,9 @@
 
             
             // Update header
-            document.getElementById('results-title').textContent = scannerLabel;
+            setResultsTitle(scannerLabel);
+            const meta = globalScannerCatalog.find(s => s.id === scannerId);
+            document.getElementById('results-know-more').style.display = meta ? 'flex' : 'none';
 
             // Auto-close mobile menu when a scanner is selected
             const sidebar = document.getElementById('sidebar');
@@ -4200,7 +4234,7 @@
             const btn = document.getElementById('btn-trade-portal');
             if (btn) btn.classList.add('active');
 
-            document.getElementById('results-title').textContent = '🤖 AI Trade Portal';
+            setResultsTitle('🤖 AI Trade Portal');
             document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">Daily deterministic swing trade analysis</span>';
             document.getElementById('sort-controls').style.display = 'none'; // No standard sorting needed here
             document.getElementById('filter-bar').style.display = 'none';
@@ -4539,7 +4573,7 @@
             const btn = document.getElementById('btn-lev-etf');
             if (btn) btn.classList.add('active');
 
-            document.getElementById('results-title').textContent = '⚡ Leveraged ETFs';
+            setResultsTitle('⚡ Leveraged ETFs');
             document.getElementById('results-meta').innerHTML = '';
             document.getElementById('sort-controls').style.display = 'flex';
             document.getElementById('filter-bar').style.display = 'none';
@@ -4800,7 +4834,7 @@
             const btnUni = document.getElementById('btn-universe');
             if (btnUni) btnUni.classList.add('active');
 
-            document.getElementById('results-title').textContent = "Stock Universe Explorer";
+            setResultsTitle("Stock Universe Explorer");
             document.getElementById('results-meta').innerHTML = "Full market performance across all timeframes. Click headers to sort.";
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'flex';
@@ -5180,7 +5214,7 @@
             const liveLabel = _isMarketHours()
                 ? `<span style="color:#10b981;font-weight:600">🟢 Live</span> — auto-refreshing every 60s`
                 : `<span style="color:#94a3b8">🔴 Market closed</span>`;
-            document.getElementById('results-title').textContent = '📋 Watchlist';
+            setResultsTitle('📋 Watchlist');
             document.getElementById('results-meta').innerHTML = liveLabel;
         }
 
@@ -5228,7 +5262,7 @@
             activeScanner = null;
             history.pushState({}, '', buildCleanUrl());
 
-            document.getElementById('results-title').textContent = 'Market Breadth Dashboard';
+            setResultsTitle('Market Breadth Dashboard');
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of ${currentMarket === 'IN' ? 'Indian' : 'US'} Equities health</span>`;
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
@@ -5712,7 +5746,7 @@
             document.getElementById('btn-screener').classList.add('active');
             activeScanner = null;
 
-            document.getElementById('results-title').textContent = 'Custom Screener Builder';
+            setResultsTitle('Custom Screener Builder');
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Build your own dynamic scans</span>`;
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
@@ -5968,7 +6002,7 @@
                 ? `<span style="color:var(--text-muted)">Tracking money flow across ${themesCategory.toLowerCase()}</span>`
                 : `<span style="color:var(--text-muted)">Tracking money flow rotation across market ${themesCategory.toLowerCase()}s</span>`;
                 
-            document.getElementById('results-title').textContent = label;
+            setResultsTitle(label);
             document.getElementById('results-meta').innerHTML = subLabel;
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
@@ -6874,7 +6908,7 @@
             const btn = document.getElementById('btn-portfolio');
             if (btn) btn.classList.add('active');
 
-            document.getElementById('results-title').textContent = '🏆 Portfolio Simulator';
+            setResultsTitle('🏆 Portfolio Simulator');
             document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">16-variant rules-based backtest engine</span>';
             document.getElementById('sort-controls').style.display = 'none';
             document.getElementById('filter-bar').style.display = 'none';
