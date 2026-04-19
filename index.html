@@ -2080,6 +2080,10 @@
             <div class="results-header">
                 <div class="results-title" id="results-title">Select a scanner</div>
                 <div class="results-meta" id="results-meta"></div>
+                <details class="scanner-criteria-box" id="scanner-criteria-box" style="display:none; margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); padding: 10px 12px; cursor: pointer; width: 100%; box-sizing: border-box;">
+                    <summary style="font-weight: 600; color: var(--text-main); outline: none;">What does this scanner look for?</summary>
+                    <ul id="scanner-criteria-list" style="margin-top: 10px; margin-bottom: 4px; padding-left: 20px; line-height: 1.5;"></ul>
+                </details>
             </div>
             <div class="control-bars-container"
                 style="padding: 0 20px 10px 20px; border-bottom: 1px solid var(--border);">
@@ -2197,6 +2201,7 @@
         let activeSortBy = 'rs_rating';
         let activeSortDir = -1; // -1 for desc, 1 for asc
         let lastResults = [];
+        let globalScannerCatalog = [];
 
         // Filter state for Sector/Industry
         let filterSectors = {}; // { "Tech": "include", "Finance": "exclude" }
@@ -2608,6 +2613,7 @@
                     ]);
                     const health = await healthRes.json();
                     const scanData = await scannersRes.json();
+                    globalScannerCatalog = scanData.scanners;
 
                     document.getElementById('universe-count').textContent =
                         health.universe_size.toLocaleString();
@@ -2971,6 +2977,7 @@
         }
 
         async function runWatchlist(id) {
+            const cb = document.getElementById('scanner-criteria-box'); if(cb) cb.style.display = 'none';
             // UI State
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             const btn = document.getElementById(`btn-wl-${id}`);
@@ -3483,8 +3490,23 @@
             const activeBtn = document.querySelector(`.scanner-btn[data-id="${scannerId}"]`);
             if (activeBtn) activeBtn.classList.add('active');
 
+            
             // Update header
             document.getElementById('results-title').textContent = scannerLabel;
+
+            // Populate criteria box
+            const criteriaBox = document.getElementById('scanner-criteria-box');
+            const criteriaList = document.getElementById('scanner-criteria-list');
+            const meta = globalScannerCatalog.find(s => s.id === scannerId);
+            
+            if (meta && meta.criteria && meta.criteria.length > 0) {
+                criteriaList.innerHTML = meta.criteria.map(c => `<li>${c}</li>`).join('');
+                criteriaBox.style.display = 'block';
+                criteriaBox.removeAttribute('open'); // start collapsed
+            } else {
+                criteriaBox.style.display = 'none';
+            }
+
 
             // Auto-close mobile menu when a scanner is selected
             const sidebar = document.getElementById('sidebar');
@@ -4278,6 +4300,7 @@
 
         // ── Leveraged ETF Scanner ─────────────────────────────────
         async function runLevEtf(force = false) {
+            const cb = document.getElementById('scanner-criteria-box'); if(cb) cb.style.display = 'none';
             if (!force && activeScanner === 'lev-etf') return;
             activeScanner = 'lev-etf';
             activeWatchlist = null;
@@ -4541,6 +4564,7 @@
         const UNIVERSE_PAGE_SIZE = 100;
 
         async function runUniverse(force = false) {
+            const cb = document.getElementById('scanner-criteria-box'); if(cb) cb.style.display = 'none';
             if (!force && activeScanner === 'universe') return;
             activeScanner = 'universe';
             universePage = 1; // Reset to page 1 on fresh load
@@ -4973,6 +4997,7 @@
 
         // ── Market Breadth ────────────────────────────────────────
         async function runBreadth() {
+            const cb = document.getElementById('scanner-criteria-box'); if(cb) cb.style.display = 'none';
             document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-breadth').classList.add('active');
             activeScanner = null;
@@ -5691,6 +5716,7 @@
 
         // ── Themes Engine ─────────────────────────────────────────
         async function runThemes(category) {
+            const cb = document.getElementById('scanner-criteria-box'); if(cb) cb.style.display = 'none';
             themesCategory = category || 'Sector';
             const cleanUrl = buildCleanUrl({ theme: themesCategory });
             history.pushState({ theme: themesCategory }, '', cleanUrl);

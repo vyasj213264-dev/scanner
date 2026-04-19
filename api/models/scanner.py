@@ -90,6 +90,7 @@ class ScannerMeta(BaseModel):
     label: str
     description: str
     category: str
+    criteria: List[str] = Field(default_factory=list)
 
 
 class ScannerCatalogueResponse(BaseModel):
