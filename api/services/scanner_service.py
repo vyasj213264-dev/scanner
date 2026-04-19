@@ -146,6 +146,12 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         description="Institutional-grade pullback scanner: liquid stocks ($20M+ avg daily $ vol) in a gentle 3SMA pullback (-0.5% to -3%), above key MAs, in a top-50% performing industry, showing a reversal/pause signal (upside reversal, tight setup, inside day, double inside day, or VCP).",
         category="Elite Scanners",
     ),
+    ScannerMeta(
+        id="leading-industry-stock",
+        label="🏆 Leading Industry + Leading Stock",
+        description="O'Neil's golden rule: buy the best stocks in the best industries. Finds Stage 2 leaders (RS ≥ 85) whose IBD industry ETF proxy is ranked in the top 20 by 3M momentum AND trading above its 50DMA. Only shows stocks with $10+ price and mapped IBD ETF proxy.",
+        category="Elite Scanners",
+    ),
 ]
 
 # Lookup by id for O(1) access
@@ -205,6 +211,14 @@ _FILTERS: dict = {
         "AND Close >= SMA_21 * 0.95 "
         "AND RS_Rating_6M >= 80 "
         "AND (Upside_Reversal OR Tight_Setup OR Inside_Bar OR Double_Inside_Day OR VCP_Approximation)"
+    ),
+    "leading-industry-stock": (
+        "d.Stage = 2 "
+        "AND d.RS_Rating >= 85 "
+        "AND d.Close >= 10 "
+        "AND d.IBD_ETF_Proxy IS NOT NULL "
+        "AND etf.Rank_3M <= 20 "
+        "AND etf.Above_50DMA IS TRUE"
     ),
 }
 
@@ -320,6 +334,7 @@ def run_scan(
         f"LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
+        f"LEFT JOIN ibd_etf_ranks etf ON d.IBD_ETF_Proxy = etf.ETF_Ticker AND etf.Market = '{market}' AND etf.Date = (SELECT MAX(Date) FROM ibd_etf_ranks WHERE Market = '{market}') "
         f"WHERE r.scanner_id = ? AND d.Market = '{market}' AND d.{baseline}{extra_where} "
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"

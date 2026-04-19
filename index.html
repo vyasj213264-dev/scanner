@@ -5206,9 +5206,145 @@
                     `;
                 } // end if currentMarket !== 'IN' (Industry Stats)
 
-                html += `
-                    `;
-                
+                // ── IBD ETF Rotation Dashboard (US only) ──
+                if (currentMarket !== 'IN' && data.etf_rotation) {
+                    const rot = data.etf_rotation;
+                    
+                    // Industry ETF Breadth Indicators
+                    html += `
+                    <div class="sp-stat-box" style="padding: 24px;">
+                        <div class="theme-section-header" style="margin-bottom: 20px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.3rem;">\ud83d\udce1</span> IBD Industry ETF Breadth
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400; margin-left: auto;">${rot.total_industry_etfs} ETFs tracked</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                            <div>
+                                <div class="sp-stat-label">ETFs > 50 DMA</div>
+                                <div class="sp-stat-val" style="font-size: 1.6rem; color: ${rot.etfs_above_50dma_pct > 50 ? 'var(--green)' : 'var(--red)'};">${rot.etfs_above_50dma_pct}%</div>
+                                <div style="height: 4px; background: var(--surface); border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${rot.etfs_above_50dma_pct}%; background: ${rot.etfs_above_50dma_pct > 50 ? 'var(--green)' : 'var(--red)'}; border-radius: 2px; transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="sp-stat-label">ETFs > 200 DMA</div>
+                                <div class="sp-stat-val" style="font-size: 1.6rem; color: ${rot.etfs_above_200dma_pct > 50 ? 'var(--green)' : 'var(--red)'};">${rot.etfs_above_200dma_pct}%</div>
+                                <div style="height: 4px; background: var(--surface); border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${rot.etfs_above_200dma_pct}%; background: ${rot.etfs_above_200dma_pct > 50 ? 'var(--green)' : 'var(--red)'}; border-radius: 2px; transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="sp-stat-label">ETFs in Stage 2</div>
+                                <div class="sp-stat-val" style="font-size: 1.6rem; color: ${rot.etfs_in_stage2_pct > 40 ? 'var(--accent)' : 'var(--text-secondary)'};">${rot.etfs_in_stage2_pct}%</div>
+                                <div style="height: 4px; background: var(--surface); border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${rot.etfs_in_stage2_pct}%; background: var(--accent); border-radius: 2px; transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                    // Sector ETF Rotation Heatmap
+                    if (rot.sector_etfs && rot.sector_etfs.length > 0) {
+                        const getMomentumColor = (m) => {
+                            if (m >= 15) return '#166534';
+                            if (m >= 8) return '#22c55e';
+                            if (m >= 2) return '#65a30d';
+                            if (m >= -2) return '#eab308';
+                            if (m >= -8) return '#f97316';
+                            return '#dc2626';
+                        };
+                        const getStageLabel = (s) => {
+                            if (s === 2) return '\u25b2 S2';
+                            if (s === 1) return '\u2500 S1';
+                            if (s === 3) return '\u25c6 S3';
+                            if (s === 4) return '\u25bc S4';
+                            return '?';
+                        };
+                        const getStageColor = (s) => {
+                            if (s === 2) return '#3b82f6';
+                            if (s === 1) return '#9ca3af';
+                            if (s === 3) return '#facc15';
+                            if (s === 4) return '#ec4899';
+                            return '#6b7280';
+                        };
+
+                        html += `
+                        <div class="sp-stat-box" style="padding: 24px;">
+                            <div class="theme-section-header" style="margin-bottom: 20px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.3rem;">\ud83d\udd25</span> Sector ETF Rotation (3M Momentum)
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
+
+                        for (const s of rot.sector_etfs) {
+                            const color = getMomentumColor(s.momentum_3m);
+                            const maStatus = s.above_50dma ? (s.above_200dma ? '\u2705 >50 & >200' : '\u26a0\ufe0f >50 only') : '\u274c <50 DMA';
+                            html += `
+                                <div style="flex: 1 1 calc(33.33% - 10px); min-width: 180px; background: ${color}; color: #fff; padding: 16px; border-radius: 8px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;"
+                                     onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.3)'"
+                                     onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-weight: 700; font-size: 1.05rem; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">${s.ticker}</span>
+                                        <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.25); color: ${getStageColor(s.stage)}; font-weight: 600;">${getStageLabel(s.stage)}</span>
+                                    </div>
+                                    <div style="font-size: 0.8rem; opacity: 0.85; margin-bottom: 4px;">${s.name}</div>
+                                    <div style="display: flex; gap: 8px; font-size: 0.8rem; margin-top: 6px;">
+                                        <span title="1M">1M: ${s.momentum_1m > 0 ? '+' : ''}${s.momentum_1m}%</span>
+                                        <span title="3M" style="font-weight: 700;">3M: ${s.momentum_3m > 0 ? '+' : ''}${s.momentum_3m}%</span>
+                                        <span title="6M">6M: ${s.momentum_6m > 0 ? '+' : ''}${s.momentum_6m}%</span>
+                                    </div>
+                                    <div style="font-size: 0.7rem; margin-top: 4px; opacity: 0.7;">${maStatus} \u00b7 ${s.pct_from_high}% from high</div>
+                                </div>`;
+                        }
+                        html += `</div></div>`;
+                    }
+
+                    // Top 10 / Bottom 10 Industry ETFs
+                    const renderEtfTable = (title, emoji, etfs, isTop) => {
+                        let t = `
+                        <div class="sp-stat-box">
+                            <div class="theme-section-header" style="margin-bottom: 16px; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 1.2rem;">${emoji}</span> ${title}
+                            </div>
+                            <div class="universe-table-wrapper" style="max-height: 500px;">
+                                <table class="universe-table">
+                                    <thead><tr>
+                                        <th style="text-align:left;">Rank</th>
+                                        <th style="text-align:left;">ETF</th>
+                                        <th style="text-align:left;">Name</th>
+                                        <th style="text-align:left;">Sector</th>
+                                        <th style="text-align:right;">1M %</th>
+                                        <th style="text-align:right;">3M %</th>
+                                        <th style="text-align:right;">6M %</th>
+                                        <th style="text-align:center;">Stage</th>
+                                        <th style="text-align:center;">>50DMA</th>
+                                        <th style="text-align:right;">% High</th>
+                                    </tr></thead><tbody>`;
+                        for (const e of etfs) {
+                            const mColor = (m) => m > 0 ? 'var(--green)' : m < 0 ? 'var(--red)' : 'var(--text-secondary)';
+                            t += `<tr>
+                                <td style="font-weight:600; color:var(--accent);">#${e.rank_3m}</td>
+                                <td style="font-weight:600; color:var(--text-primary);">${e.ticker}</td>
+                                <td style="color:var(--text-secondary); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${e.name}</td>
+                                <td style="color:var(--text-muted); font-size:0.8rem;">${e.sector}</td>
+                                <td style="text-align:right; color:${mColor(e.momentum_1m)};">${e.momentum_1m > 0 ? '+' : ''}${e.momentum_1m}%</td>
+                                <td style="text-align:right; color:${mColor(e.momentum_3m)}; font-weight:600;">${e.momentum_3m > 0 ? '+' : ''}${e.momentum_3m}%</td>
+                                <td style="text-align:right; color:${mColor(e.momentum_6m)};">${e.momentum_6m > 0 ? '+' : ''}${e.momentum_6m}%</td>
+                                <td style="text-align:center;"><span style="color:${e.stage === 2 ? '#3b82f6' : e.stage === 4 ? '#ec4899' : 'var(--text-secondary)'}; font-weight:600;">S${e.stage || '?'}</span></td>
+                                <td style="text-align:center;">${e.above_50dma ? '\u2705' : '\u274c'}</td>
+                                <td style="text-align:right; color:${e.pct_from_high > -10 ? 'var(--text-secondary)' : 'var(--red)'};">${e.pct_from_high}%</td>
+                            </tr>`;
+                        }
+                        t += `</tbody></table></div></div>`;
+                        return t;
+                    };
+
+                    if (rot.top_10_industry_etfs && rot.top_10_industry_etfs.length > 0) {
+                        html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">`;
+                        html += renderEtfTable('Leading Industries (Top 10 by 3M)', '\ud83d\udfe2', rot.top_10_industry_etfs, true);
+                        html += renderEtfTable('Lagging Industries (Bottom 10 by 3M)', '\ud83d\udd34', rot.bottom_10_industry_etfs, false);
+                        html += `</div>`;
+                    }
+                } // end ETF rotation
+
                 html += `
                 </div>
                 `;

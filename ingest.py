@@ -8,6 +8,7 @@ import time
 from dotenv import load_dotenv
 
 load_dotenv()
+import json as _json
 
 # Configurable historic data retention period (e.g. '5y', '10y', 'max')
 HISTORY_PERIOD = os.environ.get('HISTORY_PERIOD', '5y')
@@ -15,6 +16,120 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 DB_NAME = "scanner.db"
 
 _rs_error_logged = False  # Only log the first RS error to avoid spamming logs
+
+# ── IBD Industry → ETF Proxy Mapping ──────────────────────────────────────
+# Maps Yahoo Finance industry names to the best IBD industry ETF ticker.
+# This is the parallel classification system — separate from Yahoo Finance sectors.
+INDUSTRY_TO_ETF = {
+    # ── TECHNOLOGY ──
+    'Semiconductors': 'SMH', 'Semiconductor Equipment & Materials': 'SMH',
+    'Semiconductor Memory': 'SMH', 'Fabless Semiconductors': 'SMH',
+    'Software—Application': 'IGV', 'Software—Infrastructure': 'IGV',
+    'Software - Application': 'IGV', 'Software - Infrastructure': 'IGV',
+    'Information Technology Services': 'IGV', 'Electronic Components': 'SMH',
+    'Scientific & Technical Instruments': 'SMH',
+    'Computer Hardware': 'XLK', 'Consumer Electronics': 'XLK',
+    'Communication Equipment': 'SIXG', 'Internet Content & Information': 'SOCL',
+    'Internet Retail': 'IBUY', 'Electronic Gaming & Multimedia': 'ESPO',
+    # ── HEALTH CARE ──
+    'Biotechnology': 'XBI', 'Drug Manufacturers—General': 'XLV',
+    'Drug Manufacturers - General': 'XLV',
+    'Drug Manufacturers—Specialty & Generic': 'XPH',
+    'Drug Manufacturers - Specialty & Generic': 'XPH',
+    'Medical Devices': 'IHI', 'Medical Instruments & Supplies': 'IHI',
+    'Health Information Services': 'HEAL', 'Medical Care Facilities': 'IHF',
+    'Healthcare Plans': 'IHF', 'Diagnostics & Research': 'XBI',
+    'Pharmaceutical Retailers': 'XPH', 'Medical Distribution': 'IHF',
+    # ── FINANCIALS ──
+    'Banks—Diversified': 'KBE', 'Banks - Diversified': 'KBE',
+    'Banks—Regional': 'KRE', 'Banks - Regional': 'KRE',
+    'Insurance—Diversified': 'KIE', 'Insurance - Diversified': 'KIE',
+    'Insurance—Life': 'KIE', 'Insurance - Life': 'KIE',
+    'Insurance—Property & Casualty': 'KIE', 'Insurance - Property & Casualty': 'KIE',
+    'Insurance Brokers': 'KIE', 'Capital Markets': 'IAI',
+    'Financial Data & Stock Exchanges': 'IAI', 'Asset Management': 'IAI',
+    'Credit Services': 'IPAY', 'Financial Conglomerates': 'XLF',
+    'Mortgage Finance': 'REM',
+    'REIT—Diversified': 'VNQ', 'REIT - Diversified': 'VNQ',
+    'REIT—Residential': 'VNQ', 'REIT—Industrial': 'VNQ',
+    'REIT—Retail': 'VNQ', 'REIT—Office': 'VNQ',
+    'REIT—Healthcare Facilities': 'VNQ', 'REIT—Hotel & Motel': 'VNQ',
+    'REIT—Specialty': 'VNQ', 'REIT—Mortgage': 'REM',
+    'Real Estate Services': 'VNQ', 'Real Estate—Development': 'VNQ',
+    # ── ENERGY ──
+    'Oil & Gas E&P': 'XOP', 'Oil & Gas Exploration & Production': 'XOP',
+    'Oil & Gas Integrated': 'XLE', 'Oil & Gas Midstream': 'AMLP',
+    'Oil & Gas Refining & Marketing': 'CRAK',
+    'Oil & Gas Equipment & Services': 'OIH', 'Oil & Gas Drilling': 'OIH',
+    'Uranium': 'URA', 'Thermal Coal': 'XLE',
+    # ── INDUSTRIALS ──
+    'Aerospace & Defense': 'XAR', 'Airlines': 'JETS',
+    'Railroads': 'IYT', 'Trucking': 'IYT', 'Marine Shipping': 'SEA',
+    'Air Freight & Logistics': 'IYT', 'Integrated Freight & Logistics': 'IYT',
+    'Farm & Heavy Construction Machinery': 'PAVE',
+    'Specialty Industrial Machinery': 'PAVE',
+    'Industrial Distribution': 'XLI', 'Engineering & Construction': 'PAVE',
+    'Infrastructure Operations': 'IFRA', 'Metal Fabrication': 'XLI',
+    'Tools & Accessories': 'XLI', 'Electrical Equipment & Parts': 'XLI',
+    'Building Products & Equipment': 'PKB',
+    'Pollution & Treatment Controls': 'EVX', 'Waste Management': 'EVX',
+    'Conglomerates': 'XLI', 'Rental & Leasing Services': 'XLI',
+    'Security & Protection Services': 'XLI',
+    'Staffing & Employment Services': 'XLI', 'Consulting Services': 'XLI',
+    # ── MATERIALS ──
+    'Gold': 'GDX', 'Silver': 'SIL', 'Copper': 'COPX',
+    'Steel': 'SLX', 'Aluminum': 'XME',
+    'Other Industrial Metals & Mining': 'XME',
+    'Other Precious Metals & Mining': 'GDX',
+    'Specialty Chemicals': 'XLB', 'Agricultural Inputs': 'MOO',
+    'Chemicals': 'XLB', 'Chemicals - Major Diversified': 'XLB',
+    'Lumber & Wood Production': 'WOOD', 'Paper & Paper Products': 'XLB',
+    'Coking Coal': 'XME', 'Building Materials': 'PKB',
+    # ── CONSUMER DISCRETIONARY ──
+    'Auto Manufacturers': 'CARZ', 'Auto & Truck Dealerships': 'XLY',
+    'Auto Parts': 'CARZ', 'Recreational Vehicles': 'XLY',
+    'Residential Construction': 'XHB', 'Home Improvement Retail': 'XHB',
+    'Home Furnishings & Fixtures': 'XHB', 'Home Furnishing Retail': 'XHB',
+    'Furnishings, Fixtures & Appliances': 'XHB',
+    'Restaurants': 'PEJ', 'Resorts & Casinos': 'BJK', 'Gambling': 'BETZ',
+    'Leisure': 'PEJ', 'Lodging': 'PEJ',
+    'Apparel Retail': 'XRT', 'Apparel Manufacturing': 'XLY',
+    'Department Stores': 'XRT', 'Discount Stores': 'XRT',
+    'Specialty Retail': 'XRT', 'Luxury Goods': 'XLY',
+    'Travel Services': 'AWAY', 'Personal Services': 'XLY',
+    # ── CONSUMER STAPLES ──
+    'Packaged Foods': 'PBJ', 'Beverages—Non-Alcoholic': 'PBJ',
+    'Beverages - Non-Alcoholic': 'PBJ', 'Beverages—Brewers': 'PBJ',
+    'Household & Personal Products': 'XLP', 'Tobacco': 'XLP',
+    'Food Distribution': 'PBJ', 'Grocery Stores': 'PBJ',
+    'Confectioners': 'PBJ', 'Farm Products': 'MOO',
+    'Education & Training Services': 'XLP',
+    # ── UTILITIES ──
+    'Utilities—Regulated Electric': 'RSPU', 'Utilities - Regulated Electric': 'RSPU',
+    'Utilities—Regulated Gas': 'RSPU', 'Utilities—Diversified': 'RSPU',
+    'Utilities—Independent Power Producers': 'RSPU',
+    'Utilities—Regulated Water': 'FIW', 'Utilities—Renewable': 'TAN',
+    'Solar Energy': 'TAN',
+    # ── COMMUNICATION SERVICES ──
+    'Telecom Services': 'XLC', 'Entertainment': 'XLC',
+    'Interactive Media & Services': 'SOCL',
+    'Publishing': 'XLC', 'Broadcasting': 'XLC',
+    'Advertising Agencies': 'XLC',
+}
+
+def map_industry_to_etf(industry_name):
+    """Map a Yahoo Finance industry name to the closest IBD industry ETF ticker."""
+    if not industry_name or industry_name in ('Unknown', '', 'Index', 'ETF', 'IBD-ETF'):
+        return None
+    # Direct match
+    if industry_name in INDUSTRY_TO_ETF:
+        return INDUSTRY_TO_ETF[industry_name]
+    # Fuzzy keyword fallback
+    industry_lower = industry_name.lower()
+    for key, etf in INDUSTRY_TO_ETF.items():
+        if key.lower() in industry_lower or industry_lower in key.lower():
+            return etf
+    return None
 
 def _parse_market_cap(val):
     """Parse Nasdaq API market cap string to float. Returns None if unparseable."""
@@ -505,7 +620,8 @@ def run_ingest(market='US'):
                         _nan_to_none(last['Avg_Dollar_Vol_20']),
                         _nan_to_none(last['SMA_3_Slope']),
                         _safe_bool(last['Upside_Reversal']),
-                        _safe_bool(last['Double_Inside_Day'])
+                        _safe_bool(last['Double_Inside_Day']),
+                        map_industry_to_etf(ticker_meta.get(ticker, {}).get('industry', 'Unknown'))
                     )
                     all_data.append(record)
                     
@@ -565,6 +681,31 @@ def run_ingest(market='US'):
             'EEM', 'EFA', 'FXI', 'EWJ', 'EWZ',
             # Currency ETFs
             'FXY', 'FXE',
+            # ── IBD Industry & Theme ETFs (from ETF Industry Tracking spreadsheet) ──
+            # Energy sub-industries
+            'XOP', 'CRAK', 'OIH', 'AMLP', 'FCG', 'URA', 'NLR', 'NUKZ',
+            # Materials sub-industries
+            'GDX', 'SIL', 'COPX', 'SLX', 'XME', 'REMX', 'MOO', 'DBA', 'WOOD', 'LIT',
+            # Industrials sub-industries
+            'XAR', 'ITA', 'JETS', 'IYT', 'XTN', 'PAVE', 'IFRA', 'HVAC', 'ROBO', 'BOTZ', 'ARKQ', 'PRNT', 'SEA',
+            # Consumer Discretionary sub-industries
+            'XHB', 'PKB', 'CARZ', 'DRIV', 'RTH', 'IBUY', 'XRT', 'PEJ', 'EATZ', 'BJK', 'BETZ', 'AWAY', 'ESPO', 'PAWZ', 'MADE',
+            # Consumer Staples sub-industries
+            'PBJ', 'MSOS',
+            # Health Care sub-industries
+            'XBI', 'XPH', 'XHE', 'IHI', 'IHF', 'GNOM', 'HEAL', 'OZEM', 'ARKG',
+            # Financials sub-industries
+            'KBE', 'KRE', 'KIE', 'IAI', 'IPAY', 'FINX', 'BIZD', 'VNQ', 'REM', 'DTCR',
+            # Utilities sub-industries
+            'RSPU', 'FIW', 'TAN', 'FAN', 'CTEC', 'BATT', 'POWR', 'HYDR', 'EVX',
+            # Technology sub-industries
+            'SMH', 'XSD', 'IGV', 'WCLD', 'AIQ', 'SIXG', 'QTUM', 'BLOK', 'SOCL',
+            # Crypto
+            'BITQ', 'BKCH', 'WGMI',
+            # International
+            'EWW', 'INDA', 'VGK', 'EUFN', 'KWEB', 'CQQQ', 'AFK', 'EWT', 'EWY', 'EUAD', 'ASEA', 'KSA', 'EWA',
+            # Thematic
+            'IPO', 'ARKX', 'SHLD',
         ]
     else:
         # Indices required by the AI Trade Portal for Market Bias (India)
@@ -657,7 +798,8 @@ def run_ingest(market='US'):
                                 _nan_to_none(last_etf['Avg_Dollar_Vol_20']),
                                 _nan_to_none(last_etf['SMA_3_Slope']),
                                 _safe_bool(last_etf['Upside_Reversal']),
-                                _safe_bool(last_etf['Double_Inside_Day'])
+                                _safe_bool(last_etf['Double_Inside_Day']),
+                                etf_ticker  # IBD_ETF_Proxy — ETF is its own proxy
                             )
                             all_data.append(etf_record)
                             
@@ -749,7 +891,8 @@ def run_ingest(market='US'):
             Avg_Dollar_Vol_20 {sql_types["REAL"]},
             SMA_3_Slope {sql_types["REAL"]},
             Upside_Reversal {sql_types["BOOLEAN"]},
-            Double_Inside_Day {sql_types["BOOLEAN"]}
+            Double_Inside_Day {sql_types["BOOLEAN"]},
+            IBD_ETF_Proxy {sql_types["TEXT"]}
         )
     ''')
     
@@ -780,6 +923,19 @@ def run_ingest(market='US'):
                     print(f"Migrated screen_data: added {new_col} column.", flush=True)
                 except Exception:
                     conn.rollback()
+
+    # Defensive schema migration: IBD ETF Proxy column
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        try:
+            cursor.execute("SELECT IBD_ETF_Proxy FROM screen_data LIMIT 1")
+        except Exception:
+            conn.rollback()
+            try:
+                cursor.execute("ALTER TABLE screen_data ADD COLUMN IBD_ETF_Proxy VARCHAR(255)")
+                conn.commit()
+                print("Migrated screen_data: added IBD_ETF_Proxy column.", flush=True)
+            except Exception:
+                conn.rollback()
     
     # Defensive schema migration for PostgreSQL to append missing Market column dynamically
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
@@ -862,6 +1018,35 @@ def run_ingest(market='US'):
         )
     ''')
 
+    # IBD ETF Rotation Ranks table (parallel to industry_ranks, for ETFs only)
+    cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS ibd_etf_ranks (
+            Date {sql_types["TEXT"]},
+            Market {sql_types["TEXT"]} DEFAULT 'US',
+            Tier {sql_types["TEXT"]},
+            ETF_Ticker {sql_types["TEXT"]},
+            ETF_Name {sql_types["TEXT"]},
+            Sector {sql_types["TEXT"]},
+            Rank_1D INTEGER,
+            Rank_1W INTEGER,
+            Rank_1M INTEGER,
+            Rank_3M INTEGER,
+            Rank_6M INTEGER,
+            Rank_1Y INTEGER,
+            Momentum_1D {sql_types["REAL"]},
+            Momentum_1W {sql_types["REAL"]},
+            Momentum_1M {sql_types["REAL"]},
+            Momentum_3M {sql_types["REAL"]},
+            Momentum_6M {sql_types["REAL"]},
+            Momentum_1Y {sql_types["REAL"]},
+            Pct_From_52W_High {sql_types["REAL"]},
+            Stage INTEGER,
+            Above_50DMA {sql_types["BOOLEAN"]},
+            Above_200DMA {sql_types["BOOLEAN"]},
+            PRIMARY KEY (Date, Market, ETF_Ticker)
+        )
+    ''')
+
     if not (DATABASE_URL and DATABASE_URL.startswith("postgres")):
         cursor.execute("PRAGMA synchronous = OFF")
         cursor.execute("PRAGMA journal_mode = MEMORY")
@@ -873,7 +1058,8 @@ def run_ingest(market='US'):
         "Momentum_1D", "Momentum_1W", "Momentum_1M", "Momentum_3M", "Momentum_6M", "Momentum_1Y", 
         "RS_Rating", "RS_Rating_1M", "RS_Rating_3M", "RS_Rating_6M",
         "Sector", "Industry", "Market_Cap", "Stage",
-        "Avg_Dollar_Vol_20", "SMA_3_Slope", "Upside_Reversal", "Double_Inside_Day"
+        "Avg_Dollar_Vol_20", "SMA_3_Slope", "Upside_Reversal", "Double_Inside_Day",
+        "IBD_ETF_Proxy"
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
@@ -895,6 +1081,7 @@ def run_ingest(market='US'):
     cursor.execute(f"DELETE FROM screen_data WHERE Market = '{market}'")
     cursor.execute(f"DELETE FROM scanner_results WHERE Market = '{market}'")
     cursor.execute(f"DELETE FROM market_breadth_history WHERE Market = '{market}'")
+    cursor.execute(f"DELETE FROM ibd_etf_ranks WHERE Market = '{market}'")
     conn.commit()
 
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
@@ -1208,6 +1395,157 @@ def run_ingest(market='US'):
             print(f"Calculated and inserted {len(all_theme_data)} Sector/Industry rankings.", flush=True)
 
     # ---------------------------------------------------------
+    # Build IBD ETF Rotation Rankings (US only)
+    # ---------------------------------------------------------
+    if market == 'US':
+        print("Computing IBD ETF Rotation Rankings...", flush=True)
+        try:
+            config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ibd_etf_config.json')
+            with open(config_path, 'r') as f:
+                ibd_config = _json.load(f)
+            
+            # Build ETF lookup: ticker -> {name, sector, tier}
+            etf_lookup = {}
+            for s in ibd_config.get('sector_etfs', []):
+                etf_lookup[s['ticker']] = {'name': s['name'], 'sector': s['gics_sector'], 'tier': 'Sector'}
+            for e in ibd_config.get('industry_etfs', []):
+                etf_lookup[e['ticker']] = {'name': e['name'], 'sector': e['sector'], 'tier': 'Industry'}
+            
+            # Fetch momentum + technical data for all ETFs from screen_data
+            all_etf_tickers = list(etf_lookup.keys())
+            if all_etf_tickers:
+                placeholders_etf = ','.join(['%s'] * len(all_etf_tickers)) if (DATABASE_URL and DATABASE_URL.startswith('postgres')) else ','.join(['?'] * len(all_etf_tickers))
+                cursor.execute(f"""
+                    SELECT Ticker, Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y,
+                           Pct_From_52W_High, Stage, Close, SMA_50, SMA_200
+                    FROM screen_data WHERE Market = '{market}' AND Ticker IN ({placeholders_etf})
+                """, all_etf_tickers)
+                etf_rows = cursor.fetchall()
+                
+                if etf_rows:
+                    cols = ['Ticker', 'm1d', 'm1w', 'm1m', 'm3m', 'm6m', 'm1y', 'pct_high', 'stage', 'close', 'sma50', 'sma200']
+                    etf_df = pd.DataFrame(etf_rows, columns=cols)
+                    
+                    # Rank by each momentum timeframe (highest momentum = rank 1)
+                    for met in ['m1d', 'm1w', 'm1m', 'm3m', 'm6m', 'm1y']:
+                        etf_df[f'rank_{met}'] = etf_df[met].rank(ascending=False, method='min', na_option='bottom').fillna(9999).astype(int)
+                    
+                    # Build insert records
+                    etf_rank_records = []
+                    for _, r in etf_df.iterrows():
+                        ticker = str(r['Ticker'])
+                        info = etf_lookup.get(ticker, {'name': ticker, 'sector': 'Unknown', 'tier': 'Industry'})
+                        close_val = float(r['close']) if pd.notna(r['close']) else None
+                        sma50_val = float(r['sma50']) if pd.notna(r['sma50']) else None
+                        sma200_val = float(r['sma200']) if pd.notna(r['sma200']) else None
+                        above_50 = bool(close_val and sma50_val and close_val > sma50_val)
+                        above_200 = bool(close_val and sma200_val and close_val > sma200_val)
+                        
+                        etf_rank_records.append((
+                            latest_date,
+                            market,
+                            info['tier'],
+                            ticker,
+                            info['name'],
+                            info['sector'],
+                            int(r['rank_m1d']),
+                            int(r['rank_m1w']),
+                            int(r['rank_m1m']),
+                            int(r['rank_m3m']),
+                            int(r['rank_m6m']),
+                            int(r['rank_m1y']),
+                            float(r['m1d']) if pd.notna(r['m1d']) else None,
+                            float(r['m1w']) if pd.notna(r['m1w']) else None,
+                            float(r['m1m']) if pd.notna(r['m1m']) else None,
+                            float(r['m3m']) if pd.notna(r['m3m']) else None,
+                            float(r['m6m']) if pd.notna(r['m6m']) else None,
+                            float(r['m1y']) if pd.notna(r['m1y']) else None,
+                            float(r['pct_high']) if pd.notna(r['pct_high']) else None,
+                            int(r['stage']) if pd.notna(r['stage']) else None,
+                            above_50,
+                            above_200
+                        ))
+                    
+                    # Insert into ibd_etf_ranks
+                    if etf_rank_records:
+                        batch_size = 500
+                        for i in range(0, len(etf_rank_records), batch_size):
+                            batch = etf_rank_records[i:i + batch_size]
+                            if DATABASE_URL and DATABASE_URL.startswith('postgres'):
+                                cursor.executemany('''
+                                    INSERT INTO ibd_etf_ranks (
+                                        Date, Market, Tier, ETF_Ticker, ETF_Name, Sector,
+                                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y,
+                                        Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y,
+                                        Pct_From_52W_High, Stage, Above_50DMA, Above_200DMA
+                                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                    ON CONFLICT (Date, Market, ETF_Ticker) DO UPDATE SET
+                                        Tier = EXCLUDED.Tier, ETF_Name = EXCLUDED.ETF_Name, Sector = EXCLUDED.Sector,
+                                        Rank_1D = EXCLUDED.Rank_1D, Rank_1W = EXCLUDED.Rank_1W,
+                                        Rank_1M = EXCLUDED.Rank_1M, Rank_3M = EXCLUDED.Rank_3M,
+                                        Rank_6M = EXCLUDED.Rank_6M, Rank_1Y = EXCLUDED.Rank_1Y,
+                                        Momentum_1D = EXCLUDED.Momentum_1D, Momentum_1W = EXCLUDED.Momentum_1W,
+                                        Momentum_1M = EXCLUDED.Momentum_1M, Momentum_3M = EXCLUDED.Momentum_3M,
+                                        Momentum_6M = EXCLUDED.Momentum_6M, Momentum_1Y = EXCLUDED.Momentum_1Y,
+                                        Pct_From_52W_High = EXCLUDED.Pct_From_52W_High, Stage = EXCLUDED.Stage,
+                                        Above_50DMA = EXCLUDED.Above_50DMA, Above_200DMA = EXCLUDED.Above_200DMA
+                                ''', batch)
+                            else:
+                                cursor.executemany('''
+                                    INSERT OR REPLACE INTO ibd_etf_ranks (
+                                        Date, Market, Tier, ETF_Ticker, ETF_Name, Sector,
+                                        Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y,
+                                        Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y,
+                                        Pct_From_52W_High, Stage, Above_50DMA, Above_200DMA
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', batch)
+                            conn.commit()
+                        print(f"Computed and inserted {len(etf_rank_records)} IBD ETF rotation rankings.", flush=True)
+                else:
+                    print("No ETF momentum data found in screen_data for IBD ranking.", flush=True)
+        except FileNotFoundError:
+            print("Warning: ibd_etf_config.json not found. Skipping IBD ETF rankings.", flush=True)
+        except Exception as e:
+            print(f"Warning: IBD ETF ranking computation failed: {e}", flush=True)
+
+    # ---------------------------------------------------------
+    # Post-compute: Leading Industry + Leading Stock scanner
+    # (This scanner depends on ibd_etf_ranks, which was just populated)
+    # ---------------------------------------------------------
+    if market == 'US':
+        print("Post-computing Leading Industry + Leading Stock scanner...", flush=True)
+        try:
+            etf_date_q = f"SELECT MAX(Date) FROM ibd_etf_ranks WHERE Market = '{market}'"
+            lis_condition = (
+                "d.Stage = 2 "
+                "AND d.RS_Rating >= 85 "
+                "AND d.Close >= 10 "
+                "AND d.IBD_ETF_Proxy IS NOT NULL "
+                "AND etf.Rank_3M <= 20 "
+                "AND etf.Above_50DMA IS TRUE"
+            )
+            cursor.execute(f"""
+                SELECT d.Ticker FROM screen_data d
+                LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker
+                LEFT JOIN ibd_etf_ranks etf ON d.IBD_ETF_Proxy = etf.ETF_Ticker AND etf.Market = '{market}' AND etf.Date = ({etf_date_q})
+                WHERE d.Market = '{market}' AND d.{baseline} AND ({lis_condition})
+            """)
+            lis_matches = cursor.fetchall()
+            lis_records = [('leading-industry-stock', row[0] if isinstance(row, tuple) else row.get('Ticker', row[0])) for row in lis_matches]
+            if lis_records:
+                batch_size = 500
+                for i in range(0, len(lis_records), batch_size):
+                    batch = lis_records[i:i + batch_size]
+                    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                        cursor.executemany(f"INSERT INTO scanner_results (scanner_id, Ticker, Market) VALUES (%s, %s, '{market}')", batch)
+                    else:
+                        cursor.executemany(f"INSERT INTO scanner_results (scanner_id, Ticker, Market) VALUES (?, ?, '{market}')", batch)
+                conn.commit()
+            print(f"  Leading Industry + Leading Stock: {len(lis_records)} matches", flush=True)
+        except Exception as e:
+            print(f"Warning: Leading Industry scanner post-compute failed: {e}", flush=True)
+
+    # ---------------------------------------------------------
     # Database Cleanup / Retention Policy
     # ---------------------------------------------------------
     print("Running database retention cleanup...", flush=True)
@@ -1217,6 +1555,17 @@ def run_ingest(market='US'):
         WHERE Market = '{market}' AND Date NOT IN (
             SELECT DISTINCT Date 
             FROM industry_ranks 
+            WHERE Market = '{market}'
+            ORDER BY Date DESC 
+            LIMIT 5
+        )
+    ''')
+    # Also clean old IBD ETF ranks
+    cursor.execute(f'''
+        DELETE FROM ibd_etf_ranks 
+        WHERE Market = '{market}' AND Date NOT IN (
+            SELECT DISTINCT Date 
+            FROM ibd_etf_ranks 
             WHERE Market = '{market}'
             ORDER BY Date DESC 
             LIMIT 5

@@ -147,6 +147,80 @@ def get_breadth(market: str = Query("US", description="US or IN")):
                     "stage4": r.get("Stage_4") or r.get("stage_4"),
                 })
 
+        # ------- IBD ETF Rotation Data (US only) -------
+        etf_rotation = None
+        if market == "US":
+            try:
+                etf_latest_date = fetch_val("SELECT MAX(Date) FROM ibd_etf_ranks WHERE Market = 'US'")
+                if etf_latest_date:
+                    # Sector ETFs
+                    sector_etf_rows = fetch_all(f"""
+                        SELECT ETF_Ticker, ETF_Name, Sector,
+                               Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y,
+                               Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y,
+                               Pct_From_52W_High, Stage, Above_50DMA, Above_200DMA
+                        FROM ibd_etf_ranks
+                        WHERE Market = 'US' AND Date = '{etf_latest_date}' AND Tier = 'Sector'
+                        ORDER BY Rank_3M ASC
+                    """)
+                    
+                    # Industry ETFs — all, sorted by 3M rank
+                    industry_etf_rows = fetch_all(f"""
+                        SELECT ETF_Ticker, ETF_Name, Sector,
+                               Rank_1D, Rank_1W, Rank_1M, Rank_3M, Rank_6M, Rank_1Y,
+                               Momentum_1D, Momentum_1W, Momentum_1M, Momentum_3M, Momentum_6M, Momentum_1Y,
+                               Pct_From_52W_High, Stage, Above_50DMA, Above_200DMA
+                        FROM ibd_etf_ranks
+                        WHERE Market = 'US' AND Date = '{etf_latest_date}' AND Tier = 'Industry'
+                        ORDER BY Rank_3M ASC
+                    """)
+                    
+                    def _etf_row(r):
+                        return {
+                            "ticker": r.get("ETF_Ticker") or r.get("etf_ticker"),
+                            "name": r.get("ETF_Name") or r.get("etf_name"),
+                            "sector": r.get("Sector") or r.get("sector"),
+                            "rank_1d": r.get("Rank_1D") or r.get("rank_1d"),
+                            "rank_1w": r.get("Rank_1W") or r.get("rank_1w"),
+                            "rank_1m": r.get("Rank_1M") or r.get("rank_1m"),
+                            "rank_3m": r.get("Rank_3M") or r.get("rank_3m"),
+                            "rank_6m": r.get("Rank_6M") or r.get("rank_6m"),
+                            "rank_1y": r.get("Rank_1Y") or r.get("rank_1y"),
+                            "momentum_1d": round(r.get("Momentum_1D") or r.get("momentum_1d") or 0, 2),
+                            "momentum_1w": round(r.get("Momentum_1W") or r.get("momentum_1w") or 0, 2),
+                            "momentum_1m": round(r.get("Momentum_1M") or r.get("momentum_1m") or 0, 2),
+                            "momentum_3m": round(r.get("Momentum_3M") or r.get("momentum_3m") or 0, 2),
+                            "momentum_6m": round(r.get("Momentum_6M") or r.get("momentum_6m") or 0, 2),
+                            "momentum_1y": round(r.get("Momentum_1Y") or r.get("momentum_1y") or 0, 2),
+                            "pct_from_high": round(r.get("Pct_From_52W_High") or r.get("pct_from_52w_high") or 0, 1),
+                            "stage": r.get("Stage") or r.get("stage"),
+                            "above_50dma": bool(r.get("Above_50DMA") or r.get("above_50dma")),
+                            "above_200dma": bool(r.get("Above_200DMA") or r.get("above_200dma")),
+                        }
+                    
+                    sector_etfs_data = [_etf_row(r) for r in sector_etf_rows]
+                    all_industry_etfs = [_etf_row(r) for r in industry_etf_rows]
+                    
+                    total_ind = len(all_industry_etfs)
+                    above_50_count = sum(1 for e in all_industry_etfs if e["above_50dma"])
+                    above_200_count = sum(1 for e in all_industry_etfs if e["above_200dma"])
+                    stage2_count_etf = sum(1 for e in all_industry_etfs if e["stage"] == 2)
+                    
+                    etf_rotation = {
+                        "as_of_date": str(etf_latest_date),
+                        "sector_etfs": sector_etfs_data,
+                        "top_10_industry_etfs": all_industry_etfs[:10],
+                        "bottom_10_industry_etfs": all_industry_etfs[-10:] if len(all_industry_etfs) >= 10 else all_industry_etfs,
+                        "total_industry_etfs": total_ind,
+                        "etfs_above_50dma_pct": round(above_50_count / total_ind * 100, 1) if total_ind > 0 else 0,
+                        "etfs_above_200dma_pct": round(above_200_count / total_ind * 100, 1) if total_ind > 0 else 0,
+                        "etfs_in_stage2_pct": round(stage2_count_etf / total_ind * 100, 1) if total_ind > 0 else 0,
+                    }
+            except Exception as etf_err:
+                import traceback
+                print(f"ETF rotation data error: {etf_err}\n{traceback.format_exc()}")
+                etf_rotation = None
+
         return {
             "market": market,
             "total_stocks": total,
@@ -170,6 +244,7 @@ def get_breadth(market: str = Query("US", description="US or IN")):
             "pct_sw_stage3": pct(stage3_count),
             "pct_sw_stage4": pct(stage4_count),
             "history": history,
+            "etf_rotation": etf_rotation,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

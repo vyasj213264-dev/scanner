@@ -67,6 +67,7 @@ class StockResult(BaseModel):
     sma_3_slope: Optional[float] = Field(None, validation_alias="SMA_3_Slope")
     upside_reversal: Optional[bool] = Field(None, validation_alias="Upside_Reversal")
     double_inside_day: Optional[bool] = Field(None, validation_alias="Double_Inside_Day")
+    ibd_etf_proxy: Optional[str] = Field(None, validation_alias="IBD_ETF_Proxy")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)

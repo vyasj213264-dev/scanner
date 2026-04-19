@@ -1,0 +1,2163 @@
+{
+  "sector_etfs": [
+    {
+      "ticker": "XLE",
+      "name": "Energy Select Sector SPDR",
+      "gics_sector": "Energy",
+      "description": "All S&P 500 energy companies \u2014 integrated oil majors, E&P, refining, pipelines, oil services",
+      "sub_industries": "Oil & Gas Integrated (XOM, CVX), E&P, Refining, Pipelines, Field Services, Solar, Alt Energy"
+    },
+    {
+      "ticker": "XLB",
+      "name": "Materials Select Sector SPDR",
+      "gics_sector": "Materials",
+      "description": "Chemicals (basic, specialty, ag), metals & mining, containers/packaging, construction materials",
+      "sub_industries": "Basic Chemicals, Specialty Chemicals, Paints/Coatings, Gold/Copper/Steel Miners, Paper, Packaging, Ag Chemicals"
+    },
+    {
+      "ticker": "XLI",
+      "name": "Industrial Select Sector SPDR",
+      "gics_sector": "Industrials",
+      "description": "Aerospace & defense, machinery, transportation, commercial services, electrical equipment, building products",
+      "sub_industries": "A&D, Railroads, Trucking, Airlines, Machinery, HVAC, Electrical Equipment, Staffing, Consulting, Construction"
+    },
+    {
+      "ticker": "XLY",
+      "name": "Consumer Discretionary Select Sector SPDR",
+      "gics_sector": "Consumer Discretionary",
+      "description": "Retail, autos, hotels/restaurants, apparel, homebuilders, leisure, household durables",
+      "sub_industries": "Broadline Retail (AMZN), Autos (TSLA), Hotels, Restaurants, Homebuilders, Apparel, Toys, RVs, Furniture"
+    },
+    {
+      "ticker": "XLP",
+      "name": "Consumer Staples Select Sector SPDR",
+      "gics_sector": "Consumer Staples",
+      "description": "Food & beverage, household products, personal care, tobacco, supermarkets",
+      "sub_industries": "Packaged Food, Beverages, Household Products (PG, CL), Tobacco, Supermarkets (WMT, COST), Personal Care"
+    },
+    {
+      "ticker": "XLV",
+      "name": "Health Care Select Sector SPDR",
+      "gics_sector": "Health Care",
+      "description": "Pharma, biotech, medical devices, managed care, hospitals, life sciences tools, healthcare IT",
+      "sub_industries": "Ethical Drugs (LLY, PFE), Biotech, Med Devices, Managed Care (UNH), Hospitals, Life Sciences Tools (TMO, DHR)"
+    },
+    {
+      "ticker": "XLF",
+      "name": "Financial Select Sector SPDR",
+      "gics_sector": "Financials",
+      "description": "Banks, insurance, capital markets, payments, consumer finance, asset management",
+      "sub_industries": "Money Center Banks (JPM), Regional Banks, Insurance, Broker-Dealers, Payments (V, MA), Asset Managers (BLK, BX)"
+    },
+    {
+      "ticker": "XLK",
+      "name": "Technology Select Sector SPDR",
+      "gics_sector": "Information Technology",
+      "description": "Software, semiconductors, IT hardware, IT services, electronic equipment",
+      "sub_industries": "Software (MSFT, CRM), Semis (NVDA, AVGO), Hardware (AAPL), IT Services (ACN), Networking, Contract Mfg"
+    },
+    {
+      "ticker": "XLC",
+      "name": "Communication Services Select Sector SPDR",
+      "gics_sector": "Communication Services",
+      "description": "Interactive media, entertainment, telecom services, cable, advertising",
+      "sub_industries": "Interactive Media (GOOG, META), Entertainment (DIS, NFLX), Telecom (T, VZ, TMUS), Cable, Advertising, Publishing"
+    },
+    {
+      "ticker": "XLRE",
+      "name": "Real Estate Select Sector SPDR",
+      "gics_sector": "Real Estate",
+      "description": "REITs \u2014 data centers, industrial, residential, retail, office, healthcare, specialty",
+      "sub_industries": "Property REITs (Equinix, PLD, AMT, WELL), Mortgage REITs, RE Development, Self-Storage, Malls"
+    },
+    {
+      "ticker": "XLU",
+      "name": "Utilities Select Sector SPDR",
+      "gics_sector": "Utilities",
+      "description": "Electric utilities, gas utilities, water utilities, independent power producers, renewable utilities",
+      "sub_industries": "Electric Power (NEE, SO, DUK), Gas Distribution, Water Supply, Diversified Utilities, IPPs (partial)"
+    }
+  ],
+  "industry_etfs": [
+    {
+      "ticker": "XOP",
+      "name": "SPDR S&P Oil & Gas Exploration & Prod",
+      "sector": "Energy",
+      "industries_covered": "Oil&Gas-US E&P (direct), Cdn E&P (partial)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight E&P; distinct from integrated majors in XLE"
+    },
+    {
+      "ticker": "CRAK",
+      "name": "VanEck Oil Refiners",
+      "sector": "Energy",
+      "industries_covered": "Oil&Gas-Refining/Marketing (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure refiners \u2014 VLO, MPC, PSX; crack spread proxy"
+    },
+    {
+      "ticker": "OIH",
+      "name": "VanEck Oil Services",
+      "sector": "Energy",
+      "industries_covered": "Oil&Gas-Field Services, Drilling, Equipment (direct)",
+      "status": "ORIGINAL",
+      "notes": "SLB, HAL, BKR; cycles with rig counts not oil prices"
+    },
+    {
+      "ticker": "AMLP",
+      "name": "Alerian MLP",
+      "sector": "Energy",
+      "industries_covered": "Oil&Gas-Transport/Pipeline (direct)",
+      "status": "ORIGINAL",
+      "notes": "Midstream MLPs; yield + volume growth play"
+    },
+    {
+      "ticker": "FCG",
+      "name": "First Trust Natural Gas",
+      "sector": "Energy",
+      "industries_covered": "Natural Gas E&P (direct)",
+      "status": "NEW",
+      "notes": "Isolates nat gas E&P from crude; LNG exports + power gen demand"
+    },
+    {
+      "ticker": "TAN",
+      "name": "Invesco Solar",
+      "sector": "Energy",
+      "industries_covered": "Energy-Solar (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure solar \u2014 FSLR, ENPH; policy-sensitive cycle"
+    },
+    {
+      "ticker": "FAN",
+      "name": "First Trust Global Wind Energy",
+      "sector": "Energy",
+      "industries_covered": "Wind Power (direct)",
+      "status": "NEW",
+      "notes": "Distinct from solar \u2014 different geography, capex cycle, policy drivers"
+    },
+    {
+      "ticker": "CTEC",
+      "name": "iShares Global Clean Energy",
+      "sector": "Energy",
+      "industries_covered": "Energy-Alternative/Other (close)",
+      "status": "ORIGINAL",
+      "notes": "Broad clean energy; includes solar, wind, hydrogen"
+    },
+    {
+      "ticker": "HYDR",
+      "name": "Global X Hydrogen",
+      "sector": "Energy",
+      "industries_covered": "Hydrogen / Fuel Cells (direct)",
+      "status": "ORIGINAL",
+      "notes": "Hydrogen/fuel cell pure play"
+    },
+    {
+      "ticker": "LIT",
+      "name": "Global X Lithium & Battery Tech",
+      "sector": "Energy/Materials",
+      "industries_covered": "Lithium miners + battery manufacturers",
+      "status": "ORIGINAL",
+      "notes": "Lithium mining + EV battery supply chain"
+    },
+    {
+      "ticker": "BATT",
+      "name": "Amplify Lithium & Battery Tech",
+      "sector": "Energy Storage",
+      "industries_covered": "Grid-scale batteries + battery value chain",
+      "status": "BLIND SPOT",
+      "notes": "Broader than LIT; includes storage systems, not just miners"
+    },
+    {
+      "ticker": "URA",
+      "name": "Global X Uranium",
+      "sector": "Energy",
+      "industries_covered": "Uranium miners (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure uranium mining; commodity price exposure"
+    },
+    {
+      "ticker": "NLR",
+      "name": "VanEck Uranium & Nuclear",
+      "sector": "Energy",
+      "industries_covered": "Nuclear full value chain \u2014 operators, engineers, SMR, fuel",
+      "status": "NEW",
+      "notes": "Goes beyond URA miners to nuclear operators + SMR developers"
+    },
+    {
+      "ticker": "NUKZ",
+      "name": "Range Nuclear Renaissance",
+      "sector": "Energy",
+      "industries_covered": "Nuclear infrastructure \u2014 global buildout",
+      "status": "BLIND SPOT",
+      "notes": "Broadest nuclear coverage including intl + engineering + construction"
+    },
+    {
+      "ticker": "POWR",
+      "name": "iShares U.S. Power Infrastructure",
+      "sector": "Energy/Utilities",
+      "industries_covered": "Electrical-Power/Equipment (direct)",
+      "status": "NEW",
+      "notes": "Grid modernization, transformers, switchgear \u2014 AI power bottleneck"
+    },
+    {
+      "ticker": "XME",
+      "name": "SPDR S&P Metals & Mining",
+      "sector": "Materials",
+      "industries_covered": "Mining-Metal Ores, Metal Proc & Fabrication (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight metals & mining; broad commodity exposure"
+    },
+    {
+      "ticker": "SLX",
+      "name": "VanEck Steel",
+      "sector": "Materials",
+      "industries_covered": "Steel-Producers, Steel-Specialty Alloys (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure steel producers \u2014 NUE, STLD, CLF"
+    },
+    {
+      "ticker": "GDX",
+      "name": "VanEck Gold Miners",
+      "sector": "Materials",
+      "industries_covered": "Mining-Gold/Silver/Gems (direct)",
+      "status": "ORIGINAL",
+      "notes": "Gold miners; levered play on gold price"
+    },
+    {
+      "ticker": "GLD",
+      "name": "SPDR Gold Shares",
+      "sector": "Commodities",
+      "industries_covered": "Gold bullion",
+      "status": "ORIGINAL",
+      "notes": "Physical gold; safe haven / inflation hedge"
+    },
+    {
+      "ticker": "SLV",
+      "name": "iShares Silver Trust",
+      "sector": "Commodities",
+      "industries_covered": "Silver bullion",
+      "status": "ORIGINAL",
+      "notes": "Physical silver; industrial + monetary demand"
+    },
+    {
+      "ticker": "SIL",
+      "name": "Global X Silver Miners",
+      "sector": "Materials",
+      "industries_covered": "Silver miners (direct)",
+      "status": "ORIGINAL",
+      "notes": "Silver mining companies; levered to silver price"
+    },
+    {
+      "ticker": "COPX",
+      "name": "Global X Copper Miners",
+      "sector": "Materials",
+      "industries_covered": "Copper miners (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure copper; electrification mega-theme metal"
+    },
+    {
+      "ticker": "REMX",
+      "name": "VanEck Rare Earth/Strategic Metals",
+      "sector": "Materials",
+      "industries_covered": "Rare earths & critical minerals (direct)",
+      "status": "ORIGINAL",
+      "notes": "Rare earth miners; EV motors, defense, tech supply chain"
+    },
+    {
+      "ticker": "WOOD",
+      "name": "iShares Global Timber & Forestry",
+      "sector": "Materials",
+      "industries_covered": "Bldg-Wood Products, Paper (close)",
+      "status": "ORIGINAL",
+      "notes": "Timber REITs + forestry + paper products"
+    },
+    {
+      "ticker": "EVX",
+      "name": "VanEck Environmental Services",
+      "sector": "Materials/Industrials",
+      "industries_covered": "Pollution Control (direct)",
+      "status": "NEW",
+      "notes": "Waste management, recycling, remediation \u2014 WM, RSG, WCN"
+    },
+    {
+      "ticker": "PAVE",
+      "name": "Global X US Infrastructure Development",
+      "sector": "Industrials",
+      "industries_covered": "Bldg-Heavy Construction, Machinery-Constr/Mining (close)",
+      "status": "ORIGINAL",
+      "notes": "Infrastructure capex beneficiaries; bridges, roads, utilities"
+    },
+    {
+      "ticker": "IFRA",
+      "name": "iShares US Infrastructure",
+      "sector": "Industrials",
+      "industries_covered": "Infrastructure broad (close)",
+      "status": "ORIGINAL",
+      "notes": "Broader than PAVE; includes utilities, telecom infra"
+    },
+    {
+      "ticker": "MADE",
+      "name": "iShares US Manufacturing",
+      "sector": "Industrials",
+      "industries_covered": "Reshoring / US manufacturing renaissance",
+      "status": "ORIGINAL",
+      "notes": "CHIPS Act + IRA factory buildout; electrical contractors, engineers"
+    },
+    {
+      "ticker": "ITA",
+      "name": "iShares US Aerospace & Defense",
+      "sector": "Industrials",
+      "industries_covered": "Aerospace/Defense (direct, cap-weight)",
+      "status": "NEW",
+      "notes": "Cap-weight A&D \u2014 LMT, RTX, GE dominate; complements XAR"
+    },
+    {
+      "ticker": "XAR",
+      "name": "SPDR S&P Aerospace & Defense",
+      "sector": "Industrials",
+      "industries_covered": "Aerospace/Defense (direct, equal-weight)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight A&D; more mid/small cap exposure than ITA"
+    },
+    {
+      "ticker": "IYT",
+      "name": "iShares US Transportation",
+      "sector": "Industrials",
+      "industries_covered": "Transportation-Rail, Truck, Air Freight, Logistics (close)",
+      "status": "NEW",
+      "notes": "Dow Transports proxy \u2014 classic market health indicator"
+    },
+    {
+      "ticker": "XTN",
+      "name": "SPDR S&P Transportation",
+      "sector": "Industrials",
+      "industries_covered": "Transportation broad equal-weight (close)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight transport; more trucking exposure than IYT"
+    },
+    {
+      "ticker": "JETS",
+      "name": "US Global Jets",
+      "sector": "Industrials",
+      "industries_covered": "Transportation-Airline (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure airlines \u2014 DAL, UAL, LUV, AAL"
+    },
+    {
+      "ticker": "SEA",
+      "name": "US Global Sea to Sky Cargo",
+      "sector": "Industrials",
+      "industries_covered": "Transportation-Ship (direct)",
+      "status": "ORIGINAL",
+      "notes": "Shipping/marine transportation"
+    },
+    {
+      "ticker": "PKB",
+      "name": "Invesco Building & Construction",
+      "sector": "Industrials",
+      "industries_covered": "Bldg-Constr Products, Cement/Aggregates (close)",
+      "status": "NEW",
+      "notes": "VMC, MLM, BLDR; construction products beyond homebuilders"
+    },
+    {
+      "ticker": "HVAC",
+      "name": "AdvisorShares HVAC & Industrials",
+      "sector": "Industrials",
+      "industries_covered": "Bldg-A/C & Heating Products (direct)",
+      "status": "NEW",
+      "notes": "HVAC + data center cooling \u2014 CARR, TT, VRT; AI cooling theme"
+    },
+    {
+      "ticker": "ROBO",
+      "name": "ROBO Global Robotics & Automation",
+      "sector": "Industrials/Tech",
+      "industries_covered": "Machinery-Material Handling/Automation (close)",
+      "status": "ORIGINAL",
+      "notes": "Global robotics + automation; factory modernization"
+    },
+    {
+      "ticker": "BOTZ",
+      "name": "Global X Robotics & AI",
+      "sector": "Industrials/Tech",
+      "industries_covered": "Robotics, automation, AI industrial applications",
+      "status": "ORIGINAL",
+      "notes": "Robotics + AI hardware; FANUC, ABB, Intuitive Surgical"
+    },
+    {
+      "ticker": "PRNT",
+      "name": "ARK 3D Printing",
+      "sector": "Industrials/Tech",
+      "industries_covered": "3D printing / additive manufacturing",
+      "status": "BLIND SPOT",
+      "notes": "Additive mfg hardware, software, materials; niche but distinct"
+    },
+    {
+      "ticker": "ARKQ",
+      "name": "ARK Autonomous Tech & Robotics",
+      "sector": "Industrials/Tech",
+      "industries_covered": "Drones, eVTOL, autonomous systems, energy storage",
+      "status": "BLIND SPOT",
+      "notes": "Cross-theme: robotics + space + 3D printing + autonomous tech"
+    },
+    {
+      "ticker": "XRT",
+      "name": "SPDR S&P Retail",
+      "sector": "Consumer Disc",
+      "industries_covered": "Retail-Specialty, Discount, Dept Stores, Apparel (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight retail; best pure retail industry signal"
+    },
+    {
+      "ticker": "RTH",
+      "name": "VanEck Retail",
+      "sector": "Consumer Disc",
+      "industries_covered": "Retail-Major Discount Chains (close, cap-weight)",
+      "status": "ORIGINAL",
+      "notes": "\u26a0 WATCH: ~60% overlap with XLY. Keeps mega-cap retail signal (WMT, COST, HD)"
+    },
+    {
+      "ticker": "IBUY",
+      "name": "Amplify Online Retail",
+      "sector": "Consumer Disc",
+      "industries_covered": "Retail-Internet (direct)",
+      "status": "ORIGINAL",
+      "notes": "E-commerce pure plays"
+    },
+    {
+      "ticker": "XHB",
+      "name": "SPDR S&P Homebuilders",
+      "sector": "Consumer Disc",
+      "industries_covered": "Bldg-Residential/Commercial (direct)",
+      "status": "ORIGINAL",
+      "notes": "Homebuilders \u2014 DHI, LEN, PHM, NVR; housing cycle indicator"
+    },
+    {
+      "ticker": "CARZ",
+      "name": "First Trust S-Network Elect & Future Transp",
+      "sector": "Consumer Disc",
+      "industries_covered": "Auto Manufacturers, Auto/Truck-OEM (close)",
+      "status": "ORIGINAL",
+      "notes": "EV + auto OEMs; Tesla, Rivian, traditional OEMs"
+    },
+    {
+      "ticker": "DRIV",
+      "name": "Global X Autonomous & EV Tech",
+      "sector": "Consumer Disc/Tech",
+      "industries_covered": "Autonomous vehicles + EV technology broad",
+      "status": "ORIGINAL",
+      "notes": "Broader than CARZ; includes chips, lidar, batteries for EVs"
+    },
+    {
+      "ticker": "EATZ",
+      "name": "AdvisorShares Restaurant",
+      "sector": "Consumer Disc",
+      "industries_covered": "Retail-Restaurants (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure restaurant industry \u2014 MCD, SBUX, CMG, DRI"
+    },
+    {
+      "ticker": "PEJ",
+      "name": "Invesco Leisure & Entertainment",
+      "sector": "Consumer Disc",
+      "industries_covered": "Leisure-Services (direct)",
+      "status": "ORIGINAL",
+      "notes": "Leisure + entertainment + dining blend"
+    },
+    {
+      "ticker": "AWAY",
+      "name": "Defiance Hotel Airline Cruise",
+      "sector": "Consumer Disc",
+      "industries_covered": "Leisure-Lodging, Travel Booking (close)",
+      "status": "ORIGINAL",
+      "notes": "Travel theme \u2014 hotels, OTAs, cruise lines, airlines"
+    },
+    {
+      "ticker": "BJK",
+      "name": "VanEck Gaming",
+      "sector": "Consumer Disc",
+      "industries_covered": "Leisure-Gaming/Equipment (direct)",
+      "status": "ORIGINAL",
+      "notes": "Casinos + gaming equipment \u2014 LVS, WYNN, MGM"
+    },
+    {
+      "ticker": "ESPO",
+      "name": "VanEck Video Gaming & eSports",
+      "sector": "Consumer Disc/Tech",
+      "industries_covered": "Computer Software-Gaming (direct)",
+      "status": "ORIGINAL",
+      "notes": "Video game publishers + eSports platforms"
+    },
+    {
+      "ticker": "BETZ",
+      "name": "Roundhill Sports Betting & iGaming",
+      "sector": "Consumer Disc",
+      "industries_covered": "Online sports betting / iGaming (direct)",
+      "status": "BLIND SPOT",
+      "notes": "DKNG, FLUT, PENN; isolates iGaming from physical casinos in BJK"
+    },
+    {
+      "ticker": "MOO",
+      "name": "VanEck Agribusiness",
+      "sector": "Consumer Staples",
+      "industries_covered": "Agricultural Operations, Machinery-Farm, Chem-Ag (close)",
+      "status": "ORIGINAL",
+      "notes": "Agribusiness equities \u2014 DE, ADM, BG, NTR, MOS"
+    },
+    {
+      "ticker": "DBA",
+      "name": "Invesco DB Agriculture",
+      "sector": "Commodities",
+      "industries_covered": "Food-Grain & Related (commodity futures)",
+      "status": "ORIGINAL",
+      "notes": "Ag commodity futures; wheat, corn, soybeans, sugar, coffee"
+    },
+    {
+      "ticker": "PBJ",
+      "name": "Invesco Food & Beverage",
+      "sector": "Consumer Staples",
+      "industries_covered": "Food-Packaged, Beverages-Non-Alcoholic, Dairy, Meat (close)",
+      "status": "ORIGINAL",
+      "notes": "Focused food & bev stocks \u2014 most specific staples sub-industry ETF"
+    },
+    {
+      "ticker": "MSOS",
+      "name": "AdvisorShares Pure US Cannabis",
+      "sector": "Consumer Staples",
+      "industries_covered": "Cannabis / US multi-state operators",
+      "status": "ORIGINAL",
+      "notes": "US cannabis operators; state legalization catalyst driven"
+    },
+    {
+      "ticker": "PAWZ",
+      "name": "ProShares Pet Care",
+      "sector": "Consumer Staples/HC",
+      "industries_covered": "Pet economy \u2014 vet, food, insurance, diagnostics",
+      "status": "BLIND SPOT",
+      "notes": "IDXX, ZTS, CHWY; no IBD group exists for this $150B+ industry"
+    },
+    {
+      "ticker": "XBI",
+      "name": "SPDR S&P Biotech",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Biomed/Biotech (direct, equal-weight)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight biotech; better small/mid-cap biotech signal than IBB"
+    },
+    {
+      "ticker": "IBB",
+      "name": "iShares Nasdaq Biotechnology",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Biomed/Biotech (direct, cap-weight)",
+      "status": "ORIGINAL",
+      "notes": "Cap-weight biotech; AMGN, GILD, VRTX heavy"
+    },
+    {
+      "ticker": "XPH",
+      "name": "SPDR S&P Pharmaceuticals",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Ethical Drugs, Generic Drugs (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight pharma; branded + generic drug makers"
+    },
+    {
+      "ticker": "IHI",
+      "name": "iShares US Medical Devices",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Systems/Equipment, Supplies (direct)",
+      "status": "NEW",
+      "notes": "Pure medical devices \u2014 ISRG, ABT, SYK, BSX, MDT"
+    },
+    {
+      "ticker": "XHE",
+      "name": "SPDR S&P Health Care Equipment",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Products, Supplies (direct, equal-weight)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight health equipment; broader + more small-cap than IHI"
+    },
+    {
+      "ticker": "IHF",
+      "name": "iShares US Healthcare Providers",
+      "sector": "Health Care",
+      "industries_covered": "Medical-Hospitals, Managed Care, Services, Outpatient (close)",
+      "status": "ORIGINAL",
+      "notes": "Healthcare providers \u2014 HCA, UNH, ELV, CI; facility + insurance mix"
+    },
+    {
+      "ticker": "GNOM",
+      "name": "Global X Genomics & Biotech",
+      "sector": "Health Care",
+      "industries_covered": "Genomics / precision medicine",
+      "status": "ORIGINAL",
+      "notes": "Genomics tools + therapeutics; CRISPR, gene sequencing"
+    },
+    {
+      "ticker": "HEAL",
+      "name": "Global X Digital Health",
+      "sector": "Health Care",
+      "industries_covered": "Computer Software-Medical, Comml Svcs-Healthcare (close)",
+      "status": "ORIGINAL",
+      "notes": "Digital health / health IT / telemedicine"
+    },
+    {
+      "ticker": "OZEM",
+      "name": "Roundhill GLP-1 & Weight Loss",
+      "sector": "Health Care",
+      "industries_covered": "GLP-1 / obesity drug ecosystem (direct)",
+      "status": "NEW",
+      "notes": "LLY, NVO + supply chain; biggest pharma theme \u2014 no IBD group"
+    },
+    {
+      "ticker": "ARKG",
+      "name": "ARK Genomic Revolution",
+      "sector": "Health Care",
+      "industries_covered": "Gene therapy / cell therapy / CRISPR (direct)",
+      "status": "BLIND SPOT",
+      "notes": "Gene editing + multiomics; distinct from broad biotech in XBI"
+    },
+    {
+      "ticker": "KBE",
+      "name": "SPDR S&P Bank",
+      "sector": "Financials",
+      "industries_covered": "Banks-Money Center + all bank types (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight all banks; pure banking industry signal"
+    },
+    {
+      "ticker": "KRE",
+      "name": "SPDR S&P Regional Banking",
+      "sector": "Financials",
+      "industries_covered": "Banks-Regional (all geographies) (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight regional banks; yield curve + credit cycle proxy"
+    },
+    {
+      "ticker": "KIE",
+      "name": "SPDR S&P Insurance",
+      "sector": "Financials",
+      "industries_covered": "Insurance-Diversified, P&C, Life, Brokers (direct)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight insurance; catastrophe + rate cycle signal"
+    },
+    {
+      "ticker": "IAI",
+      "name": "iShares US Broker-Dealers",
+      "sector": "Financials",
+      "industries_covered": "Finance-Invest Bank/Brokers (direct)",
+      "status": "ORIGINAL",
+      "notes": "Broker-dealers \u2014 GS, MS, SCHW, IBKR; capital markets cycle"
+    },
+    {
+      "ticker": "IPAY",
+      "name": "ETFMG Prime Mobile Payments",
+      "sector": "Financials/Tech",
+      "industries_covered": "Finance-CreditCard/Payment Processing (direct)",
+      "status": "ORIGINAL",
+      "notes": "Payments \u2014 V, MA, PYPL, SQ; digital payments adoption"
+    },
+    {
+      "ticker": "FINX",
+      "name": "Global X FinTech",
+      "sector": "Financials/Tech",
+      "industries_covered": "Financial Services-Specialty, Fintech (close)",
+      "status": "ORIGINAL",
+      "notes": "Broader fintech \u2014 neobanks, BNPL, embedded finance, crypto exchanges"
+    },
+    {
+      "ticker": "BIZD",
+      "name": "VanEck BDC Income",
+      "sector": "Financials",
+      "industries_covered": "BDCs / private credit (direct)",
+      "status": "ORIGINAL",
+      "notes": "Business development companies; private lending / yield"
+    },
+    {
+      "ticker": "VNQ",
+      "name": "Vanguard Real Estate",
+      "sector": "Real Estate",
+      "industries_covered": "Finance-Property REIT (direct)",
+      "status": "ORIGINAL",
+      "notes": "\u26a0 WATCH: ~90% overlap with XLRE. Broader coverage + higher liquidity. Keep as industry REIT tracker."
+    },
+    {
+      "ticker": "REM",
+      "name": "iShares Mortgage Real Estate",
+      "sector": "Real Estate",
+      "industries_covered": "Finance-Mortgage REIT (direct)",
+      "status": "ORIGINAL",
+      "notes": "Mortgage REITs; rate-sensitive, distinct from property REITs"
+    },
+    {
+      "ticker": "DTCR",
+      "name": "Global X Data Center & Digital Infra",
+      "sector": "Real Estate/Tech",
+      "industries_covered": "Data center REITs + digital infrastructure",
+      "status": "NEW",
+      "notes": "EQIX, DLR; AI physical backbone \u2014 no IBD group for this"
+    },
+    {
+      "ticker": "RSPU",
+      "name": "Invesco S&P 500 EW Utilities",
+      "sector": "Utilities",
+      "industries_covered": "Utility-Electric Power, Gas, Diversified (close)",
+      "status": "ORIGINAL",
+      "notes": "\u26a0 WATCH: ~90% overlap with XLU but equal-weight reveals rotation into smaller utilities earlier"
+    },
+    {
+      "ticker": "FIW",
+      "name": "First Trust Water",
+      "sector": "Utilities/Industrials",
+      "industries_covered": "Utility-Water Supply + water technology (direct)",
+      "status": "ORIGINAL",
+      "notes": "Water utilities + water tech (Xylem, Watts); infrastructure play"
+    },
+    {
+      "ticker": "SMH",
+      "name": "VanEck Semiconductor",
+      "sector": "Technology",
+      "industries_covered": "Elec-Semiconductor Fabless, Mfg, Equipment (direct)",
+      "status": "ORIGINAL",
+      "notes": "Cap-weight semis \u2014 NVDA, AVGO dominate; THE AI chip signal"
+    },
+    {
+      "ticker": "XSD",
+      "name": "SPDR S&P Semiconductor",
+      "sector": "Technology",
+      "industries_covered": "Elec-Semiconductor (direct, equal-weight)",
+      "status": "ORIGINAL",
+      "notes": "Equal-weight semis; more exposure to mid/small-cap chip names"
+    },
+    {
+      "ticker": "IGV",
+      "name": "iShares Expanded Tech-Software",
+      "sector": "Technology",
+      "industries_covered": "Computer Software-Enterprise, Desktop, Design, Database (direct)",
+      "status": "ORIGINAL",
+      "notes": "Broadest pure software ETF; CRM, ADBE, ORCL, NOW, INTU"
+    },
+    {
+      "ticker": "WCLD",
+      "name": "WisdomTree Cloud Computing",
+      "sector": "Technology",
+      "industries_covered": "Computer Software-Database, Internet-Network (close)",
+      "status": "ORIGINAL",
+      "notes": "Pure cloud/SaaS; growth-oriented software names"
+    },
+    {
+      "ticker": "CIBR",
+      "name": "First Trust Nasdaq Cybersecurity",
+      "sector": "Technology",
+      "industries_covered": "Computer Software-Security (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure cybersecurity \u2014 CRWD, PANW, ZS, FTNT"
+    },
+    {
+      "ticker": "AIQ",
+      "name": "Global X AI & Technology",
+      "sector": "Technology",
+      "industries_covered": "AI & big data broad (close)",
+      "status": "ORIGINAL",
+      "notes": "Broad AI exposure; both software and hardware AI plays"
+    },
+    {
+      "ticker": "SIXG",
+      "name": "Defiance 5G Next Gen Connectivity",
+      "sector": "Technology",
+      "industries_covered": "Telecom-Fiber Optics, Infrastructure (close)",
+      "status": "ORIGINAL",
+      "notes": "5G infrastructure, fiber optics, connectivity hardware"
+    },
+    {
+      "ticker": "QTUM",
+      "name": "Defiance Quantum ETF",
+      "sector": "Technology",
+      "industries_covered": "Quantum computing + ML (thematic)",
+      "status": "ORIGINAL",
+      "notes": "Quantum hardware, software, enabling technologies"
+    },
+    {
+      "ticker": "BLOK",
+      "name": "Amplify Transformational Data Sharing",
+      "sector": "Technology",
+      "industries_covered": "Blockchain technology / digital economy",
+      "status": "ORIGINAL",
+      "notes": "Blockchain infrastructure companies"
+    },
+    {
+      "ticker": "SOCL",
+      "name": "Global X Social Media",
+      "sector": "Technology/Comm",
+      "industries_covered": "Internet-Content (close)",
+      "status": "ORIGINAL",
+      "notes": "Social media platforms; digital advertising proxy"
+    },
+    {
+      "ticker": "IBIT",
+      "name": "iShares Bitcoin Trust",
+      "sector": "Crypto",
+      "industries_covered": "Bitcoin spot (direct)",
+      "status": "ORIGINAL",
+      "notes": "Spot Bitcoin ETF; purest BTC exposure"
+    },
+    {
+      "ticker": "BITQ",
+      "name": "Bitwise Crypto Industry Innovators",
+      "sector": "Crypto",
+      "industries_covered": "Crypto industry infrastructure",
+      "status": "ORIGINAL",
+      "notes": "Crypto exchanges, miners, infrastructure companies"
+    },
+    {
+      "ticker": "BKCH",
+      "name": "Global X Blockchain",
+      "sector": "Crypto",
+      "industries_covered": "Blockchain economy companies",
+      "status": "ORIGINAL",
+      "notes": "Blockchain-focused equities"
+    },
+    {
+      "ticker": "WGMI",
+      "name": "Valkyrie Bitcoin Miners",
+      "sector": "Crypto",
+      "industries_covered": "Bitcoin mining (direct)",
+      "status": "ORIGINAL",
+      "notes": "Pure crypto mining \u2014 MARA, RIOT, CLSK; halving cycle plays"
+    },
+    {
+      "ticker": "EWZ",
+      "name": "iShares MSCI Brazil",
+      "sector": "International",
+      "industries_covered": "Brazil country fund",
+      "status": "ORIGINAL",
+      "notes": "Commodity + EM exposure; Petrobras, Vale heavy"
+    },
+    {
+      "ticker": "EWW",
+      "name": "iShares MSCI Mexico",
+      "sector": "International",
+      "industries_covered": "Mexico country fund",
+      "status": "ORIGINAL",
+      "notes": "Nearshoring beneficiary; AMLO/Sheinbaum policy sensitive"
+    },
+    {
+      "ticker": "EWJ",
+      "name": "iShares MSCI Japan",
+      "sector": "International",
+      "industries_covered": "Japan country fund",
+      "status": "ORIGINAL",
+      "notes": "Yen cycle + BOJ policy; Toyota, Sony, semiconductor equipment"
+    },
+    {
+      "ticker": "INDA",
+      "name": "iShares MSCI India",
+      "sector": "International",
+      "industries_covered": "India country fund",
+      "status": "ORIGINAL",
+      "notes": "Fastest-growing large economy; Reliance, Infosys, HDFC"
+    },
+    {
+      "ticker": "VGK",
+      "name": "Vanguard FTSE Europe",
+      "sector": "International",
+      "industries_covered": "Europe broad",
+      "status": "ORIGINAL",
+      "notes": "Pan-European large/mid cap; Nestle, ASML, Novo Nordisk"
+    },
+    {
+      "ticker": "EUFN",
+      "name": "iShares MSCI Europe Financials",
+      "sector": "International",
+      "industries_covered": "European banks + insurance",
+      "status": "ORIGINAL",
+      "notes": "European financials; rate cycle + repatriation sensitive"
+    },
+    {
+      "ticker": "KWEB",
+      "name": "KraneShares CSI China Internet",
+      "sector": "International",
+      "industries_covered": "China internet / tech",
+      "status": "ORIGINAL",
+      "notes": "Alibaba, Tencent, PDD, JD; Chinese tech/consumer cycle"
+    },
+    {
+      "ticker": "CQQQ",
+      "name": "Invesco China Technology",
+      "sector": "International",
+      "industries_covered": "China technology broad",
+      "status": "ORIGINAL",
+      "notes": "Broader Chinese tech than KWEB; includes hardware + semis"
+    },
+    {
+      "ticker": "AFK",
+      "name": "VanEck Africa Index",
+      "sector": "International",
+      "industries_covered": "Africa continent",
+      "status": "ORIGINAL",
+      "notes": "Frontier + emerging Africa; South Africa, Nigeria, Kenya"
+    },
+    {
+      "ticker": "EWT",
+      "name": "iShares MSCI Taiwan",
+      "sector": "International",
+      "industries_covered": "Taiwan semiconductor hub",
+      "status": "NEW",
+      "notes": "TSMC ~60% of fund; geopolitical risk monitor for chip supply"
+    },
+    {
+      "ticker": "EWY",
+      "name": "iShares MSCI South Korea",
+      "sector": "International",
+      "industries_covered": "South Korea \u2014 memory chips, EVs, batteries",
+      "status": "NEW",
+      "notes": "Samsung, SK Hynix, Hyundai; Korea tech/EV ecosystem"
+    },
+    {
+      "ticker": "EUAD",
+      "name": "STOXX Europe Aerospace & Defense",
+      "sector": "International",
+      "industries_covered": "European defense rearmament",
+      "status": "NEW",
+      "notes": "Rheinmetall, BAE, Leonardo; NATO spending supercycle"
+    },
+    {
+      "ticker": "ASEA",
+      "name": "Global X FTSE Southeast Asia",
+      "sector": "International",
+      "industries_covered": "ASEAN \u2014 Vietnam, Indonesia, Thailand, Philippines",
+      "status": "NEW",
+      "notes": "China+1 supply chain diversification beneficiary"
+    },
+    {
+      "ticker": "KSA",
+      "name": "iShares MSCI Saudi Arabia",
+      "sector": "International",
+      "industries_covered": "Saudi Arabia / Gulf states",
+      "status": "NEW",
+      "notes": "Vision 2030, energy transition, sovereign wealth deployment"
+    },
+    {
+      "ticker": "EWA",
+      "name": "iShares MSCI Australia",
+      "sector": "International",
+      "industries_covered": "Australia \u2014 mining, banking, resources",
+      "status": "NEW",
+      "notes": "Resource economy; China demand proxy"
+    },
+    {
+      "ticker": "IPO",
+      "name": "Renaissance IPO",
+      "sector": "Thematic",
+      "industries_covered": "Recent IPOs / newly public companies",
+      "status": "ORIGINAL",
+      "notes": "Tracks newly listed companies; innovation proxy"
+    },
+    {
+      "ticker": "ARKX",
+      "name": "ARK Space Exploration",
+      "sector": "Thematic",
+      "industries_covered": "Space economy \u2014 launch, satellite, defense space",
+      "status": "ORIGINAL",
+      "notes": "Space technology; RKLB, satellites, earth observation"
+    },
+    {
+      "ticker": "SHLD",
+      "name": "Global X Defense Tech",
+      "sector": "Thematic",
+      "industries_covered": "Defense tech + drones + cyber-defense",
+      "status": "BLIND SPOT",
+      "notes": "Broader than traditional A&D; Palantir, AVAV, European defense names"
+    },
+    {
+      "ticker": "IWM",
+      "name": "iShares Russell 2000",
+      "sector": "Market Breadth",
+      "industries_covered": "Small-cap risk appetite across ALL sectors",
+      "status": "ORIGINAL",
+      "notes": "\u26a0 WATCH: Not an industry ETF. Keep for CANSLIM market health / breadth analysis \u2014 not sub-industry tracking."
+    }
+  ],
+  "ibd_groups": [
+    {
+      "ibd_group": "Agricultural Operations",
+      "etf_ticker": "MOO",
+      "match_quality": "CLOSE",
+      "alt_etf": "DBA"
+    },
+    {
+      "ibd_group": "Comml Svcs-Outsourcing",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Office Supplies Mfg",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer-Integrated Syst",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Diversified",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Consumer Prod-Specialty",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-Super Regional",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Insurance-Diversified",
+      "etf_ticker": "KIE",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Trucks & Parts-Hvy Duty",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comml Svcs-Staffing",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Outpnt/Hm Care",
+      "etf_ticker": "IHF",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Mining-Gold/Silver/Gems",
+      "etf_ticker": "GDX",
+      "match_quality": "DIRECT",
+      "alt_etf": "SIL, GLD, SLV"
+    },
+    {
+      "ibd_group": "Medical-Services",
+      "etf_ticker": "IHF",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Consumer Elec",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Mining-Metal Ores",
+      "etf_ticker": "XME",
+      "match_quality": "DIRECT",
+      "alt_etf": "COPX, REMX"
+    },
+    {
+      "ibd_group": "Oil&Gas-U S Expl&Prod",
+      "etf_ticker": "XOP",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Royalty Trust",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "AMLP partial"
+    },
+    {
+      "ibd_group": "Oil&Gas-Cdn Expl&Prod",
+      "etf_ticker": "EWC",
+      "match_quality": "BROAD",
+      "alt_etf": "XOP partial"
+    },
+    {
+      "ibd_group": "Oil&Gas-Intl Expl&Prod",
+      "etf_ticker": "IXC",
+      "match_quality": "CLOSE",
+      "alt_etf": ")"
+    },
+    {
+      "ibd_group": "Oil&Gas-Integrated",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Energy-Alternative/Other",
+      "etf_ticker": "CTEC",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Energy-Coal",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Energy-Solar",
+      "etf_ticker": "TAN",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Field Services",
+      "etf_ticker": "OIH",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Drilling",
+      "etf_ticker": "OIH",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-Foreign",
+      "etf_ticker": "EUFN",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Resident/Comml",
+      "etf_ticker": "XHB",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Heavy Construction",
+      "etf_ticker": "PAVE",
+      "match_quality": "CLOSE",
+      "alt_etf": "IFRA"
+    },
+    {
+      "ibd_group": "Chemicals-Agricultural",
+      "etf_ticker": "MOO",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Food-Meat Products",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Food-Dairy Products",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Food-Grain & Related",
+      "etf_ticker": "DBA",
+      "match_quality": "CLOSE",
+      "alt_etf": "MOO"
+    },
+    {
+      "ibd_group": "Food-Confectionery",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Beverages-Alcoholic",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "PBJ partial"
+    },
+    {
+      "ibd_group": "Beverages-Non-Alcoholic",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Food-Packaged",
+      "etf_ticker": "PBJ",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Food-Misc Preparation",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Tobacco",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Apparel-Clothing Mfg",
+      "etf_ticker": "XRT",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Wood Prds",
+      "etf_ticker": "WOOD",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Hsehold/Office Furniture",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XHB partial"
+    },
+    {
+      "ibd_group": "Paper & Paper Products",
+      "etf_ticker": "WOOD",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Containers/Packaging",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Media-Newspapers",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Media-Diversified",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Media-Periodicals",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Media-Books",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comml Svcs-Document Mgmt",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comp Sftwr-Spec Enterprs",
+      "etf_ticker": "IGV",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Chemicals-Basic",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer Sftwr-Financial",
+      "etf_ticker": "FINX",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Ethical Drugs",
+      "etf_ticker": "XPH",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Products",
+      "etf_ticker": "XHE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Soap & Clng Preparatns",
+      "etf_ticker": "IYK",
+      "match_quality": "CLOSE",
+      "alt_etf": ")"
+    },
+    {
+      "ibd_group": "Cosmetics/Personal Care",
+      "etf_ticker": "IYK",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Chemicals-Paints",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Chemicals-Specialty",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Refining/Mktg",
+      "etf_ticker": "CRAK",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Auto/Truck-Tires & Misc",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "CARZ partial"
+    },
+    {
+      "ibd_group": "Computer Sftwr-Medical",
+      "etf_ticker": "HEAL",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Chemicals-Plastics",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Apparel-Shoes & Rel Mfg",
+      "etf_ticker": "XRT",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer Sftwr-Security",
+      "etf_ticker": "CIBR",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer Sftwr-Desktop",
+      "etf_ticker": "IGV",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Constr Prds/Misc",
+      "etf_ticker": "PKB",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Steel-Producers",
+      "etf_ticker": "SLX",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Steel-Specialty Alloys",
+      "etf_ticker": "SLX",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Internet-Content",
+      "etf_ticker": "SOCL",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer Sftwr-Edu/Media",
+      "etf_ticker": "IGV",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comml Svcs-Healthcare",
+      "etf_ticker": "HEAL",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Publ Inv Fd-Eqt",
+      "etf_ticker": null,
+      "match_quality": "N/A",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Metal Proc & Fabrication",
+      "etf_ticker": "XME",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Machinery-Farm",
+      "etf_ticker": "MOO",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Machinery-Constr/Mining",
+      "etf_ticker": "PAVE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Machinery/Equip",
+      "etf_ticker": "OIH",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Machinery-Mtl Hdlg/Autmn",
+      "etf_ticker": "ROBO",
+      "match_quality": "CLOSE",
+      "alt_etf": "BOTZ"
+    },
+    {
+      "ibd_group": "Machinery-Tools & Rel",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Hand Tools",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom-Fiber Optics",
+      "etf_ticker": "SIXG",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Internet",
+      "etf_ticker": "IBUY",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Pollution Control",
+      "etf_ticker": "EVX",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Machinery-Gen Industrial",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer-Networking",
+      "etf_ticker": "FDN",
+      "match_quality": "BROAD",
+      "alt_etf": "IGV partial"
+    },
+    {
+      "ibd_group": "Computer Sftwr-Design",
+      "etf_ticker": "IGV",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Wholesale-Electronics",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XSD partial"
+    },
+    {
+      "ibd_group": "Computer-Data Storage",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "IGV partial"
+    },
+    {
+      "ibd_group": "Computer-Hardware/Perip",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer Sftwr-Database",
+      "etf_ticker": "WCLD",
+      "match_quality": "CLOSE",
+      "alt_etf": "IGV"
+    },
+    {
+      "ibd_group": "Computer Sftwr-Enterprse",
+      "etf_ticker": "IGV",
+      "match_quality": "DIRECT",
+      "alt_etf": "WCLD"
+    },
+    {
+      "ibd_group": "Computer Sftwr-Gaming",
+      "etf_ticker": "ESPO",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-A/C & Heating Prds",
+      "etf_ticker": "HVAC",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Internet-Network Sltns",
+      "etf_ticker": "WCLD",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Elec-Scientific/Msrng",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Electrical-Power/Equipmt",
+      "etf_ticker": "POWR",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Hsehold-Appliances/Wares",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Consumer Prod-Electronic",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Elec-Misc Products",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Elec-Contract Mfg",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Elec-Semiconductor Equip",
+      "etf_ticker": "SMH",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Elec-Semicondctor Fablss",
+      "etf_ticker": "SMH",
+      "match_quality": "DIRECT",
+      "alt_etf": "XSD"
+    },
+    {
+      "ibd_group": "Elec-Semiconductor Mfg",
+      "etf_ticker": "SMH",
+      "match_quality": "DIRECT",
+      "alt_etf": "XSD"
+    },
+    {
+      "ibd_group": "Electronic-Parts",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "SMH partial"
+    },
+    {
+      "ibd_group": "Auto Manufacturers",
+      "etf_ticker": "CARZ",
+      "match_quality": "CLOSE",
+      "alt_etf": "DRIV"
+    },
+    {
+      "ibd_group": "Auto/Truck-Original Eqp",
+      "etf_ticker": "CARZ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Auto/Truck-Replace Parts",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XRT partial"
+    },
+    {
+      "ibd_group": "Aerospace/Defense",
+      "etf_ticker": "ITA",
+      "match_quality": "DIRECT",
+      "alt_etf": "XAR, PPA"
+    },
+    {
+      "ibd_group": "Bldg-Mobile/Mfg & Rv",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Systems/Equip",
+      "etf_ticker": "IHI",
+      "match_quality": "DIRECT",
+      "alt_etf": "XHE"
+    },
+    {
+      "ibd_group": "Medical-Supplies",
+      "etf_ticker": "XHE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Leisure-Toys/Games/Hobby",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Leisure-Products",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Security/Sfty",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Transportation-Rail",
+      "etf_ticker": "IYT",
+      "match_quality": "CLOSE",
+      "alt_etf": "XTN"
+    },
+    {
+      "ibd_group": "Transportation-Truck",
+      "etf_ticker": "XTN",
+      "match_quality": "CLOSE",
+      "alt_etf": "IYT"
+    },
+    {
+      "ibd_group": "Transportation-Ship",
+      "etf_ticker": "SEA",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Transportation-Airline",
+      "etf_ticker": "JETS",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Transport-Air Freight",
+      "etf_ticker": "IYT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Transportation-Logistics",
+      "etf_ticker": "IYT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom Svcs- Foreign",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "VGK partial"
+    },
+    {
+      "ibd_group": "Media-Radio/Tv",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom Svcs-Integrated",
+      "etf_ticker": "XTL",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom Svcs-Wireless",
+      "etf_ticker": "XTL",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom-Cable/Satl Eqp",
+      "etf_ticker": "SIXG",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom-Consumer Prods",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XTL partial"
+    },
+    {
+      "ibd_group": "Telecom-Infrastructure",
+      "etf_ticker": "SIXG",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Telecom Svcs-Cable/Satl",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Utility-Electric Power",
+      "etf_ticker": "RSPU",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Utility-Gas Distribution",
+      "etf_ticker": "RSPU",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Oil&Gas-Transprt/Pipelne",
+      "etf_ticker": "AMLP",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Utility-Water Supply",
+      "etf_ticker": "FIW",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Utility-Diversified",
+      "etf_ticker": "RSPU",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail/Whlsle-Auto Parts",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XRT partial"
+    },
+    {
+      "ibd_group": "Retail/Whlsle-Automobile",
+      "etf_ticker": "CARZ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Whlsle Drg/Suppl",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Wholesale-Food",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Metal Prds-Distributor",
+      "etf_ticker": "XME",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail/Whlsle-Bldg Prds",
+      "etf_ticker": "PKB",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail/Whlsle-Office Sup",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XRT"
+    },
+    {
+      "ibd_group": "Retail-Mail Order&Direct",
+      "etf_ticker": "IBUY",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Discount&Variety",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Leisure Products",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Specialty",
+      "etf_ticker": "XRT",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Super/Mini Mkts",
+      "etf_ticker": "PBJ",
+      "match_quality": "CLOSE",
+      "alt_etf": "XRT"
+    },
+    {
+      "ibd_group": "Retail-Apparel/Shoes/Acc",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Home Furnishings",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Restaurants",
+      "etf_ticker": "EATZ",
+      "match_quality": "DIRECT",
+      "alt_etf": "PEJ"
+    },
+    {
+      "ibd_group": "Retail-Drug Stores",
+      "etf_ticker": "XRT",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail/Whlsle-Jewelry",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "XRT partial"
+    },
+    {
+      "ibd_group": "Banks-Money Center",
+      "etf_ticker": "KBE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-Northeast",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-Southeast",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-Midwest",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Banks-West/Southwest",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Savings & Loan",
+      "etf_ticker": "KRE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Blank Check",
+      "etf_ticker": "IPO",
+      "match_quality": "BROAD",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Commercial Loans",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "KBE partial"
+    },
+    {
+      "ibd_group": "Finance-Consumer Loans",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Mrtg&Rel Svc",
+      "etf_ticker": "REM",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Insurance-Life",
+      "etf_ticker": "IAK",
+      "match_quality": "CLOSE",
+      "alt_etf": "KIE"
+    },
+    {
+      "ibd_group": "Insurance-Acc & Health",
+      "etf_ticker": "KIE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Insurance-Prop/Cas/Titl",
+      "etf_ticker": "KIE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Insurance-Brokers",
+      "etf_ticker": "KIE",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Financial Svcs-Specialty",
+      "etf_ticker": "FINX",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-CrdtCard/PmtPr",
+      "etf_ticker": "IPAY",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-ETF / ETN",
+      "etf_ticker": null,
+      "match_quality": "N/A",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Publ Inv Fd-Bond",
+      "etf_ticker": null,
+      "match_quality": "N/A",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Publ Inv Fd-Glbl",
+      "etf_ticker": null,
+      "match_quality": "N/A",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Publ Inv Fd-Bal",
+      "etf_ticker": null,
+      "match_quality": "N/A",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Property REIT",
+      "etf_ticker": "VNQ",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Mortgage REIT",
+      "etf_ticker": "REM",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Real Estate Dvlpmt/Ops",
+      "etf_ticker": "VNQ",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Leisure-Lodging",
+      "etf_ticker": "AWAY",
+      "match_quality": "CLOSE",
+      "alt_etf": "PEJ"
+    },
+    {
+      "ibd_group": "Comml Svcs-Advertising",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Maintenance & Svc",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Computer-Tech Services",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "IGV partial"
+    },
+    {
+      "ibd_group": "Comml Svcs-Leasing",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Leisure-Movies & Related",
+      "etf_ticker": "SUBZ",
+      "match_quality": "CLOSE",
+      "alt_etf": "RSPC"
+    },
+    {
+      "ibd_group": "Leisure-Services",
+      "etf_ticker": "PEJ",
+      "match_quality": "DIRECT",
+      "alt_etf": "AWAY"
+    },
+    {
+      "ibd_group": "Leisure-Gaming/Equip",
+      "etf_ticker": "BJK",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Leisure-Travel Booking",
+      "etf_ticker": "AWAY",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Funeral Svcs & Rel",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Research Eqp/Svc",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Long-term Care",
+      "etf_ticker": null,
+      "match_quality": "BROAD",
+      "alt_etf": "IHF partial"
+    },
+    {
+      "ibd_group": "Medical-Hospitals",
+      "etf_ticker": "IHF",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Managed Care",
+      "etf_ticker": "IHF",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Medical-Biomed/Biotech",
+      "etf_ticker": "XBI",
+      "match_quality": "DIRECT",
+      "alt_etf": "IBB"
+    },
+    {
+      "ibd_group": "Medical-Generic Drugs",
+      "etf_ticker": "XPH",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Investment Mgmt",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Finance-Invest Bnk/Bkrs",
+      "etf_ticker": "IAI",
+      "match_quality": "DIRECT",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Bldg-Cement/Concrt/Ag",
+      "etf_ticker": "PKB",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Transportation-Equip Mfg",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Retail-Major Disc Chains",
+      "etf_ticker": "RTH",
+      "match_quality": "CLOSE",
+      "alt_etf": "XRT"
+    },
+    {
+      "ibd_group": "Retail-Department Stores",
+      "etf_ticker": "XRT",
+      "match_quality": "CLOSE",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Consumer Svcs-Education",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comml Svcs-Consulting",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Comml Svcs-Market Rsrch",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    },
+    {
+      "ibd_group": "Diversified Operations",
+      "etf_ticker": null,
+      "match_quality": "SECTOR",
+      "alt_etf": null
+    }
+  ]
+}
