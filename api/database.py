@@ -72,23 +72,36 @@ def _map_row(row):
 
 def fetch_all(sql: str, params: Tuple = ()) -> List[dict]:
     """Execute a SELECT query and return all rows as a list of dicts."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            sql = sql.replace('?', '%s')
-        cursor.execute(sql, params)
-        return [_map_row(row) for row in cursor.fetchall()]
-
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                sql = sql.replace('?', '%s')
+            cursor.execute(sql, params)
+            return [_map_row(row) for row in cursor.fetchall()]
+    except Exception as e:
+        err_str = str(e).lower()
+        if "does not exist" in err_str or "no such table" in err_str:
+            print(f"Warning: Table missing (migration pending?), returning empty list. SQL: {sql[:50]}... Error: {e}", flush=True)
+            return []
+        raise
 
 def fetch_one(sql: str, params: Tuple = ()) -> Optional[dict]:
     """Execute a SELECT query and return a single row as a dict."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            sql = sql.replace('?', '%s')
-        cursor.execute(sql, params)
-        row = cursor.fetchone()
-        return _map_row(row) if row else None
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+                sql = sql.replace('?', '%s')
+            cursor.execute(sql, params)
+            row = cursor.fetchone()
+            return _map_row(row) if row else None
+    except Exception as e:
+        err_str = str(e).lower()
+        if "does not exist" in err_str or "no such table" in err_str:
+            print(f"Warning: Table missing (migration pending?), returning None. SQL: {sql[:50]}... Error: {e}", flush=True)
+            return None
+        raise
 
 
 def get_last_updated(market: str = "US") -> Optional[str]:
