@@ -2653,6 +2653,10 @@
                 runUniverse();
             } else if (activeScanner === 'trade-portal') {
                 runTradePortal(true);
+            } else if (activeScanner === 'portfolio') {
+                runPortfolio(true);
+            } else if (activeScanner === 'watchlist') {
+                openWatchlistManager();
             } else if (activeScanner && activeScanner.startsWith('wl-')) {
                 const wlId = parseInt(activeScanner.replace('wl-', ''));
                 if (!isNaN(wlId)) runWatchlist(wlId);
