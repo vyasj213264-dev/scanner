@@ -18,7 +18,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="minervini-cheat",
         label="🎯 Minervini Cheat Entry",
         description="Stage 2 leaders with volume dry-up and price hugging the 10/20 DMA inside a VCP — early entry before the pivot breakout.",
-        category="Trend & Breakout",
+        category="Elite Scanners",
         criteria=[
             "Trend: Classic Stage 2 Uptrend (Price > 150DMA > 200DMA, 200DMA trending up)",
             "Momentum: Overall RS Rating >= 70, 3-Month Momentum > +10%",
@@ -32,7 +32,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="htf",
         label="🚀 High Tight Flag",
         description="Stocks that surged 90%+ in 3 months and are now forming a tight flag consolidation (2–25% off highs) with volume dry-up. Rare, high-conviction setup.",
-        category="Trend & Breakout",
+        category="Elite Scanners",
         criteria=[
             "Trend: Classic Stage 2 Uptrend",
             "Momentum: Extreme 3-Month Momentum > +90%, RS Rating >= 80",
@@ -45,7 +45,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="horizontal-resistance",
         label="Horizontal Resistance",
         description="Stocks testing a key horizontal resistance level with above-average volume.",
-        category="Trend & Breakout",
+        category="Core Patterns & Setups",
         criteria=[
             "Price Structure: Current close is within ±2% of the highest high over the last 126 trading days (~6 months)",
             "Volume: Above-average daily volume (RVOL > 1.0)"
@@ -55,7 +55,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="tight-setup",
         label="Tight Setups",
         description="Stage 2 stocks with low volatility consolidation (price range < 2% over 4 days).",
-        category="Trend & Breakout",
+        category="Core Patterns & Setups",
         criteria=[
             "Trend: Classic Stage 2 Uptrend",
             "Pattern: Tight Setup (Maximum price difference between the highs and lows of the last 4 closing prices is < 2%)",
@@ -66,7 +66,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="rs-high-before-price-high",
         label="RS High Before Price High",
         description="RS Rating > 90 while price is still > 5% below its 52-week high — leadership building.",
-        category="Trend & Breakout",
+        category="Momentum & Trend",
         criteria=[
             "Momentum: Overall RS Rating > 90",
             "Price Structure: Price is taking a breather, currently > 5% below its 52-week high"
@@ -76,7 +76,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="momentum",
         label="Momentum (1M > 10%)",
         description="Stage 2 stocks with > 10% price gain over the last month.",
-        category="Trend & Breakout",
+        category="Momentum & Trend",
         criteria=[
             "Trend: Classic Stage 2 Uptrend",
             "Momentum: Price has gained more than 10% over the last 21 trading days (~1 month)"
@@ -87,7 +87,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="vcp",
         label="VCP Approximation",
         description="Volatility Contraction Pattern: today's range < 30% of 10-day avg range, low volume.",
-        category="Pattern Recognition",
+        category="Core Patterns & Setups",
         criteria=[
             "Trend: Classic Stage 2 Uptrend",
             "Pattern: Volatility Contraction (Today's High-Low range < 30% of the 10-day average daily range)",
@@ -98,33 +98,33 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="inside-bar",
         label="Inside Bar",
         description="Today's high/low completely inside yesterday's — a volatility squeeze signal.",
-        category="Pattern Recognition",
+        category="Core Patterns & Setups",
         criteria=[
             "Pattern: Inside Bar (Today's high is lower than yesterday's high AND today's low is higher than yesterday's low)",
             "Volume: Below-average daily volume (RVOL < 1.0)"
         ]
     ),
     # Volume & Events
-    ScannerMeta(
-        id="gap-up",
-        label="Gap Up (> 2%)",
-        description="Stocks that gapped up more than 2% on the open with elevated volume.",
-        category="Volume & Events",
-        criteria=[
-            "Price Action: Opened more than 2% above yesterday's closing price",
-            "Volume: Strong volume accumulation (RVOL > 1.5x average)"
-        ]
-    ),
-    ScannerMeta(
-        id="gap-down",
-        label="Gap Down (< -2%)",
-        description="Stocks that gapped down more than 2% on the open with elevated volume.",
-        category="Volume & Events",
-        criteria=[
-            "Price Action: Opened more than 2% below yesterday's closing price",
-            "Volume: Strong volume distribution (RVOL > 1.5x average)"
-        ]
-    ),
+    # ScannerMeta(
+    #     id="gap-up",
+    #     label="Gap Up (> 2%)",
+    #     description="Stocks that gapped up more than 2% on the open with elevated volume.",
+    #     category="Volume & Events",
+    #     criteria=[
+    #         "Price Action: Opened more than 2% above yesterday's closing price",
+    #         "Volume: Strong volume accumulation (RVOL > 1.5x average)"
+    #     ]
+    # ), 
+    # ScannerMeta(
+    #     id="gap-down",
+    #     label="Gap Down (< -2%)",
+    #     description="Stocks that gapped down more than 2% on the open with elevated volume.",
+    #     category="Volume & Events",
+    #     criteria=[
+    #         "Price Action: Opened more than 2% below yesterday's closing price",
+    #         "Volume: Strong volume distribution (RVOL > 1.5x average)"
+    #     ]
+    # ),
     ScannerMeta(
         id="golden-crossover",
         label="Golden Crossover",
@@ -148,7 +148,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="stage-2",
         label="All Stage 2 Stocks",
         description="Full universe filtered to stocks in a Stage 2 uptrend (Minervini criteria).",
-        category="Market Breadth",
+        category="Momentum & Trend",
         criteria=[
             "Trend: Classic Stage 2 Uptrend (Current Price > 150DMA > 200DMA, and the 200DMA is trending upwards vs 20 days ago)"
         ]
@@ -158,7 +158,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="pullback-5dma",
         label="Pullback to 5DMA",
         description="Price within +/- 2% of the 5-day moving average.",
-        category="Pullbacks",
+        category="Mean Reversion (Pullbacks)",
         criteria=[
             "Price Structure: Current close is resting precisely within ±2% of the 5-day Simple Moving Average"
         ]
@@ -167,7 +167,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="pullback-9dma",
         label="Pullback to 9DMA",
         description="Price within +/- 2% of the 9-day moving average.",
-        category="Pullbacks",
+        category="Mean Reversion (Pullbacks)",
         criteria=[
             "Price Structure: Current close is resting precisely within ±2% of the 9-day Simple Moving Average"
         ]
@@ -176,7 +176,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="pullback-21dma",
         label="Pullback to 21DMA",
         description="Price within +/- 2% of the 21-day moving average.",
-        category="Pullbacks",
+        category="Mean Reversion (Pullbacks)",
         criteria=[
             "Price Structure: Current close is resting precisely within ±2% of the 21-day Simple Moving Average"
         ]
@@ -185,7 +185,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="pullback-50dma",
         label="Pullback to 50DMA",
         description="Price within +/- 2% of the 50-day moving average.",
-        category="Pullbacks",
+        category="Mean Reversion (Pullbacks)",
         criteria=[
             "Price Structure: Current close is resting precisely within ±2% of the 50-day Simple Moving Average"
         ]
@@ -195,7 +195,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="modern-breakout",
         label="⚡ Modern Breakout Leaders",
         description="Liquid Stage 2 leaders (RS >= 95) near 52-week highs with constructive tight/VCP/inside-bar patterns — prime breakout candidates for 2–10 day swings.",
-        category="Trend & Breakout",
+        category="Elite Scanners",
         criteria=[
             "Trend: Classic Stage 2 Uptrend",
             "Momentum: Extreme RS Rating >= 95",
@@ -207,7 +207,7 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
         id="modern-pullback",
         label="🔄 Modern Pullback Continuation",
         description="Stage 2 leaders (RS >= 90) pulling back to the 10/20 DMA with volume contraction and tight patterns — continuation entry setups.",
-        category="Pullbacks",
+        category="Elite Scanners",
         criteria=[
             "Trend: Classic Stage 2 Uptrend (Price > 50DMA, 20DMA > 50DMA)",
             "Momentum: Strong RS Rating >= 90",

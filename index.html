@@ -1671,6 +1671,41 @@
             .grid-area {
                 padding: 8px 10px;
             }
+
+            /* Force card view on mobile — hide Chart/Table toggle */
+            #scanner-view-toggle {
+                display: none !important;
+            }
+
+            /* Full-screen filter modals on mobile */
+            .filter-modal-overlay {
+                padding: 0 !important;
+                align-items: flex-end !important;
+            }
+
+            .filter-modal {
+                max-width: 100% !important;
+                max-height: 85vh !important;
+                border-radius: var(--radius) var(--radius) 0 0 !important;
+                border-bottom: none !important;
+            }
+
+            /* Filter bar: horizontal scroll on mobile */
+            .filter-bar {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                padding-bottom: 2px;
+            }
+
+            .filter-bar::-webkit-scrollbar {
+                display: none;
+            }
+
+            .filter-bar .filter-group {
+                flex-shrink: 0;
+            }
         }
 
         .sort-btn {
