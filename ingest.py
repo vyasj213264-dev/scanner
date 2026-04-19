@@ -394,6 +394,25 @@ def run_ingest(market='US'):
         for p in us_proxies:
             tickers.append(p)
             ticker_meta[p] = {'sector': 'Index', 'industry': 'Index', 'market_cap': None}
+            
+        # Inject IBD tracking ETFs so they are guaranteed to be downloaded
+        try:
+            config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ibd_etf_config.json')
+            with open(config_path, 'r') as f:
+                ibd_config = _json.load(f)
+            for s in ibd_config.get('sector_etfs', []):
+                t = s['ticker']
+                if t not in ticker_meta:
+                    tickers.append(t)
+                    ticker_meta[t] = {'sector': s['gics_sector'], 'industry': 'ETF', 'market_cap': None}
+            for e in ibd_config.get('industry_etfs', []):
+                t = e['ticker']
+                if t not in ticker_meta:
+                    tickers.append(t)
+                    ticker_meta[t] = {'sector': e.get('sector', 'ETF'), 'industry': 'ETF', 'market_cap': None}
+            print(f"Pre-loaded {len(ibd_config.get('sector_etfs', [])) + len(ibd_config.get('industry_etfs', []))} IBD tracking ETFs.", flush=True)
+        except Exception as e:
+            print(f"Failed to pre-load IBD ETFs into ingestion list: {e}")
         
         # dynamically fetch all US equity tickers and pre-filter those >= $5 using Nasdaq Screener API
         try:
