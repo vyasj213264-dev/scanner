@@ -1,4 +1,4 @@
-name: Daily Data Ingestion (US)
+name: Daily Data Ingestion (US + IN)
 
 on:
   schedule:
@@ -29,4 +29,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           HISTORY_PERIOD: '5y' # Change to '10y', 'max', '1y' etc. to change historic pull depth.
         run: |
-          python ingest.py US
+          python ingest.py BOTH
