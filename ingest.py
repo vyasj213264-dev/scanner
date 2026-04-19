@@ -1236,7 +1236,7 @@ def run_ingest(market='US'):
             "AND (Inside_Bar OR Tight_Setup OR VCP_Approximation)"
         ),
         "power-pullback":         (
-            "Avg_Dollar_Vol_20 > 20000000 "
+            f"Avg_Dollar_Vol_20 > {'20000000' if market == 'US' else '50000000'} "
             "AND SMA_3_Slope BETWEEN -0.03 AND -0.005 "
             "AND Close > SMA_50 "
             "AND Close >= SMA_21 * 0.95 "
@@ -1260,7 +1260,7 @@ def run_ingest(market='US'):
 
     # Power Pullback: apply industry rank top-50% post-filter (requires JOIN to industry_ranks)
     # Get the industry rank cutoff (total industries / 2)
-    if market == 'US':
+    if market in ['US', 'IN']:
         latest_date_q = f"SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}'"
         cursor.execute(f"SELECT COUNT(*) FROM industry_ranks WHERE Category = 'Industry' AND Market = '{market}' AND Date = ({latest_date_q})")
         industry_count_row = cursor.fetchone()
