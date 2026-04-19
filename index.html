@@ -2426,7 +2426,9 @@
 
     <script>
         // ── Config ──────────────────────────────────────────────
-        const API = '/api/v1';
+        // Configure API endpoint to switch dynamically if we are running inside native mobile wrapper
+        const NATIVE_ORIGIN = 'https://scanner-ub2v.onrender.com';
+        const API = window.Capacitor ? `${NATIVE_ORIGIN}/api/v1` : '/api/v1';
 
         // ── State & Config ──────────────────────────────────────
         let activeScanner = null;

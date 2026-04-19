@@ -1,0 +1,9 @@
+{
+  "appId": "com.traderschart.app",
+  "appName": "TradersChart",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  }
+}
