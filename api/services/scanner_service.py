@@ -334,7 +334,6 @@ def run_scan(
         f"LEFT JOIN fundamentals_data f ON d.Ticker = f.Ticker "
         f"LEFT JOIN industry_ranks sr ON d.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Market = '{market}' AND sr.Date = {latest_date_query} "
         f"LEFT JOIN industry_ranks ir ON d.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Market = '{market}' AND ir.Date = {latest_date_query} "
-        f"LEFT JOIN ibd_etf_ranks etf ON d.IBD_ETF_Proxy = etf.ETF_Ticker AND etf.Market = '{market}' AND etf.Date = (SELECT MAX(Date) FROM ibd_etf_ranks WHERE Market = '{market}') "
         f"WHERE r.scanner_id = ? AND d.Market = '{market}' AND d.{baseline}{extra_where} "
         f"ORDER BY d.{sort_col} {sort_dir} "
         f"LIMIT ?"
