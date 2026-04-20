@@ -3299,7 +3299,6 @@
                     btn.innerHTML = `
             <span class="btn-label">${item.label}</span>
             ${infoBtnHtml}
-            <span class="count-badge" id="badge-${item.id}">—</span>
           `;
                     btn.addEventListener('click', () => runScanner(item.id, item.label));
                     section.appendChild(btn);
@@ -3307,9 +3306,6 @@
 
                 container.appendChild(section);
             }
-
-            // Preload badges in background
-            prefetchBadges(scanners);
 
             // Auto-run from URL query param (handles page refresh + shared links)
             const params = new URLSearchParams(window.location.search);
@@ -3343,44 +3339,6 @@
                 // Default to Market Breadth overview
                 runBreadth();
             }
-        }
-
-        async function prefetchBadges(scanners) {
-            const todayKey = new Date().toISOString().slice(0, 10);
-            const cacheKey = 'badge_cache';
-            let badgeCache = {};
-
-            // Try to load from localStorage
-            try {
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (parsed._cacheDate === todayKey) {
-                        badgeCache = parsed;
-                        // Restore badges from cache instantly
-                        for (const s of scanners) {
-                            const badge = document.getElementById(`badge-${s.id}`);
-                            if (badge && badgeCache[s.id] != null) badge.textContent = badgeCache[s.id];
-                        }
-                        return; // All badges restored from cache, no DB calls needed
-                    }
-                }
-            } catch (_) { }
-
-            // Cache miss or stale — fetch from API
-            for (const s of scanners) {
-                try {
-                    const res = await fetchApi(`/scan/${s.id}?limit=5`); // Reduced limit to save DB load just for count
-                    const data = await res.json();
-                    const badge = document.getElementById(`badge-${s.id}`);
-                    if (badge) badge.textContent = data.count;
-                    badgeCache[s.id] = data.count;
-                } catch (_) { /* ignore */ }
-                await sleep(80);
-            }
-            // Save to localStorage
-            badgeCache._cacheDate = todayKey;
-            try { localStorage.setItem(cacheKey, JSON.stringify(badgeCache)); } catch (_) { }
         }
 
         function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
