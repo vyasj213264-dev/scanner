@@ -241,6 +241,20 @@ SCANNER_CATALOGUE: List[ScannerMeta] = [
             "Baselines: Must have a valid IBD ETF proxy mapping, and Price >= $10"
         ]
     ),
+    ScannerMeta(
+        id="kell-zanger",
+        label="⚡ Kell-Zanger Range Breakout",
+        description="The ultimate tight-range breakout scanner fusing Oliver Kell's Cycle of Price Action with Dan Zanger's volume-confirmed breakout methodology. Surfaces the tightest, most institutional-grade setups right before they break out — with actionable trigger prices and stop-losses.",
+        category="Elite Scanners",
+        criteria=[
+            "Kell Structural: Classic Stage 2 Uptrend with EMA alignment (Price ≥ EMA₁₀ ≥ EMA₂₀)",
+            "Institutional Quality: Price ≥ $10, Volume ≥ 300K shares, RS Rating ≥ 80",
+            "Zanger Quality: Within 15% of 52-week high, Positive 3-month momentum",
+            "Range Tightness: Composite Tightness Score ≥ 60/100 (ATR contraction + volume dry-up + Bollinger squeeze + small closes + indecision candles)",
+            "Pattern: Must show at least one of: Tight Setup, VCP, Inside Bar, Bull Flag, or EMA Crossback",
+            "Industry Strength: Stock's industry ranked in top 50% by 1M or 3M momentum"
+        ]
+    ),
 ]
 
 # Lookup by id for O(1) access
@@ -308,6 +322,15 @@ _FILTERS: dict = {
         "AND d.IBD_ETF_Proxy IS NOT NULL "
         "AND etf.Rank_3M <= 20 "
         "AND etf.Above_50DMA IS TRUE"
+    ),
+    "kell-zanger": (
+        "d.In_Stage_2 AND d.Close >= d.EMA_10 AND d.EMA_10 >= d.EMA_20 "
+        "AND d.Close >= 10 AND d.Volume >= 300000 "
+        "AND d.RS_Rating >= 80 "
+        "AND d.Pct_From_52W_High > -15 "
+        "AND d.Momentum_3M > 0 "
+        "AND d.Range_Tightness_Score >= 60 "
+        "AND (d.Tight_Setup OR d.VCP_Approximation OR d.Inside_Bar OR d.Bull_Flag OR d.EMA_Crossback)"
     ),
 }
 

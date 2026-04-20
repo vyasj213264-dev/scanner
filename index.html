@@ -2432,6 +2432,7 @@
 
         // ── State & Config ──────────────────────────────────────
         let activeScanner = null;
+        let currentMacroHealth = null;
         let activeSortBy = 'rs_rating';
         let activeSortDir = -1; // -1 for desc, 1 for asc
         let lastResults = [];
@@ -2815,13 +2816,14 @@
                 const healthRes = await fetchApi('/health');
                 const health = await healthRes.json();
                 document.getElementById('universe-count').textContent = health.universe_size.toLocaleString();
+                currentMacroHealth = health.macro_health;
             } catch (e) {
                 console.error("Health fetch failed on market switch", e);
             }
             
             // Re-run the active view
-            // User requested: If someone changes tab US to IN or otherwise, redirect them to stock universe
-            runUniverse(true);
+            // User requested: If someone changes tab US to IN or otherwise, redirect them to market breadth
+            runBreadth();
             logEvent('toggle_market', { market: currentMarket });
         }
 
@@ -2853,6 +2855,7 @@
                         health.universe_size.toLocaleString();
                     document.getElementById('last-updated').textContent =
                         health.last_updated || '—';
+                    currentMacroHealth = health.macro_health;
 
                     // fetchWatchlists in its own try-catch so failure doesn't block the sidebar
                     try { await fetchWatchlists(); } catch (e) { console.warn('Watchlists unavailable:', e); }
@@ -3072,6 +3075,7 @@
                     // Modern Swing Scanners
                     { label: '⚡ Breakout Leader',       check: () => d.in_stage_2 && d.rs_rating >= 95 && d.pct_from_52w_high > -20 && (d.tight_setup || d.vcp_approximation || d.inside_bar) && d.sma_20 > 0 && Math.abs(d.close - d.sma_20) / d.sma_20 <= 0.06 },
                     { label: '🔄 Pullback Continuation', check: () => d.in_stage_2 && d.rs_rating >= 90 && d.close >= d.sma_50 && d.sma_20 >= d.sma_50 && d.rvol < 1.0 && (d.inside_bar || d.tight_setup || d.vcp_approximation) && (nearDma(d.close, d.sma_20) || nearDma(d.close, d.sma_10)) },
+                    { label: '⚡ Kell-Zanger Breakout', check: () => d.in_stage_2 && d.ema_10 && d.ema_20 && d.close >= d.ema_10 && d.ema_10 >= d.ema_20 && d.rs_rating >= 80 && d.pct_from_52w_high > -15 && d.momentum_3m > 0 && d.range_tightness_score >= 60 && (d.tight_setup || d.vcp_approximation || d.inside_bar || d.bull_flag || d.ema_crossback) },
                 ];
                 
                 const activeBadges = scannerBadgeDefs.filter(b => { try { return b.check(); } catch(e) { return false; } });
@@ -3696,7 +3700,15 @@
 
         function setResultsTitle(title) {
             const el = document.getElementById('results-title');
-            if (el) el.textContent = title;
+            if (el) {
+                if (currentMacroHealth && ['trade-portal', 'universe', 'portfolio'].indexOf(activeScanner) === -1 && !title.includes('Custom')) {
+                    const colors = { 'Green': '#4ade80', 'Yellow': '#fbbf24', 'Red': '#f87171' };
+                    const indicator = `<span style="display:inline-flex;align-items:center;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);vertical-align:middle;margin-right:12px;" title="Macro Market Health (SPY/NSEI)"><span style="width:8px;height:8px;border-radius:50%;background:${colors[currentMacroHealth]};margin-right:6px;box-shadow:0 0 6px ${colors[currentMacroHealth]}"></span>Macro: ${currentMacroHealth}</span>`;
+                    el.innerHTML = indicator + title;
+                } else {
+                    el.textContent = title;
+                }
+            }
             const btn = document.getElementById('results-know-more');
             if (btn) btn.style.display = 'none';
         }
@@ -4110,7 +4122,8 @@
                                     <th data-ksort="pct_from_52w_high" class="sortable">vs Hi</th>
                                     <th data-ksort="momentum_1m" class="sortable">1M</th>
                                     <th data-ksort="momentum_1d" class="sortable">1D</th>
-                                    ${['minervini-cheat','tight-setup','htf'].includes(activeScanner) ? '<th style="color:#10b981;min-width:72px;" title="Suggested trigger entry price">Trigger</th><th style="color:#f43f5e;min-width:64px;" title="Suggested stop loss price">Stop</th>' : ''}
+                                    ${['minervini-cheat','tight-setup','htf','kell-zanger'].includes(activeScanner) ? '<th style="color:#10b981;min-width:72px;" title="Suggested trigger entry price">Trigger</th><th style="color:#f43f5e;min-width:64px;" title="Suggested stop loss price">Stop</th>' : ''}
+                                    ${activeScanner === 'kell-zanger' ? '<th data-ksort="range_tightness_score" class="sortable" style="color:#a78bfa;" title="Range Tightness Score (0-100)">Tight</th><th style="color:#38bdf8;" title="Risk:Reward ratio (10% target)">R:R</th>' : ''}
                                     ${activeScanner === 'long-term-pf' ? '<th data-ksort="peg_ratio" class="sortable">PEG</th><th data-ksort="revenue_growth_3y" class="sortable">3Y Rev Gr</th>' : ''}
                                 </tr>
                             </thead>
@@ -4149,10 +4162,17 @@
                                     <td>${s.pct_from_52w_high != null ? (s.pct_from_52w_high).toFixed(1) + '%' : '—'}</td>
                                     <td>${fmtPct(s.momentum_1m)}</td>
                                     <td>${fmtPct(s.momentum_1d)}</td>
-                                    ${['minervini-cheat','tight-setup','htf'].includes(activeScanner) ? (function(){
+                                    ${['minervini-cheat','tight-setup','htf','kell-zanger'].includes(activeScanner) ? (function(){
                                         const c = s.close || 0;
                                         let trigger, stop;
-                                        if (activeScanner === 'minervini-cheat') {
+                                        if (activeScanner === 'kell-zanger') {
+                                            // Kell-Zanger: trigger = consolidation high, stop = consolidation low or EMA support
+                                            const consHi = s.consolidation_high_5 || c;
+                                            const consLo = s.consolidation_low_5 || c;
+                                            const emaSupport = Math.min(s.ema_10 || c, s.ema_20 || c);
+                                            trigger = Math.max(consHi, Math.max(s.ema_10 || c, s.ema_20 || c) * 1.002);
+                                            stop = Math.min(consLo, emaSupport * 0.995);
+                                        } else if (activeScanner === 'minervini-cheat') {
                                             trigger = c * 1.005;
                                             stop = Math.min(s.sma_10 || c, s.sma_20 || c) * 0.97;
                                         } else if (activeScanner === 'tight-setup') {
@@ -4165,6 +4185,22 @@
                                         const prefix = currentMarket === 'IN' ? '₹' : '$';
                                         return '<td style="color:#10b981;font-weight:600;">' + prefix + trigger.toFixed(2) + '</td>'
                                              + '<td style="color:#f43f5e;font-weight:600;">' + prefix + stop.toFixed(2) + '</td>';
+                                    })() : ''}
+                                    ${activeScanner === 'kell-zanger' ? (function(){
+                                        const tScore = s.range_tightness_score;
+                                        const tColor = tScore >= 80 ? '#4ade80' : tScore >= 60 ? '#a78bfa' : '#fbbf24';
+                                        const c = s.close || 0;
+                                        const consHi = s.consolidation_high_5 || c;
+                                        const consLo = s.consolidation_low_5 || c;
+                                        const emaSupport = Math.min(s.ema_10 || c, s.ema_20 || c);
+                                        const trigger = Math.max(consHi, Math.max(s.ema_10 || c, s.ema_20 || c) * 1.002);
+                                        const stop = Math.min(consLo, emaSupport * 0.995);
+                                        const risk = trigger - stop;
+                                        const reward = trigger * 0.10;
+                                        const rr = risk > 0 ? (reward / risk).toFixed(1) : '—';
+                                        const rrColor = rr !== '—' && parseFloat(rr) >= 3 ? '#4ade80' : rr !== '—' && parseFloat(rr) >= 2 ? '#fbbf24' : '#f87171';
+                                        return '<td style="color:' + tColor + ';font-weight:600;">' + (tScore != null ? tScore.toFixed(0) : '—') + '</td>'
+                                             + '<td style="color:' + rrColor + ';font-weight:600;">' + rr + '</td>';
                                     })() : ''}
                                     ${activeScanner === 'long-term-pf' ? `<td style="color:${s.peg_ratio && s.peg_ratio < 1.0 ? 'var(--pos)' : 'inherit'}">${s.peg_ratio != null ? s.peg_ratio.toFixed(2) : '—'}</td><td style="color:var(--pos)">${s.revenue_growth_3y != null ? '+' + ((s.revenue_growth_3y - 1) * 100).toFixed(0) + '%' : '—'}</td>` : ''}
                                 </tr>`;

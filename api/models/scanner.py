@@ -68,6 +68,15 @@ class StockResult(BaseModel):
     upside_reversal: Optional[bool] = Field(None, validation_alias="Upside_Reversal")
     double_inside_day: Optional[bool] = Field(None, validation_alias="Double_Inside_Day")
     ibd_etf_proxy: Optional[str] = Field(None, validation_alias="IBD_ETF_Proxy")
+    # Kell-Zanger Range Breakout fields
+    ema_10: Optional[float] = Field(None, validation_alias="EMA_10")
+    ema_20: Optional[float] = Field(None, validation_alias="EMA_20")
+    ema_21: Optional[float] = Field(None, validation_alias="EMA_21")
+    range_tightness_score: Optional[float] = Field(None, validation_alias="Range_Tightness_Score")
+    bull_flag: Optional[bool] = Field(None, validation_alias="Bull_Flag")
+    ema_crossback: Optional[bool] = Field(None, validation_alias="EMA_Crossback")
+    consolidation_high_5: Optional[float] = Field(None, validation_alias="Consolidation_High_5")
+    consolidation_low_5: Optional[float] = Field(None, validation_alias="Consolidation_Low_5")
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)
@@ -152,3 +161,4 @@ class HealthResponse(BaseModel):
     universe_size: int
     last_updated: Optional[str]
     version: str
+    macro_health: Optional[str] = None

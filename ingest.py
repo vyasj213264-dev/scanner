@@ -206,6 +206,11 @@ def calculate_indicators(df):
     df['SMA_100'] = df['Close'].rolling(window=100).mean()
     df['SMA_150'] = df['Close'].rolling(window=150).mean()
     df['SMA_200'] = df['Close'].rolling(window=200).mean()
+
+    # Exponential Moving Averages (Oliver Kell uses EMAs, not SMAs)
+    df['EMA_10'] = df['Close'].ewm(span=10, adjust=False).mean()
+    df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
     
     df['52W_High'] = df['High'].rolling(window=252).max()
     df['52W_Low'] = df['Low'].rolling(window=252).min()
@@ -301,6 +306,81 @@ def calculate_indicators(df):
     avg_10d_range = df['High'].rolling(10).max() - df['Low'].rolling(10).min()
     today_range = df['High'] - df['Low']
     df['VCP_Approximation'] = (today_range < (0.3 * avg_10d_range)) & (df['Volume'] < df['Volume_SMA_50'])
+
+    # ── Kell-Zanger Range Breakout Indicators ──────────────────────────────
+
+    # ATR (Average True Range) — 10-day for tightness measurement
+    tr = pd.concat([
+        df['High'] - df['Low'],
+        (df['High'] - df['Close'].shift(1)).abs(),
+        (df['Low'] - df['Close'].shift(1)).abs()
+    ], axis=1).max(axis=1)
+    df['ATR_10'] = tr.rolling(window=10).mean()
+
+    # Bollinger Band Width (20-day, 2 std dev) — narrower = tighter
+    bb_std = df['Close'].rolling(window=20).std()
+    bb_upper = df['SMA_20'] + 2 * bb_std
+    bb_lower = df['SMA_20'] - 2 * bb_std
+    df['BB_Width'] = (bb_upper - bb_lower) / df['SMA_20'].replace(0, np.nan)
+
+    # Range Tightness Score (0-100) — Oliver Kell's "tight range" quantified
+    # Component 1 (30%): 4-day close range — smaller is tighter
+    close_4d_max = df['Close'].rolling(4).max()
+    close_4d_min = df['Close'].rolling(4).min()
+    close_range_pct = (close_4d_max - close_4d_min) / close_4d_min.replace(0, np.nan)
+    # Score: 0-2% range → 100, 10%+ → 0. Linear scale.
+    comp1 = ((0.10 - close_range_pct.clip(0, 0.10)) / 0.10) * 100
+
+    # Component 2 (25%): ATR contraction — current ATR vs ATR 20 bars ago
+    atr_20_ago = df['ATR_10'].shift(20)
+    atr_ratio = df['ATR_10'] / atr_20_ago.replace(0, np.nan)
+    # Score: ratio 0.3 → 100, ratio 1.5+ → 0
+    comp2 = ((1.5 - atr_ratio.clip(0.3, 1.5)) / 1.2) * 100
+
+    # Component 3 (20%): Volume dry-up — lower RVOL = more dried up
+    rvol_clamped = df['RVOL'].clip(0, 3.0)
+    comp3 = ((3.0 - rvol_clamped) / 3.0) * 100
+
+    # Component 4 (15%): Bollinger Band Width — narrower = tighter
+    bb_clamped = df['BB_Width'].clip(0, 0.20)
+    comp4 = ((0.20 - bb_clamped) / 0.20) * 100
+
+    # Component 5 (10%): Body-to-range ratio — small bodies = indecision/accumulation
+    body = (df['Close'] - df['Open']).abs()
+    body_ratio = body / day_range.replace(0, np.nan)
+    # Small body (< 30% of range) scores 100; large body (100%) scores 0
+    comp5 = ((1.0 - body_ratio.clip(0, 1.0)) * 100)
+
+    df['Range_Tightness_Score'] = (
+        comp1 * 0.30 +
+        comp2 * 0.25 +
+        comp3 * 0.20 +
+        comp4 * 0.15 +
+        comp5 * 0.10
+    ).round(1)
+
+    # Bull Flag Detection (Dan Zanger pattern)
+    # Pole: 15%+ gain in the 20 days ending 5 days ago
+    # Flag: 5-day consolidation with range < 8%
+    pole_start_close = df['Close'].shift(25)
+    pole_end_close = df['Close'].shift(5)
+    pole_gain = (pole_end_close - pole_start_close) / pole_start_close.replace(0, np.nan)
+    flag_high = df['High'].rolling(5).max()
+    flag_low = df['Low'].rolling(5).min()
+    flag_range = (flag_high - flag_low) / flag_low.replace(0, np.nan)
+    df['Bull_Flag'] = (pole_gain >= 0.15) & (flag_range < 0.08) & (df['Close'] > df['EMA_20'])
+
+    # EMA Crossback Detection (Oliver Kell)
+    # Price pulled back to within 1.5% of EMA_10 or EMA_20 from above, then is reclaiming
+    near_ema10 = (df['Close'] >= df['EMA_10'] * 0.985) & (df['Close'] <= df['EMA_10'] * 1.015)
+    near_ema20 = (df['Close'] >= df['EMA_20'] * 0.985) & (df['Close'] <= df['EMA_20'] * 1.015)
+    was_above_ema = (df['Close'].shift(5) > df['EMA_10'].shift(5) * 1.02)  # Was extended above EMAs 5 days ago
+    price_reclaiming = df['Close'] >= df['EMA_10']  # Currently at or above EMA
+    df['EMA_Crossback'] = (near_ema10 | near_ema20) & was_above_ema & price_reclaiming
+
+    # Consolidation High/Low for last 5 bars (for trigger & stoploss calculation)
+    df['Consolidation_High_5'] = df['High'].rolling(5).max()
+    df['Consolidation_Low_5'] = df['Low'].rolling(5).min()
 
     recent_closes = df['Close'].tail(4)
     min_c = recent_closes.min()
@@ -640,7 +720,16 @@ def run_ingest(market='US'):
                         _nan_to_none(last['SMA_3_Slope']),
                         _safe_bool(last['Upside_Reversal']),
                         _safe_bool(last['Double_Inside_Day']),
-                        map_industry_to_etf(ticker_meta.get(ticker, {}).get('industry', 'Unknown'))
+                        map_industry_to_etf(ticker_meta.get(ticker, {}).get('industry', 'Unknown')),
+                        # Kell-Zanger Range Breakout columns
+                        _nan_to_none(last['EMA_10']),
+                        _nan_to_none(last['EMA_20']),
+                        _nan_to_none(last['EMA_21']),
+                        _nan_to_none(last['Range_Tightness_Score']),
+                        _safe_bool(last['Bull_Flag']),
+                        _safe_bool(last['EMA_Crossback']),
+                        _nan_to_none(last['Consolidation_High_5']),
+                        _nan_to_none(last['Consolidation_Low_5']),
                     )
                     all_data.append(record)
                     
@@ -818,7 +907,16 @@ def run_ingest(market='US'):
                                 _nan_to_none(last_etf['SMA_3_Slope']),
                                 _safe_bool(last_etf['Upside_Reversal']),
                                 _safe_bool(last_etf['Double_Inside_Day']),
-                                etf_ticker  # IBD_ETF_Proxy — ETF is its own proxy
+                                etf_ticker,  # IBD_ETF_Proxy — ETF is its own proxy
+                                # Kell-Zanger Range Breakout columns
+                                _nan_to_none(last_etf['EMA_10']),
+                                _nan_to_none(last_etf['EMA_20']),
+                                _nan_to_none(last_etf['EMA_21']),
+                                _nan_to_none(last_etf['Range_Tightness_Score']),
+                                _safe_bool(last_etf['Bull_Flag']),
+                                _safe_bool(last_etf['EMA_Crossback']),
+                                _nan_to_none(last_etf['Consolidation_High_5']),
+                                _nan_to_none(last_etf['Consolidation_Low_5']),
                             )
                             all_data.append(etf_record)
                             
@@ -911,7 +1009,15 @@ def run_ingest(market='US'):
             SMA_3_Slope {sql_types["REAL"]},
             Upside_Reversal {sql_types["BOOLEAN"]},
             Double_Inside_Day {sql_types["BOOLEAN"]},
-            IBD_ETF_Proxy {sql_types["TEXT"]}
+            IBD_ETF_Proxy {sql_types["TEXT"]},
+            EMA_10 {sql_types["REAL"]},
+            EMA_20 {sql_types["REAL"]},
+            EMA_21 {sql_types["REAL"]},
+            Range_Tightness_Score {sql_types["REAL"]},
+            Bull_Flag {sql_types["BOOLEAN"]},
+            EMA_Crossback {sql_types["BOOLEAN"]},
+            Consolidation_High_5 {sql_types["REAL"]},
+            Consolidation_Low_5 {sql_types["REAL"]}
         )
     ''')
     
@@ -955,6 +1061,26 @@ def run_ingest(market='US'):
                 print("Migrated screen_data: added IBD_ETF_Proxy column.", flush=True)
             except Exception:
                 conn.rollback()
+
+    # Defensive schema migration: Kell-Zanger Range Breakout columns
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        kz_cols = [
+            ("EMA_10", "DOUBLE PRECISION"), ("EMA_20", "DOUBLE PRECISION"), ("EMA_21", "DOUBLE PRECISION"),
+            ("Range_Tightness_Score", "DOUBLE PRECISION"),
+            ("Bull_Flag", "BOOLEAN"), ("EMA_Crossback", "BOOLEAN"),
+            ("Consolidation_High_5", "DOUBLE PRECISION"), ("Consolidation_Low_5", "DOUBLE PRECISION"),
+        ]
+        for new_col, col_type in kz_cols:
+            try:
+                cursor.execute(f"SELECT {new_col} FROM screen_data LIMIT 1")
+            except Exception:
+                conn.rollback()
+                try:
+                    cursor.execute(f"ALTER TABLE screen_data ADD COLUMN {new_col} {col_type}")
+                    conn.commit()
+                    print(f"Migrated screen_data: added {new_col} column.", flush=True)
+                except Exception:
+                    conn.rollback()
     
     # Defensive schema migration for PostgreSQL to append missing Market column dynamically
     if DATABASE_URL and DATABASE_URL.startswith("postgres"):
@@ -1078,7 +1204,10 @@ def run_ingest(market='US'):
         "RS_Rating", "RS_Rating_1M", "RS_Rating_3M", "RS_Rating_6M",
         "Sector", "Industry", "Market_Cap", "Stage",
         "Avg_Dollar_Vol_20", "SMA_3_Slope", "Upside_Reversal", "Double_Inside_Day",
-        "IBD_ETF_Proxy"
+        "IBD_ETF_Proxy",
+        # Kell-Zanger Range Breakout columns
+        "EMA_10", "EMA_20", "EMA_21", "Range_Tightness_Score",
+        "Bull_Flag", "EMA_Crossback", "Consolidation_High_5", "Consolidation_Low_5",
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
@@ -1262,6 +1391,19 @@ def run_ingest(market='US'):
             "AND RS_Rating_6M >= 80 "
             "AND (Upside_Reversal OR Tight_Setup OR Inside_Bar OR Double_Inside_Day OR VCP_Approximation)"
         ),
+        # ⚡ Kell-Zanger Range Breakout — the ultimate tight-range breakout scanner
+        # Layer 2A (Kell): Stage 2 + EMA alignment + RS leadership + institutional liquidity
+        # Layer 2B (Zanger): Near 52W highs + 3M momentum positive
+        # Layer 3: Range Tightness Score >= 60 + at least one constructive pattern
+        "kell-zanger":            (
+            "In_Stage_2 AND Close >= EMA_10 AND EMA_10 >= EMA_20 "
+            "AND Close >= 10 AND Volume >= 300000 "
+            "AND RS_Rating >= 80 "
+            "AND Pct_From_52W_High > -15 "
+            "AND Momentum_3M > 0 "
+            "AND Range_Tightness_Score >= 60 "
+            "AND (Tight_Setup OR VCP_Approximation OR Inside_Bar OR Bull_Flag OR EMA_Crossback)"
+        ),
     }
     
     baseline = "Close >= 5" if market == "US" else "Close > 0"
@@ -1277,8 +1419,9 @@ def run_ingest(market='US'):
             ticker_val = row['Ticker'] if 'Ticker' in row else row[0]
             cache_records.append((scanner_id, ticker_val))
 
-    # Power Pullback: apply industry rank top-50% post-filter (requires JOIN to industry_ranks)
+    # Power Pullback + Kell-Zanger: apply industry rank top-50% post-filter (requires JOIN to industry_ranks)
     # Get the industry rank cutoff (total industries / 2)
+    INDUSTRY_FILTERED_SCANNERS = ['power-pullback', 'kell-zanger']
     if market in ['US', 'IN']:
         latest_date_q = f"SELECT MAX(Date) FROM industry_ranks WHERE Market = '{market}'"
         cursor.execute(f"SELECT COUNT(*) FROM industry_ranks WHERE Category = 'Industry' AND Market = '{market}' AND Date = ({latest_date_q})")
@@ -1295,28 +1438,29 @@ def run_ingest(market='US'):
             """)
             top_industries = {row[0] for row in cursor.fetchall()}
             
-            # Filter power-pullback candidates: keep only those IN a top-50% industry
-            original_count = sum(1 for sid, _ in cache_records if sid == 'power-pullback')
-            
-            # Batch lookup industries for all power-pullback candidates
-            pp_tickers = [ticker for sid, ticker in cache_records if sid == 'power-pullback']
-            if pp_tickers:
-                placeholder = ','.join(["'"+t.replace("'","''")+"'" for t in pp_tickers])
-                cursor.execute(f"SELECT Ticker, Industry FROM screen_data WHERE Ticker IN ({placeholder}) AND Market = '{market}'")
-                ticker_industry = {row[0]: row[1] for row in cursor.fetchall()}
+            # Filter candidates for industry-filtered scanners: keep only those IN a top-50% industry
+            for scanner_name in INDUSTRY_FILTERED_SCANNERS:
+                original_count = sum(1 for sid, _ in cache_records if sid == scanner_name)
                 
-                filtered_count = 0
-                new_cache = []
-                for sid, ticker in cache_records:
-                    if sid == 'power-pullback':
-                        industry = ticker_industry.get(ticker, '')
-                        if industry in top_industries:
+                # Batch lookup industries for candidates
+                filtered_tickers = [ticker for sid, ticker in cache_records if sid == scanner_name]
+                if filtered_tickers:
+                    placeholder = ','.join(["'"+t.replace("'","''")+"'" for t in filtered_tickers])
+                    cursor.execute(f"SELECT Ticker, Industry FROM screen_data WHERE Ticker IN ({placeholder}) AND Market = '{market}'")
+                    ticker_industry = {row[0]: row[1] for row in cursor.fetchall()}
+                    
+                    filtered_count = 0
+                    new_cache = []
+                    for sid, ticker in cache_records:
+                        if sid == scanner_name:
+                            industry = ticker_industry.get(ticker, '')
+                            if industry in top_industries:
+                                new_cache.append((sid, ticker))
+                                filtered_count += 1
+                        else:
                             new_cache.append((sid, ticker))
-                            filtered_count += 1
-                    else:
-                        new_cache.append((sid, ticker))
-                cache_records = new_cache
-                print(f"  Power Pullback: {original_count} → {filtered_count} after industry rank top-50% filter (cutoff: rank ≤ {top_50_cutoff} of {total_industries})", flush=True)
+                    cache_records = new_cache
+                    print(f"  {scanner_name}: {original_count} → {filtered_count} after industry rank top-50% filter (cutoff: rank ≤ {top_50_cutoff} of {total_industries})", flush=True)
             
     if cache_records:
         batch_size = 500
