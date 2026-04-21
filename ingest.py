@@ -608,7 +608,7 @@ def run_ingest(market='US'):
     all_data = []
     all_ohlcv = []
     chunk_size = 100
-    OHLCV_RETENTION_DAYS = 504  # ~2 years of trading days (trim for DB, full history kept for sim)
+    OHLCV_RETENTION_DAYS = 252  # ~1 year of trading days (charts only; portfolio sim is disabled)
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
@@ -817,8 +817,8 @@ def run_ingest(market='US'):
             'IPO', 'ARKX', 'SHLD',
         ]
     else:
-        # Indices required by the AI Trade Portal for Market Bias (India)
-        sector_etf_tickers = ['^NSEI', 'BANKNIFTY.NS', '^CRSMA']
+        # India: no sector ETF OHLCV needed (saves DB space)
+        sector_etf_tickers = []
     
     # Filter out any ETFs that happen to already be in the universe
     existing_tickers = set(r[0] for r in all_ohlcv)  # ticker is first element of tuple
@@ -1216,12 +1216,20 @@ def run_ingest(market='US'):
     # Before inserting, aggressively clean old data to stay within Neon 512 MB limit
     print(f"[{market}] Performing full database cleanup...", flush=True)
     
-    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        # Market-scoped DELETE to reclaim space for this market's old data only.
-        # Using DELETE (not TRUNCATE) so both US and IN data can coexist in the same table.
-        cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
-        conn.commit()
-        print(f"[{market}] Cleaned old daily_ohlcv rows for market={market}.", flush=True)
+    is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    if is_pg:
+        if market == 'US':
+            # TRUNCATE daily_ohlcv to IMMEDIATELY reclaim disk space.
+            # Postgres DELETE only marks rows as dead tuples — disk space is NOT freed,
+            # causing the 512 MB Neon limit to be exceeded on the next INSERT cycle.
+            # TRUNCATE resets the table files to zero, reclaiming all space instantly.
+            # This is safe because: (a) IN market no longer stores OHLCV, so the table is US-only.
+            # (b) We rebuild the full US OHLCV dataset from scratch every run anyway.
+            cursor.execute("TRUNCATE TABLE daily_ohlcv")
+            conn.commit()
+            print(f"[{market}] TRUNCATED daily_ohlcv table (immediate disk space reclaim).", flush=True)
+        # IN market: skip daily_ohlcv cleanup entirely (IN no longer writes to this table)
     else:
         # SQLite: simple DELETE is fine (no dead tuple bloat)
         cursor.execute(f"DELETE FROM daily_ohlcv WHERE Market = '{market}'")
@@ -1232,6 +1240,22 @@ def run_ingest(market='US'):
     cursor.execute(f"DELETE FROM market_breadth_history WHERE Market = '{market}'")
     cursor.execute(f"DELETE FROM ibd_etf_ranks WHERE Market = '{market}'")
     conn.commit()
+    
+    # On Postgres, run VACUUM on the smaller tables to reclaim dead tuple space
+    # (prevents cumulative bloat from daily DELETE+INSERT cycles)
+    if is_pg:
+        old_autocommit = conn.autocommit
+        conn.autocommit = True
+        try:
+            cursor.execute("VACUUM screen_data")
+            cursor.execute("VACUUM scanner_results")
+            cursor.execute("VACUUM market_breadth_history")
+            cursor.execute("VACUUM ibd_etf_ranks")
+            cursor.execute("VACUUM industry_ranks")
+            print(f"[{market}] VACUUM complete on auxiliary tables.", flush=True)
+        except Exception as vac_err:
+            print(f"[{market}] VACUUM warning (non-fatal): {vac_err}", flush=True)
+        conn.autocommit = old_autocommit
 
     print(f"Inserting {len(all_data)} stock records into screen_data...", flush=True)
     batch_size = 500
