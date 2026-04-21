@@ -742,15 +742,16 @@ def run_ingest(market='US'):
                     sim_data_dict[ticker] = df_sim
                     
                     # Vectorized OHLCV tuple creation (replaces slow iterrows loop)
-                    # Trim to last OHLCV_RETENTION_DAYS for DB persistence only
-                    ohlcv_df = df[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
-                    ohlcv_df.index.name = 'Date'
-                    ohlcv_df = ohlcv_df.reset_index()
-                    ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
-                    ohlcv_df.insert(0, 'Ticker', ticker)
-                    # Convert NaN to None and build tuples in bulk
-                    ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
-                    all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
+                    # Trim to last OHLCV_RETENTION_DAYS for DB persistence only (US only to save space)
+                    if market == 'US':
+                        ohlcv_df = df[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
+                        ohlcv_df.index.name = 'Date'
+                        ohlcv_df = ohlcv_df.reset_index()
+                        ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
+                        ohlcv_df.insert(0, 'Ticker', ticker)
+                        # Convert NaN to None and build tuples in bulk
+                        ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
+                        all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
                         
                 except Exception as parse_e:
                     skipped_count += 1
@@ -1265,44 +1266,47 @@ def run_ingest(market='US'):
         conn.commit()
         print(f"Successfully inserted {len(history_records)} historical breadth records.", flush=True)
     
-    print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
-    
-    is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
-    ohlcv_batch_size = 10000 if is_pg else 5000
-    commit_every = 50000  # commit once every 50K rows
-    
-    if is_pg:
-        from psycopg2.extras import execute_values
-        sql = '''
-            INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
-            VALUES %s 
-            ON CONFLICT (Ticker, Date) DO UPDATE SET 
-                Market = EXCLUDED.Market,
-                Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
-                Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
-        '''
-        for i in range(0, len(all_ohlcv), ohlcv_batch_size):
-            batch = all_ohlcv[i:i + ohlcv_batch_size]
-            batch_with_market = [(r[0], r[1], r[2], r[3], r[4], r[5], r[6], market) for r in batch]
-            execute_values(cursor, sql, batch_with_market, page_size=ohlcv_batch_size)
-            if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
-                conn.commit()
-                print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
-        conn.commit()  # final commit
-    else:
-        sql = f'''
-            INSERT OR IGNORE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, '{market}')
-        '''
-        for i in range(0, len(all_ohlcv), ohlcv_batch_size):
-            batch = all_ohlcv[i:i + ohlcv_batch_size]
-            cursor.executemany(sql, batch)
-            if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
-                conn.commit()
-                print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
-        conn.commit()  # final commit
+    if market == 'US':
+        print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
         
-    print(f"Successfully inserted {len(all_ohlcv):,} historical OHLCV records.", flush=True)
+        is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+        ohlcv_batch_size = 10000 if is_pg else 5000
+        commit_every = 50000  # commit once every 50K rows
+        
+        if is_pg:
+            from psycopg2.extras import execute_values
+            sql = '''
+                INSERT INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
+                VALUES %s 
+                ON CONFLICT (Ticker, Date) DO UPDATE SET 
+                    Market = EXCLUDED.Market,
+                    Open = EXCLUDED.Open, High = EXCLUDED.High, Low = EXCLUDED.Low, 
+                    Close = EXCLUDED.Close, Volume = EXCLUDED.Volume
+            '''
+            for i in range(0, len(all_ohlcv), ohlcv_batch_size):
+                batch = all_ohlcv[i:i + ohlcv_batch_size]
+                batch_with_market = [(r[0], r[1], r[2], r[3], r[4], r[5], r[6], market) for r in batch]
+                execute_values(cursor, sql, batch_with_market, page_size=ohlcv_batch_size)
+                if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
+                    conn.commit()
+                    print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
+            conn.commit()  # final commit
+        else:
+            sql = f'''
+                INSERT OR IGNORE INTO daily_ohlcv (Ticker, Date, Open, High, Low, Close, Volume, Market) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, '{market}')
+            '''
+            for i in range(0, len(all_ohlcv), ohlcv_batch_size):
+                batch = all_ohlcv[i:i + ohlcv_batch_size]
+                cursor.executemany(sql, batch)
+                if (i + ohlcv_batch_size) % commit_every < ohlcv_batch_size:
+                    conn.commit()
+                    print(f"  ...inserted {min(i + ohlcv_batch_size, len(all_ohlcv)):,}/{len(all_ohlcv):,} OHLCV rows", flush=True)
+            conn.commit()  # final commit
+            
+        print(f"Successfully inserted {len(all_ohlcv):,} historical OHLCV records.", flush=True)
+    else:
+        print(f"Skipping daily_ohlcv insertion for {market} market to save project size limit (512MB).", flush=True)
     
     
     print("Calculating multi-timeframe RS Ratings from RS_Raw percentile ranks...", flush=True)
