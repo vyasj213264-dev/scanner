@@ -2905,8 +2905,8 @@
                 if (!isNaN(wlId)) runWatchlist(wlId);
             } else if (activeScanner) {
                 runScanner(activeScanner, document.getElementById('results-title').textContent, true);
-            } else if (document.getElementById('results-title').textContent === 'Custom Screener Builder') {
-                executeScreener();
+            } else if (setResultsTitle(== 'Custom Screener Builder') {
+                executeScreener());
             } else {
                 runBreadth();
             }
@@ -3709,6 +3709,14 @@
                     el.textContent = title;
                 }
             }
+            const btn = document.getElementById('results-know-more');
+            if (btn) btn.style.display = 'none';
+        }
+        
+
+        function setResultsTitle(title) {
+            const el = document.getElementById('results-title');
+            if (el) el.textContent = title;
             const btn = document.getElementById('results-know-more');
             if (btn) btn.style.display = 'none';
         }
@@ -6730,8 +6738,51 @@
                 // For all other tickers use TradingView tv.js for live data
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
 
-                if (isFormula) {
-                    // ── LightweightCharts fallback for custom index formulas ──
+                if (isFormula && currentMarket === 'IN') {
+                    // ── Indian market: no OHLCV data in DB, use TradingView with first representative ticker ──
+                    const firstTickerMatch = ticker.match(/\(([A-Za-z0-9.^]+)/);
+                    const representativeTicker = firstTickerMatch ? firstTickerMatch[1] : ticker;
+                    const repTVSymbol = formatTVSymbol(representativeTicker, 'IN');
+
+                    const chartDiv = document.createElement('div');
+                    const tvId = 'tv_grid_in_' + repTVSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
+                    chartDiv.id = tvId;
+                    chartDiv.style.cssText = 'height:100%;width:100%;';
+                    container.appendChild(chartDiv);
+
+                    const instantiateINTV = () => {
+                        new TradingView.widget({
+                            autosize: true,
+                            symbol: repTVSymbol,
+                            interval: 'D',
+                            timezone: 'Asia/Kolkata',
+                            theme: theme,
+                            style: '1',
+                            locale: 'en',
+                            enable_publishing: false,
+                            hide_top_toolbar: true,
+                            hide_legend: true,
+                            hide_side_toolbar: true,
+                            allow_symbol_change: false,
+                            save_image: false,
+                            calendar: false,
+                            studies: [
+                                { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
+                            ],
+                            container_id: tvId
+                        });
+                    };
+
+                    if (window.TradingView && window.TradingView.widget) {
+                        instantiateINTV();
+                    } else {
+                        const s = document.createElement('script');
+                        s.src = 'https://s3.tradingview.com/tv.js';
+                        s.onload = instantiateINTV;
+                        document.head.appendChild(s);
+                    }
+                } else if (isFormula) {
+                    // ── US market: LightweightCharts with OHLCV data from our API ──
                     container.style.position = 'relative';
                     const chartDiv = document.createElement('div');
                     chartDiv.style.cssText = 'height:100%;width:100%;';
