@@ -2624,34 +2624,55 @@
             // Optimistically hide overlay to prevent flash on refresh/popstate
             document.getElementById('auth-overlay').style.display = 'none';
 
-            try {
-                const res = await fetch(`/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                // 403 = email not on allowlist — show maintenance page
-                if (res.status === 403) {
-                    localStorage.removeItem('cm_token');
-                    authToken = null;
-                    showMaintenancePage();
-                    return false;
+            // Retry /auth/me up to 3 times (handles Render cold starts / mobile network hiccups)
+            let authSuccess = false;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const res = await fetch(`/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    // 403 = email not on allowlist — show maintenance page
+                    if (res.status === 403) {
+                        localStorage.removeItem('cm_token');
+                        authToken = null;
+                        showMaintenancePage();
+                        return false;
+                    }
+                    // 401 = token is definitely invalid — logout immediately
+                    if (res.status === 401) {
+                        console.warn("Auth token rejected (401). Logging out.");
+                        logout();
+                        return false;
+                    }
+                    if (!res.ok) throw new Error(`Auth check failed: ${res.status}`);
+
+                    currentUser = await res.json();
+                    authSuccess = true;
+                    break; // Success — exit retry loop
+                } catch (err) {
+                    console.warn(`Auth attempt ${attempt}/3 failed:`, err.message);
+                    if (attempt < 3) {
+                        await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+                    }
                 }
-                if (!res.ok) throw new Error('Invalid token');
+            }
 
-                currentUser = await res.json();
-
-                // Update UI
-                document.getElementById('auth-overlay').style.display = 'none';
-                document.getElementById('user-profile').style.display = 'flex';
-                document.getElementById('user-name').textContent = currentUser.name || currentUser.email.split('@')[0];
-                document.getElementById('user-avatar').src = currentUser.picture || 'https://www.w3schools.com/howto/img_avatar.png';
-                document.getElementById('user-plan').textContent = currentUser.plan + ' plan';
-
-                return true;
-            } catch (err) {
-                console.error("Auth failed:", err);
-                logout();
+            if (!authSuccess) {
+                // All retries failed (likely network issue, NOT invalid token)
+                // Don't delete token — just show login so user can retry manually
+                console.error("Auth verification failed after 3 retries. Keeping token for next attempt.");
+                showLogin();
                 return false;
             }
+
+            // Update UI
+            document.getElementById('auth-overlay').style.display = 'none';
+            document.getElementById('user-profile').style.display = 'flex';
+            document.getElementById('user-name').textContent = currentUser.name || currentUser.email.split('@')[0];
+            document.getElementById('user-avatar').src = currentUser.picture || 'https://www.w3schools.com/howto/img_avatar.png';
+            document.getElementById('user-plan').textContent = currentUser.plan + ' plan';
+
+            return true;
         }
 
         function showMaintenancePage() {
