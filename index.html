@@ -2926,8 +2926,8 @@
                 if (!isNaN(wlId)) runWatchlist(wlId);
             } else if (activeScanner) {
                 runScanner(activeScanner, document.getElementById('results-title').textContent, true);
-            } else if (setResultsTitle(== 'Custom Screener Builder') {
-                executeScreener());
+            } else if (document.getElementById('results-title')?.textContent === 'Custom Screener Builder') {
+                executeScreener();
             } else {
                 runBreadth();
             }
@@ -3735,12 +3735,7 @@
         }
         
 
-        function setResultsTitle(title) {
-            const el = document.getElementById('results-title');
-            if (el) el.textContent = title;
-            const btn = document.getElementById('results-know-more');
-            if (btn) btn.style.display = 'none';
-        }
+
         
         // ── Run Scanner ──────────────────────────────────────────
         async function runScanner(scannerId, scannerLabel, force = false) {
