@@ -6713,11 +6713,11 @@
             let tvSymbol = ticker;
             if (!ticker.startsWith('(')) {
                 if (market === 'IN') {
-                    if (tvSymbol === '^NSEI') tvSymbol = 'BSE:SENSEX';
-                    else if (tvSymbol === '^CRSMA') tvSymbol = 'BSE:BSEMIDCAP';
-                    else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'BSE:BANKEX';
-                    else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'BSE:BSE' + tvSymbol.replace('^CNX', '');
-                    else if (tvSymbol.endsWith('.NS')) tvSymbol = 'BSE:' + tvSymbol.replace('.NS', '');
+                    if (tvSymbol === '^NSEI') tvSymbol = 'NSE:NIFTY';
+                    else if (tvSymbol === '^CRSMA') tvSymbol = 'NSE:NIFTY';
+                    else if (tvSymbol === 'BANKNIFTY.NS') tvSymbol = 'NSE:BANKNIFTY';
+                    else if (tvSymbol.startsWith('^CNX')) tvSymbol = 'NSE:' + tvSymbol.replace('^', '');
+                    else if (tvSymbol.endsWith('.NS')) tvSymbol = 'NSE:' + tvSymbol.replace('.NS', '');
                     else if (tvSymbol.endsWith('.BO')) tvSymbol = 'BSE:' + tvSymbol.replace('.BO', '');
                 } else {
                     if (tvSymbol === '^GSPC') tvSymbol = 'SP:SPX';
