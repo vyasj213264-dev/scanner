@@ -514,9 +514,11 @@ def run_ingest(market='US'):
             valid_dynamic = []
             for row in rows:
                 try:
-                    # Pre-filter: only keep stocks with last sale >= $5.00
+                    # Pre-filter: only keep stocks with last sale >= $2.00
+                    # (scanners apply their own Close >= 5 baseline; this just widens the universe
+                    #  to capture legitimate stocks like CVGI that temporarily dip below $5)
                     price_str = str(row['lastsale']).replace('$', '').replace(',', '').strip()
-                    if price_str and float(price_str) >= 5.0:
+                    if price_str and float(price_str) >= 2.0:
                         symbol = str(row['symbol']).replace('.', '-').upper().strip()
                         # Filter out preferred shares (^), warrants, and dual-class shares (/) incompatible with yfinance
                         if '^' not in symbol and '/' not in symbol and '~' not in symbol:
