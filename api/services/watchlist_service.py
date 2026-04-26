@@ -44,14 +44,28 @@ def create_watchlist(user_id: int, name: str) -> dict:
 
 
 def delete_watchlist(watchlist_id: int, user_id: int) -> bool:
-    """Delete only if owned by user_id."""
+    """Delete only if owned by user_id. Removes child stocks first (FK constraint)."""
     with get_user_db() as conn:
         cursor = conn.cursor()
-        sql = "DELETE FROM watchlists WHERE id = ? AND user_id = ?"
         from api.config import DATABASE_URL
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            sql = sql.replace('?', '%s')
-        cursor.execute(sql, (watchlist_id, user_id))
+        is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+
+        # Verify ownership first
+        check_sql = "SELECT id FROM watchlists WHERE id = ? AND user_id = ?"
+        if is_pg: check_sql = check_sql.replace('?', '%s')
+        cursor.execute(check_sql, (watchlist_id, user_id))
+        if cursor.fetchone() is None:
+            return False
+
+        # Delete child rows first (watchlist_stocks has FK → watchlists)
+        child_sql = "DELETE FROM watchlist_stocks WHERE watchlist_id = ?"
+        if is_pg: child_sql = child_sql.replace('?', '%s')
+        cursor.execute(child_sql, (watchlist_id,))
+
+        # Now delete the watchlist itself
+        parent_sql = "DELETE FROM watchlists WHERE id = ? AND user_id = ?"
+        if is_pg: parent_sql = parent_sql.replace('?', '%s')
+        cursor.execute(parent_sql, (watchlist_id, user_id))
         conn.commit()
         return cursor.rowcount > 0
 
