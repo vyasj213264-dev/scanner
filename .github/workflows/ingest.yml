@@ -27,6 +27,6 @@ jobs:
       - name: Run ingestion script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          HISTORY_PERIOD: '5y' # Change to '10y', 'max', '1y' etc. to change historic pull depth.
+          HISTORY_PERIOD: '2y' # 2y is sufficient for all indicators (200 SMA, 52W High, RS Rating)
         run: |
           python ingest.py BOTH

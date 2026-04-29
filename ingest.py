@@ -839,28 +839,26 @@ def run_ingest(market='US'):
             'URNM', 'VIXY', 'WEAT', 'CORN', 'ROBT', 'ASHR',
         ]
 
-        # Inject ALL leveraged ETF tickers so they have screen_data entries
-        # (needed by the 8 EMA / 21 EMA structure screeners)
+        # Build lev ETF ticker list separately (downloaded with shorter history)
+        lev_etf_tickers_only = []
         try:
             from api.routers.lev_etf import LEV_ETF_LIST
-            lev_tickers = [e['ticker'] for e in LEV_ETF_LIST]
-            # Only add tickers not already in sector_etf_tickers
-            existing_set = set(sector_etf_tickers)
-            new_lev = [t for t in lev_tickers if t not in existing_set]
-            sector_etf_tickers.extend(new_lev)
-            print(f"Injected {len(new_lev)} leveraged ETF tickers into download list.", flush=True)
+            lev_etf_tickers_only = [e['ticker'] for e in LEV_ETF_LIST]
+            print(f"Loaded {len(lev_etf_tickers_only)} leveraged ETF tickers for EMA structure screener.", flush=True)
         except Exception as lev_err:
-            print(f"Warning: Could not inject lev ETF tickers: {lev_err}", flush=True)
+            print(f"Warning: Could not load lev ETF tickers: {lev_err}", flush=True)
     else:
         # India: no sector ETF OHLCV needed (saves DB space)
         sector_etf_tickers = []
+        lev_etf_tickers_only = []
     
     # Filter out any ETFs that happen to already be in the universe
     existing_tickers = set(r[0] for r in all_ohlcv)  # ticker is first element of tuple
     etfs_to_download = [t for t in sector_etf_tickers if t not in existing_tickers]
     
+    # ── Download Sector/Underlying ETFs (with full HISTORY_PERIOD for charts) ──
     if etfs_to_download:
-        print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs: {', '.join(etfs_to_download)}", flush=True)
+        print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs (period={HISTORY_PERIOD})...", flush=True)
         try:
             etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=True)
             
@@ -967,7 +965,128 @@ def run_ingest(market='US'):
                 except Exception as etf_err:
                     print(f"  Warning: Failed to get OHLCV for {etf_ticker}: {etf_err}", flush=True)
         except Exception as etf_batch_err:
-            print(f"  Warning: ETF batch download failed: {etf_batch_err}", flush=True)
+            print(f"  Warning: Sector ETF batch download failed: {etf_batch_err}", flush=True)
+
+    # ── Download Leveraged ETFs (with shorter 1y period — only need indicators) ──
+    # Lev ETFs only need screen_data for the EMA structure screener.
+    # Skip sim_data_dict (no portfolio sim) and use '1y' to save download time.
+    lev_to_download = [t for t in lev_etf_tickers_only if t not in existing_tickers and t not in set(etfs_to_download)]
+    
+    if lev_to_download:
+        LEV_DOWNLOAD_PERIOD = '1y'  # 1 year is enough for EMA(21) + ATR(14) + 200 SMA
+        # Download in chunks to avoid yfinance rate limits
+        lev_chunk_size = 100
+        print(f"Downloading {len(lev_to_download)} leveraged ETFs (period={LEV_DOWNLOAD_PERIOD}, chunks of {lev_chunk_size})...", flush=True)
+        
+        for lev_i in range(0, len(lev_to_download), lev_chunk_size):
+            lev_chunk = lev_to_download[lev_i:lev_i + lev_chunk_size]
+            try:
+                time.sleep(2)  # Brief pause between chunks
+                lev_data = yf.download(lev_chunk, period=LEV_DOWNLOAD_PERIOD, group_by='ticker', threads=True)
+                
+                if lev_data is None or lev_data.empty:
+                    print(f"  Lev chunk {lev_i//lev_chunk_size + 1}: empty data, skipping", flush=True)
+                    continue
+                
+                lev_success = 0
+                for lev_ticker in lev_chunk:
+                    try:
+                        if len(lev_chunk) > 1:
+                            df_lev = lev_data[lev_ticker].dropna(subset=['Close'])
+                        else:
+                            df_lev = lev_data.dropna(subset=['Close'])
+                        
+                        if len(df_lev) < 5:
+                            continue
+                        
+                        # Store OHLCV for chart rendering
+                        ohlcv_df = df_lev[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
+                        ohlcv_df.index.name = 'Date'
+                        ohlcv_df = ohlcv_df.reset_index()
+                        ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
+                        ohlcv_df.insert(0, 'Ticker', lev_ticker)
+                        ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
+                        all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
+                        
+                        # Compute indicators for screen_data (EMA structure screener)
+                        last_lev = calculate_indicators(df_lev)
+                        if last_lev is not None:
+                            rs_raw_lev = calculate_rs_rating(df_lev, benchmark_data)
+                            rs_raw_clean_lev = None if (rs_raw_lev is None or pd.isna(rs_raw_lev)) else float(rs_raw_lev)
+                            
+                            lev_record = (
+                                lev_ticker,
+                                market,
+                                str(last_lev.name),
+                                _nan_to_none(last_lev['Close']),
+                                _nan_to_none(last_lev['Volume']),
+                                _nan_to_none(last_lev['SMA_5']),
+                                _nan_to_none(last_lev['SMA_9']),
+                                _nan_to_none(last_lev['SMA_10']),
+                                _nan_to_none(last_lev['SMA_20']),
+                                _nan_to_none(last_lev['SMA_21']),
+                                _nan_to_none(last_lev['SMA_50']),
+                                _nan_to_none(last_lev['SMA_100']),
+                                _nan_to_none(last_lev['SMA_200']),
+                                _nan_to_none(last_lev['RVOL']),
+                                _nan_to_none(last_lev['ADR_20']),
+                                _nan_to_none(last_lev['Pct_From_52W_High']),
+                                _safe_bool(last_lev['In_Stage_2']),
+                                _safe_bool(last_lev['Tight_Setup']),
+                                _safe_bool(last_lev['Near_Horizontal_Resistance']),
+                                rs_raw_clean_lev,
+                                None,  # RS_Raw_1M
+                                None,  # RS_Raw_3M
+                                None,  # RS_Raw_6M
+                                _safe_bool(last_lev['Inside_Bar']),
+                                _safe_bool(last_lev['Golden_Crossover']),
+                                _safe_bool(last_lev['Gap_Up']),
+                                _safe_bool(last_lev['Gap_Down']),
+                                _safe_bool(last_lev['VCP_Approximation']),
+                                _nan_to_none(last_lev['Momentum_1D']),
+                                _nan_to_none(last_lev['Momentum_1W']),
+                                _nan_to_none(last_lev['Momentum_1M']),
+                                _nan_to_none(last_lev['Momentum_3M']),
+                                _nan_to_none(last_lev['Momentum_6M']),
+                                _nan_to_none(last_lev['Momentum_1Y']),
+                                0.0, # Placeholder for RS_Rating
+                                0.0, # RS_Rating_1M
+                                0.0, # RS_Rating_3M
+                                0.0, # RS_Rating_6M
+                                'Leveraged ETF', # Sector
+                                'Leveraged ETF', # Industry
+                                0.0, # Market Cap
+                                int(last_lev['Stage']) if pd.notna(last_lev['Stage']) else None,
+                                _nan_to_none(last_lev['Avg_Dollar_Vol_20']),
+                                _nan_to_none(last_lev['SMA_3_Slope']),
+                                _safe_bool(last_lev['Upside_Reversal']),
+                                _safe_bool(last_lev['Double_Inside_Day']),
+                                lev_ticker,  # IBD_ETF_Proxy — ETF is its own proxy
+                                # Kell-Zanger Range Breakout columns
+                                _nan_to_none(last_lev['EMA_10']),
+                                _nan_to_none(last_lev['EMA_20']),
+                                _nan_to_none(last_lev['EMA_21']),
+                                _nan_to_none(last_lev['Range_Tightness_Score']),
+                                _safe_bool(last_lev['Bull_Flag']),
+                                _safe_bool(last_lev['EMA_Crossback']),
+                                _nan_to_none(last_lev['Consolidation_High_5']),
+                                _nan_to_none(last_lev['Consolidation_Low_5']),
+                                # EMA Structure columns (8 EMA & 21 EMA screener)
+                                _nan_to_none(last_lev['EMA_8_High']),
+                                _nan_to_none(last_lev['EMA_8_Close']),
+                                _nan_to_none(last_lev['EMA_8_Low']),
+                                _nan_to_none(last_lev['EMA_21_High']),
+                                _nan_to_none(last_lev['EMA_21_Low']),
+                                _nan_to_none(last_lev['ATR_14']),
+                            )
+                            all_data.append(lev_record)
+                            lev_success += 1
+                    except Exception as lev_err:
+                        pass  # Silently skip individual lev ETF failures
+                
+                print(f"  Lev chunk {lev_i//lev_chunk_size + 1}/{(len(lev_to_download)//lev_chunk_size)+1}: {lev_success}/{len(lev_chunk)} processed", flush=True)
+            except Exception as lev_batch_err:
+                print(f"  Warning: Lev ETF chunk download failed: {lev_batch_err}", flush=True)
     
     print(f"Total OHLCV records for DB (pre-trimmed to {OHLCV_RETENTION_DAYS} days/ticker): {len(all_ohlcv):,}", flush=True)
 
