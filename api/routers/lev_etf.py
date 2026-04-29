@@ -178,6 +178,121 @@ LEV_ETF_LIST = [
     {"ticker": "CONI",  "fund_name": "GS 2x Short COIN",            "underlying": "COIN", "objective": "-2x",  "asset_class": "Single Stock", "net_assets": 12986718},
     {"ticker": "MSDD",  "fund_name": "GS 2x Short MSTR",            "underlying": "MSTR", "objective": "-2x",  "asset_class": "Single Stock", "net_assets": 2204968},
     {"ticker": "NVD",   "fund_name": "GS 2x Short NVDA",            "underlying": "NVDA", "objective": "-2x",  "asset_class": "Single Stock", "net_assets": 84258655},
+    # ── Direxion 3x/2x Index & Sector (User Expansion) ─────────────────
+    {"ticker": "SOXL",   "fund_name": "Direxion Daily Semiconductor Bull 3X ETF",                      "underlying": "SOXX",   "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "TECL",   "fund_name": "Direxion Daily Technology Bull 3X ETF",                         "underlying": "XLK",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "SPXL",   "fund_name": "Direxion Daily S&P 500 Bull 3X ETF",                            "underlying": "SPY",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "TNA",    "fund_name": "Direxion Daily Small Cap Bull 3X ETF",                          "underlying": "IWM",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "HIBL",   "fund_name": "Direxion Daily S&P 500 High Beta Bull 3X ETF",                  "underlying": "SPHB",   "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "LABU",   "fund_name": "Direxion Daily S&P Biotech Bull 3X ETF",                        "underlying": "XBI",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "MIDU",   "fund_name": "Direxion Daily Mid Cap Bull 3X ETF",                            "underlying": "MDY",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "DPST",   "fund_name": "Direxion Daily Regional Banks Bull 3X ETF",                     "underlying": "KRE",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "DFEN",   "fund_name": "Direxion Daily Aerospace & Defense Bull 3X ETF",                "underlying": "ITA",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "DUSL",   "fund_name": "Direxion Daily Industrials Bull 3X ETF",                        "underlying": "XLI",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "NAIL",   "fund_name": "Direxion Daily Homebuilders & Supplies Bull 3X ETF",            "underlying": "XHB",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "RETL",   "fund_name": "Direxion Daily Retail Bull 3X ETF",                             "underlying": "XRT",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "WANT",   "fund_name": "Direxion Daily Consumer Discretionary Bull 3X ETF",             "underlying": "XLY",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "UTSL",   "fund_name": "Direxion Daily Utilities Bull 3X ETF",                          "underlying": "XLU",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "CURE",   "fund_name": "Direxion Daily Healthcare Bull 3X ETF",                         "underlying": "XLV",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "DRN",    "fund_name": "Direxion Daily Real Estate Bull 3X ETF",                        "underlying": "XLRE",   "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "PILL",   "fund_name": "Direxion Daily Pharmaceutical & Medical Bull 3X ETF",           "underlying": "PPH",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "WEBL",   "fund_name": "Direxion Daily Dow Jones Internet Bull 3X ETF",                 "underlying": "FDN",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "FAS",    "fund_name": "Direxion Daily Financial Bull 3X ETF",                          "underlying": "XLF",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "NUGT",   "fund_name": "Direxion Daily Gold Miners Index Bull 2X ETF",                  "underlying": "GDX",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "JNUG",   "fund_name": "Direxion Daily Junior Gold Miners Idx Bull 2X ETF",             "underlying": "GDXJ",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "EDC",    "fund_name": "Direxion Daily MSCI Emerging Markets Bull 3X ETF",              "underlying": "EEM",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "KORU",   "fund_name": "Direxion Daily MSCI South Korea Bull 3X ETF",                   "underlying": "EWY",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "EURL",   "fund_name": "Direxion Daily FTSE Europe Bull 3X ETF",                        "underlying": "VGK",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "BRZU",   "fund_name": "Direxion Daily MSCI Brazil Bull 2X ETF",                        "underlying": "EWZ",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "MEXX",   "fund_name": "Direxion Daily MSCI Mexico Bull 3X ETF",                        "underlying": "EWW",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "INDL",   "fund_name": "Direxion Daily MSCI India Bull 2X ETF",                         "underlying": "INDA",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "CHAU",   "fund_name": "Direxion Daily CSI 300 China A Share Bull 2X ETF",              "underlying": "ASHR",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "YINN",   "fund_name": "Direxion Daily FTSE China Bull 3X ETF",                         "underlying": "FXI",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "CWEB",   "fund_name": "Direxion Daily CSI China Internet Idx Bull 2X ETF",             "underlying": "KWEB",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "ERX",    "fund_name": "Direxion Daily Energy Bull 2X ETF",                             "underlying": "XLE",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "GUSH",   "fund_name": "Direxion Daily S&P Oil & Gas Exp & Prod Bull 2X ETF",           "underlying": "XOP",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "TPOR",   "fund_name": "Direxion Daily Transportation Bull 3X ETF",                     "underlying": "IYT",    "objective": "3x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "URAA",   "fund_name": "Direxion Daily Uranium Industry Bull 2X ETF",                   "underlying": "URNM",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "GGLL",   "fund_name": "Direxion Daily GOOGL Bull 2X ETF",                              "underlying": "GOOGL",  "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AMUU",   "fund_name": "Direxion Daily AMD Bull 2X ETF",                                "underlying": "AMD",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NVDU",   "fund_name": "Direxion Daily NVDA Bull 2X ETF",                               "underlying": "NVDA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AMZU",   "fund_name": "Direxion Daily AMZN Bull 2X ETF",                               "underlying": "AMZN",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "FNGG",   "fund_name": "Direxion Daily NYSE FANG+ Bull 2X ETF",                         "underlying": "FNGS",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "QQQU",   "fund_name": "Direxion Daily Magnificent 7 Bull 2X ETF",                      "underlying": "MAGS",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "SPUU",   "fund_name": "Direxion Daily S&P 500 Bull 2X ETF",                            "underlying": "SPY",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "MUU",    "fund_name": "Direxion Daily MU Bull 2X ETF",                                 "underlying": "MU",     "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSMX",   "fund_name": "Direxion Daily TSM Bull 2X ETF",                                "underlying": "TSM",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "METU",   "fund_name": "Direxion Daily META Bull 2X ETF",                               "underlying": "META",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AAPU",   "fund_name": "Direxion Daily AAPL Bull 2X ETF",                               "underlying": "AAPL",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "MSFU",   "fund_name": "Direxion Daily MSFT Bull 2X ETF",                               "underlying": "MSFT",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NFXL",   "fund_name": "Direxion Daily NFLX Bull 2X ETF",                               "underlying": "NFLX",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PALU",   "fund_name": "Direxion Daily PANW Bull 2X ETF",                               "underlying": "PANW",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PLTU",   "fund_name": "Direxion Daily PLTR Bull 2X ETF",                               "underlying": "PLTR",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSLL",   "fund_name": "Direxion Daily TSLA Bull 2X ETF",                               "underlying": "TSLA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "XOMX",   "fund_name": "Direxion Daily XOM Bull 2X ETF",                                "underlying": "XOM",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "BOEU",   "fund_name": "Direxion Daily BA Bull 2X ETF",                                 "underlying": "BA",     "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "BRKU",   "fund_name": "Direxion Daily BRKB Bull 2X ETF",                               "underlying": "BRK-B",  "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ELIL",   "fund_name": "Direxion Daily LLY Bull 2X ETF",                                "underlying": "LLY",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AIBU",   "fund_name": "Direxion Daily AI and Big Data Bull 2X ETF",                    "underlying": "ROBT",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "UBOT",   "fund_name": "Direxion Daily Robo AI & Automation Ix Bull 2X ETF",            "underlying": "ROBT",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "NVDX",   "fund_name": "T-REX 2X Long NVIDIA Daily Target ETF",                         "underlying": "NVDA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AAPX",   "fund_name": "T-REX 2X Long Apple Daily Target ETF",                          "underlying": "AAPL",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "MSFX",   "fund_name": "T-REX 2X Long Microsoft Daily Target ETF",                      "underlying": "MSFT",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "GOOX",   "fund_name": "T-REX 2X Long Alphabet Daily Target ETF",                       "underlying": "GOOGL",  "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSLT",   "fund_name": "T-REX 2X Long TESLA Daily Target ETF",                          "underlying": "TSLA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NFLU",   "fund_name": "T-REX 2X Long NFLX Daily Target ETF",                           "underlying": "NFLX",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "MSTU",   "fund_name": "T-REX 2X Long MSTR Daily Target ETF",                           "underlying": "MSTR",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "GMEU",   "fund_name": "T-REX 2X Long GME Daily Target ETF",                            "underlying": "GME",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ROBN",   "fund_name": "T-REX 2X Long HOOD Daily Target ETF",                           "underlying": "HOOD",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "RBLU",   "fund_name": "T-REX 2X Long RBLX Daily Target ETF",                           "underlying": "RBLX",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "SNOU",   "fund_name": "T-REX 2X Long SNOW Daily Target ETF",                           "underlying": "SNOW",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "DJTU",   "fund_name": "T-REX 2X Long DJT Daily Target ETF",                            "underlying": "DJT",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AVGX",   "fund_name": "Defiance Daily Target 2X Long AVGO ETF",                        "underlying": "AVGO",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AVL",    "fund_name": "Direxion Daily AVGO Bull 2X ETF",                               "underlying": "AVGO",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "RKLX",   "fund_name": "Defiance Daily Target 2X Long RKLB ETF",                        "underlying": "RKLB",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NVOX",   "fund_name": "Defiance Daily Target 2X Long NVO ETF",                         "underlying": "NVO",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "IONX",   "fund_name": "Defiance Daily Target 2X Long IONQ ETF",                        "underlying": "IONQ",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "SOFX",   "fund_name": "Defiance Daily Target 2X Long SOFI ETF",                        "underlying": "SOFI",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "RIOX",   "fund_name": "Defiance Daily Target 2X Long RIOT ETF",                        "underlying": "RIOT",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "HOOX",   "fund_name": "Defiance Daily Target 2X Long HOOD ETF",                        "underlying": "HOOD",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "SMCX",   "fund_name": "Defiance Daily Target 2X Long SMCI ETF",                        "underlying": "SMCI",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "MSTX",   "fund_name": "Defiance Daily Target 2X Long MSTR ETF",                        "underlying": "MSTR",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "LLYX",   "fund_name": "Defiance Daily Target 2X Long LLY ETF",                         "underlying": "LLY",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "HIMZ",   "fund_name": "Defiance Daily Target 2X Long HIMS ETF",                        "underlying": "HIMS",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ORCX",   "fund_name": "Defiance Daily Target 2X Long ORCL ETF",                        "underlying": "ORCL",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "RGTX",   "fund_name": "Defiance Daily Target 2X Long RGTI ETF",                        "underlying": "RGTI",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ARMG",   "fund_name": "Leverage Shares 2X Long ARM Daily ETF",                         "underlying": "ARM",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSMG",   "fund_name": "Leverage Shares 2X Long TSM Daily ETF",                         "underlying": "TSM",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AMDG",   "fund_name": "Leverage Shares 2X Long AMD Daily ETF",                         "underlying": "AMD",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ASMG",   "fund_name": "Leverage Shares 2X Long ASML Daily ETF",                        "underlying": "ASML",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NVDG",   "fund_name": "Leverage Shares 2X Long NVDA Daily ETF",                        "underlying": "NVDA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "XYZG",   "fund_name": "Leverage Shares 2X Long XYZ Daily ETF",                         "underlying": "XYZ",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "HOOG",   "fund_name": "Leverage Shares 2X Long HOOD Daily ETF",                        "underlying": "HOOD",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PANG",   "fund_name": "Leverage Shares 2X Long PANW Daily ETF",                        "underlying": "PANW",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "COIG",   "fund_name": "Leverage Shares 2X Long COIN Daily ETF",                        "underlying": "COIN",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSLG",   "fund_name": "Leverage Shares 2X Long TSLA Daily ETF",                        "underlying": "TSLA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PYPG",   "fund_name": "Leverage Shares 2X Long PYPL Daily ETF",                        "underlying": "PYPL",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PLTG",   "fund_name": "Leverage Shares 2X Long PLTR Daily ETF",                        "underlying": "PLTR",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "ADBG",   "fund_name": "Leverage Shares 2X Long ADBE Daily ETF",                        "underlying": "ADBE",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "CRMG",   "fund_name": "Leverage Shares 2X Long CRM Daily ETF",                         "underlying": "CRM",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "NVDW",   "fund_name": "Roundhill NVDA WeeklyPay ETF",                                  "underlying": "NVDA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "AAPW",   "fund_name": "Roundhill AAPL WeeklyPay ETF",                                  "underlying": "AAPL",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSLW",   "fund_name": "Roundhill TSLA WeeklyPay ETF",                                  "underlying": "TSLA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "COIW",   "fund_name": "Roundhill COIN WeeklyPay ETF",                                  "underlying": "COIN",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "PLTW",   "fund_name": "Roundhill PLTR WeeklyPay ETF",                                  "underlying": "PLTR",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "MAGX",   "fund_name": "Roundhill Daily 2X Long Magnificent Seven ETF",                 "underlying": "MAGS",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "MQQQ",   "fund_name": "Tradr 2X Long Innovation 100 Monthly ETF",                      "underlying": "QQQ",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "QQQP",   "fund_name": "Tradr 2X Long Innovation 100 Quarterly ETF",                    "underlying": "QQQ",    "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "TARK",   "fund_name": "Tradr 2X Long Innovation ETF",                                  "underlying": "ARKK",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
+    {"ticker": "APPX",   "fund_name": "Tradr 2X Long APP Daily ETF",                                   "underlying": "APP",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "QBTX",   "fund_name": "Tradr 2X Long QBTS Daily ETF",                                  "underlying": "QBTS",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "TSYY",   "fund_name": "GraniteShares YieldBOOST TSLA ETF",                             "underlying": "TSLA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "KBAB",   "fund_name": "KraneShares 2x Long BABA Daily ETF",                            "underlying": "BABA",   "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "KPDD",   "fund_name": "KraneShares 2x Long PDD Daily ETF",                             "underlying": "PDD",    "objective": "2x",    "asset_class": "Single Stock", "net_assets": 0},
+    {"ticker": "WXET",   "fund_name": "Teucrium 2x Daily Wheat ETF",                                   "underlying": "WEAT",   "objective": "2x",    "asset_class": "Commodity", "net_assets": 0},
+    {"ticker": "CXRN",   "fund_name": "Teucrium 2x Daily Corn ETF",                                    "underlying": "CORN",   "objective": "2x",    "asset_class": "Commodity", "net_assets": 0},
+    {"ticker": "UVXY",   "fund_name": "ProShares Ultra VIX Short-Term Futures ETF",                    "underlying": "VIXY",   "objective": "2x",    "asset_class": "Volatility", "net_assets": 0},
+    {"ticker": "MSOX",   "fund_name": "AdvisorShares MSOS Daily Leveraged ETF",                        "underlying": "MSOS",   "objective": "2x",    "asset_class": "Equity", "net_assets": 0},
     {"ticker": "TSDD",  "fund_name": "GS 2x Short TSLA",            "underlying": "TSLA", "objective": "-2x",  "asset_class": "Single Stock", "net_assets": 49633910},
 ]
 
@@ -311,3 +426,142 @@ def scan_lev_etfs():
     results.sort(key=lambda x: (-x["setup_count"], -(x["net_assets"] or 0)))
 
     return {"count": len(results), "data": results}
+
+
+# ---------------------------------------------------------------------------
+# EMA Structure Screeners — uses the leveraged ETF's OWN price data
+# ---------------------------------------------------------------------------
+_LEV_TICKERS = [etf["ticker"] for etf in LEV_ETF_LIST]
+_LEV_META = {etf["ticker"]: etf for etf in LEV_ETF_LIST}
+
+
+def _scan_ema_structure(period: int) -> Dict[str, Any]:
+    """
+    Shared logic for 8 EMA and 21 EMA structure screeners.
+
+    Filter: EMA_Low(period) - ATR(14) <= Close <= EMA_High(period) + ATR(14)
+    Structure Trend:
+        Rising  = all 3 MAs (high/close/low) were rising (computed during ingest)
+        Falling = all 3 MAs were falling
+        Neutral = mixed
+
+    Note: Since we only store the *latest* EMA values (not the previous bar),
+    we approximate trend by comparing EMA_Close vs SMA_5 (short-term momentum proxy).
+    A truly rising structure will have EMA_Close > SMA_5 when accelerating.
+    But a better approach: compare close position within the band.
+    Actually — we DO have the latest bar's EMA values. To get previous bar's EMAs
+    we'd need OHLCV history. Instead, we use a practical approximation:
+      - Rising:  close > ema_close AND ema_close > sma_21  (upward structure)
+      - Falling: close < ema_close AND ema_close < sma_21  (downward structure)
+      - Neutral: everything else
+    """
+    if not _LEV_TICKERS:
+        return {"count": 0, "data": []}
+
+    placeholders = ", ".join(["?" for _ in _LEV_TICKERS])
+
+    if period == 8:
+        ema_high_col = "EMA_8_High"
+        ema_close_col = "EMA_8_Close"
+        ema_low_col = "EMA_8_Low"
+    else:
+        ema_high_col = "EMA_21_High"
+        ema_close_col = "EMA_21"  # EMA_21 of Close (the original column)
+        ema_low_col = "EMA_21_Low"
+
+    # Use aliases to normalize column names across SQLite (preserves case) and
+    # Postgres (lowercases). After _map_row, unmapped keys keep the alias as-is.
+    sql = f"""
+        SELECT Ticker, Close, Stage,
+               {ema_high_col} AS ema_h, {ema_close_col} AS ema_c, {ema_low_col} AS ema_l,
+               ATR_14 AS atr14, ADR_20, SMA_21, SMA_50,
+               Momentum_1D, RS_Rating, Pct_From_52W_High, RVOL
+        FROM screen_data
+        WHERE Ticker IN ({placeholders})
+          AND {ema_high_col} IS NOT NULL
+          AND {ema_low_col} IS NOT NULL
+          AND ATR_14 IS NOT NULL
+          AND ATR_14 > 0
+          AND Close IS NOT NULL
+    """
+    rows = fetch_all(sql, tuple(_LEV_TICKERS))
+
+    results = []
+    for r in rows:
+        row = dict(r)
+        ticker = row.get("Ticker") or row.get("ticker")
+        close = row.get("Close") or row.get("close")
+        ema_high = row.get("ema_h")
+        ema_close = row.get("ema_c")
+        ema_low = row.get("ema_l")
+        atr = row.get("atr14")
+        sma_21 = row.get("SMA_21") or row.get("sma_21") or 0
+        sma_50 = row.get("SMA_50") or row.get("sma_50") or 0
+
+        upper_band = ema_high + atr
+        lower_band = ema_low - atr
+
+        # Filter: close must be within the band
+        if close > upper_band or close < lower_band:
+            continue
+
+        # ATR distance from MA close
+        atr_distance = (close - ema_close) / atr if atr else 0
+
+        # Structure trend approximation
+        if close > ema_close and ema_close > sma_21:
+            trend = "Rising"
+        elif close < ema_close and ema_close < sma_21:
+            trend = "Falling"
+        else:
+            trend = "Neutral"
+
+        meta = _LEV_META.get(ticker, {})
+
+        results.append({
+            "ticker": ticker,
+            "fund_name": meta.get("fund_name", ""),
+            "underlying": meta.get("underlying", ""),
+            "objective": meta.get("objective", ""),
+            "asset_class": meta.get("asset_class", ""),
+            "close": round(close, 2),
+            "ema_high": round(ema_high, 2),
+            "ema_close": round(ema_close, 2),
+            "ema_low": round(ema_low, 2),
+            "atr_14": round(atr, 2),
+            "atr_distance": round(atr_distance, 2),
+            "upper_band": round(upper_band, 2),
+            "lower_band": round(lower_band, 2),
+            "structure_trend": trend,
+            "stage": row.get("Stage"),
+            "adr_20": round(row.get("ADR_20") or 0, 2),
+            "momentum_1d": row.get("Momentum_1D"),
+            "rs_rating": row.get("RS_Rating"),
+            "pct_from_52w_high": row.get("Pct_From_52W_High"),
+            "rvol": row.get("RVOL"),
+        })
+
+    # Sort by absolute ATR distance (closest to MA first)
+    results.sort(key=lambda x: abs(x["atr_distance"]))
+
+    return {"count": len(results), "data": results}
+
+
+@router.get("/scan-8ema", summary="Lev ETFs near 8 EMA structure (±1 ATR)")
+def scan_8ema():
+    """
+    Returns leveraged ETFs whose close is within the 8 EMA structure band.
+    Band = [EMA(Low, 8) - ATR(14), EMA(High, 8) + ATR(14)]
+    Uses the leveraged ETF's own price data (not underlying).
+    """
+    return _scan_ema_structure(8)
+
+
+@router.get("/scan-21ema", summary="Lev ETFs near 21 EMA structure (±1 ATR)")
+def scan_21ema():
+    """
+    Returns leveraged ETFs whose close is within the 21 EMA structure band.
+    Band = [EMA(Low, 21) - ATR(14), EMA(High, 21) + ATR(14)]
+    Uses the leveraged ETF's own price data (not underlying).
+    """
+    return _scan_ema_structure(21)

@@ -2263,6 +2263,12 @@
                     <button class="scanner-btn" id="btn-lev-etf" onclick="runLevEtf()">
                         <span class="btn-label" style="font-weight: 600;">⚡ Lev ETFs</span>
                     </button>
+                    <button class="scanner-btn" id="btn-lev-8ema" onclick="runLevEma(8)">
+                        <span class="btn-label" style="font-weight: 600;">📐 Lev 8 EMA</span>
+                    </button>
+                    <button class="scanner-btn" id="btn-lev-21ema" onclick="runLevEma(21)">
+                        <span class="btn-label" style="font-weight: 600;">📐 Lev 21 EMA</span>
+                    </button>
                     <button class="scanner-btn" id="btn-trade-portal" onclick="runTradePortal()">
                         <span class="btn-label" style="font-weight: 600;">🤖 AI Trade Portal</span>
                     </button>
@@ -2765,7 +2771,7 @@
                 document.getElementById('market-label').textContent = 'IN';
             }
             
-            const usOnlyButtons = ['btn-lev-etf', 'btn-themes-sector', 'btn-themes-industry', 'f-group-sector', 'f-group-industry'];
+            const usOnlyButtons = ['btn-lev-etf', 'btn-lev-8ema', 'btn-lev-21ema', 'btn-themes-sector', 'btn-themes-industry', 'f-group-sector', 'f-group-industry'];
             usOnlyButtons.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = market === 'US' ? '' : 'none';
@@ -2913,6 +2919,10 @@
                 runThemes(themesCategory);
             } else if (activeScanner === 'lev-etf') {
                 runLevEtf(true);
+            } else if (activeScanner === 'lev-8ema') {
+                runLevEma(8, true);
+            } else if (activeScanner === 'lev-21ema') {
+                runLevEma(21, true);
             } else if (activeScanner === 'universe') {
                 runUniverse();
             } else if (activeScanner === 'trade-portal') {
@@ -3413,6 +3423,16 @@
                 else renderLevEtfCharts(levEtfData);
                 return;
             }
+            if (activeScanner === 'lev-8ema' && levEmaData8.length) {
+                if (scannerViewMode === 'table') renderLevEmaTable(levEmaData8, 8);
+                else renderLevEmaCharts(levEmaData8);
+                return;
+            }
+            if (activeScanner === 'lev-21ema' && levEmaData21.length) {
+                if (scannerViewMode === 'table') renderLevEmaTable(levEmaData21, 21);
+                else renderLevEmaCharts(levEmaData21);
+                return;
+            }
             if (themesLevel === 'stocks' && themeStockData.length) {
                 renderThemeStocks();
                 return;
@@ -3677,6 +3697,10 @@
                 runPortfolio(true);
             } else if (scannerId === 'lev-etf') {
                 runLevEtf(true);
+            } else if (scannerId === 'lev-8ema') {
+                runLevEma(8, true);
+            } else if (scannerId === 'lev-21ema') {
+                runLevEma(21, true);
             } else if (scannerId && scannerId.startsWith('wl-')) {
                 const wlId = parseInt(scannerId.replace('wl-', ''));
                 if (!isNaN(wlId)) runWatchlist(wlId);
@@ -4082,6 +4106,18 @@
             if (activeScanner === 'lev-etf' && levEtfData.length) {
                 if (mode === 'table') renderLevEtfTable(levEtfData);
                 else renderLevEtfCharts(levEtfData);
+                return;
+            }
+
+            if (activeScanner === 'lev-8ema' && levEmaData8.length) {
+                if (mode === 'table') renderLevEmaTable(levEmaData8, 8);
+                else renderLevEmaCharts(levEmaData8);
+                return;
+            }
+
+            if (activeScanner === 'lev-21ema' && levEmaData21.length) {
+                if (mode === 'table') renderLevEmaTable(levEmaData21, 21);
+                else renderLevEmaCharts(levEmaData21);
                 return;
             }
 
@@ -4754,6 +4790,179 @@
 
             if (!data.length) {
                 html = `<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">No ETF data</div></div>`;
+            }
+            area.innerHTML = html;
+        }
+
+        // ── Leveraged ETF EMA Structure Screeners ─────────────────
+        let levEmaData8 = [];
+        let levEmaData21 = [];
+
+        async function runLevEma(period, force) {
+            activeScanner = `lev-${period}ema`;
+            activeWatchlist = null;
+            themesCategory = null;
+            themesLevel = 'top';
+
+            if (!force) pushScannerToHistory(`lev-${period}ema`);
+
+            document.querySelectorAll('.scanner-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`btn-lev-${period}ema`);
+            if (btn) btn.classList.add('active');
+
+            setResultsTitle(`📐 Lev ETFs — ${period} EMA Structure`);
+            document.getElementById('results-meta').innerHTML = '';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'none';
+
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+            showSkeletons(8);
+            logEvent('run_scanner', { scanner: `lev-${period}ema` });
+
+            try {
+                const res = await fetchApi(`/lev-etf/scan-${period}ema`);
+                if (!res.ok) throw new Error(`API ${res.status}`);
+                const json = await res.json();
+                if (period === 8) levEmaData8 = json.data;
+                else levEmaData21 = json.data;
+
+                const rising = json.data.filter(d => d.structure_trend === 'Rising').length;
+                const falling = json.data.filter(d => d.structure_trend === 'Falling').length;
+                const neutral = json.data.length - rising - falling;
+
+                document.getElementById('results-meta').innerHTML = `
+                    <span class="results-count-pill">${json.count} ETFs</span>
+                    <span style="color:var(--text-muted)">· Within ±1 ATR of ${period} EMA structure</span>
+                    <span style="margin-left:8px;color:#4ade80;font-weight:600;">${rising} Rising</span>
+                    <span style="margin-left:4px;color:#f87171;font-weight:600;">${falling} Falling</span>
+                    <span style="margin-left:4px;color:var(--text-muted);font-weight:600;">${neutral} Neutral</span>
+                `;
+
+                if (scannerViewMode === 'table') {
+                    renderLevEmaTable(json.data, period);
+                } else {
+                    renderLevEmaCharts(json.data);
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('grid-area').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">Failed to load ${period} EMA Structure</div>
+                        <div class="empty-sub">${err.message}</div>
+                    </div>`;
+            }
+        }
+
+        function renderLevEmaCharts(data) {
+            const area = document.getElementById('grid-area');
+            const grid = document.createElement('div');
+            grid.className = 'chart-grid';
+            area.innerHTML = '';
+            area.appendChild(grid);
+
+            for (const etf of data) {
+                const pseudo = {
+                    ticker: etf.ticker,
+                    rs_rating: etf.rs_rating,
+                    rvol: etf.rvol,
+                    momentum_1d: etf.momentum_1d,
+                    pct_from_52w_high: etf.pct_from_52w_high,
+                    close: etf.close,
+                    in_stage_2: etf.stage === 2,
+                    gap_up: false,
+                    gap_down: false,
+                };
+                createChartCard(pseudo, grid);
+            }
+        }
+
+        function renderLevEmaTable(data, period) {
+            const area = document.getElementById('grid-area');
+
+            const trendPill = (trend) => {
+                if (trend === 'Rising') return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.78rem;color:#4ade80;background:rgba(74,222,128,0.1);border:1px solid #4ade8033;">▲ Rising</span>';
+                if (trend === 'Falling') return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.78rem;color:#f87171;background:rgba(248,113,113,0.1);border:1px solid #f8717133;">▼ Falling</span>';
+                return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.78rem;color:#94a3b8;background:rgba(148,163,184,0.08);border:1px solid #94a3b833;">— Neutral</span>';
+            };
+
+            const atrColor = (dist) => {
+                const abs = Math.abs(dist);
+                if (abs <= 0.3) return '#4ade80'; // very close — green
+                if (abs <= 0.7) return '#fbbf24'; // moderate — yellow
+                return '#f87171'; // stretched — red
+            };
+
+            const stagePill = (stage) => {
+                if (stage == null) return '<span style="color:var(--text-muted)">—</span>';
+                const colors = { 1: '#60a5fa', 2: '#4ade80', 3: '#fb923c', 4: '#f87171' };
+                const c = colors[stage] || 'var(--text-muted)';
+                return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:700;font-size:0.82rem;color:${c};border:1px solid ${c}33;">${stage}</span>`;
+            };
+
+            const objColor = (obj) => {
+                if (!obj) return 'var(--text-secondary)';
+                if (obj.startsWith('-')) return '#f87171';
+                return '#4ade80';
+            };
+
+            let html = `
+            <div class="universe-table-wrapper">
+                <table class="universe-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width:70px;">Ticker</th>
+                            <th style="min-width:180px;">Fund Name</th>
+                            <th style="min-width:60px;" title="Daily Leverage Objective">Obj</th>
+                            <th style="min-width:75px;">Price</th>
+                            <th style="min-width:90px;" title="ATR distance from ${period} EMA Close (in ATR units)">ATR Dist</th>
+                            <th style="min-width:80px;" title="${period} EMA of Highs">EMA High</th>
+                            <th style="min-width:80px;" title="${period} EMA of Closes">EMA Close</th>
+                            <th style="min-width:80px;" title="${period} EMA of Lows">EMA Low</th>
+                            <th style="min-width:75px;" title="14-period Average True Range">ATR(14)</th>
+                            <th style="min-width:85px;" title="Upper band = EMA(High) + ATR">Upper Band</th>
+                            <th style="min-width:85px;" title="Lower band = EMA(Low) - ATR">Lower Band</th>
+                            <th style="min-width:90px;" title="Rising = close > EMA close > 21 SMA · Falling = close < EMA close < 21 SMA">Trend</th>
+                            <th style="min-width:50px;" title="Stage 1-4 based on 50 DMA slope">Stage</th>
+                            <th style="min-width:60px;" title="Average Daily Range %">ADR%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const etf of data) {
+                const rowBg = etf.structure_trend === 'Rising'
+                    ? 'background: rgba(74,222,128,0.03);'
+                    : etf.structure_trend === 'Falling'
+                        ? 'background: rgba(248,113,113,0.03);'
+                        : '';
+
+                html += `<tr style="${rowBg}">
+                    <td style="padding-left: 8px;">${getWatchlistDropdownHtml(etf.ticker)}</td>
+                    <td style="display:flex;align-items:center;">${getStageBadge(etf.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${etf.ticker}')"
+                       style="color:var(--accent);text-decoration:none;font-weight:600;">${etf.ticker}</a></td>
+                    <td style="color:var(--text-secondary);font-size:0.82rem;">${etf.fund_name}</td>
+                    <td style="color:${objColor(etf.objective)};font-weight:600;font-size:0.82rem;">${etf.objective || '—'}</td>
+                    <td style="font-weight:600;font-size:0.85rem;">$${etf.close.toFixed(2)}</td>
+                    <td style="text-align:center;font-weight:700;color:${atrColor(etf.atr_distance)};font-size:0.85rem;">${etf.atr_distance >= 0 ? '+' : ''}${etf.atr_distance.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.82rem;color:var(--text-muted);">$${etf.ema_high.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.82rem;font-weight:600;">$${etf.ema_close.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.82rem;color:var(--text-muted);">$${etf.ema_low.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.82rem;">$${etf.atr_14.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.78rem;color:#4ade8088;">$${etf.upper_band.toFixed(2)}</td>
+                    <td style="text-align:right;font-size:0.78rem;color:#f8717188;">$${etf.lower_band.toFixed(2)}</td>
+                    <td style="text-align:center;">${trendPill(etf.structure_trend)}</td>
+                    <td style="text-align:center;">${stagePill(etf.stage)}</td>
+                    <td style="text-align:right;font-size:0.82rem;">${etf.adr_20 ? etf.adr_20.toFixed(1) + '%' : '—'}</td>
+                </tr>`;
+            }
+
+            html += `</tbody></table></div>`;
+
+            if (!data.length) {
+                html = `<div class="empty-state"><div class="empty-icon">📐</div><div class="empty-title">No Lev ETFs within ${period} EMA structure band</div><div class="empty-sub">Data will appear after the next daily ingestion run</div></div>`;
             }
             area.innerHTML = html;
         }

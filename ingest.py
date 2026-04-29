@@ -211,6 +211,15 @@ def calculate_indicators(df):
     df['EMA_10'] = df['Close'].ewm(span=10, adjust=False).mean()
     df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
+
+    # ── 8 EMA Structure (High / Close / Low) for Leveraged ETF Screener ──
+    df['EMA_8_High']  = df['High'].ewm(span=8, adjust=False).mean()
+    df['EMA_8_Close'] = df['Close'].ewm(span=8, adjust=False).mean()
+    df['EMA_8_Low']   = df['Low'].ewm(span=8, adjust=False).mean()
+
+    # ── 21 EMA Structure (High / Low) — EMA_21 of Close already computed above ──
+    df['EMA_21_High'] = df['High'].ewm(span=21, adjust=False).mean()
+    df['EMA_21_Low']  = df['Low'].ewm(span=21, adjust=False).mean()
     
     df['52W_High'] = df['High'].rolling(window=252).max()
     df['52W_Low'] = df['Low'].rolling(window=252).min()
@@ -316,6 +325,7 @@ def calculate_indicators(df):
         (df['Low'] - df['Close'].shift(1)).abs()
     ], axis=1).max(axis=1)
     df['ATR_10'] = tr.rolling(window=10).mean()
+    df['ATR_14'] = tr.rolling(window=14).mean()  # Standard 14-period ATR for EMA structure screener
 
     # Bollinger Band Width (20-day, 2 std dev) — narrower = tighter
     bb_std = df['Close'].rolling(window=20).std()
@@ -732,6 +742,13 @@ def run_ingest(market='US'):
                         _safe_bool(last['EMA_Crossback']),
                         _nan_to_none(last['Consolidation_High_5']),
                         _nan_to_none(last['Consolidation_Low_5']),
+                        # EMA Structure columns (8 EMA & 21 EMA screener)
+                        _nan_to_none(last['EMA_8_High']),
+                        _nan_to_none(last['EMA_8_Close']),
+                        _nan_to_none(last['EMA_8_Low']),
+                        _nan_to_none(last['EMA_21_High']),
+                        _nan_to_none(last['EMA_21_Low']),
+                        _nan_to_none(last['ATR_14']),
                     )
                     all_data.append(record)
                     
@@ -817,7 +834,23 @@ def run_ingest(market='US'):
             'EWW', 'INDA', 'VGK', 'EUFN', 'KWEB', 'CQQQ', 'AFK', 'EWT', 'EWY', 'EUAD', 'ASEA', 'KSA', 'EWA',
             # Thematic
             'IPO', 'ARKX', 'SHLD',
+            # ── Leveraged ETF Underlying ETFs (expanded) ──
+            'SPHB', 'PPH', 'FDN', 'GDXJ', 'FNGS', 'MAGS', 'ARKK',
+            'URNM', 'VIXY', 'WEAT', 'CORN', 'ROBT', 'ASHR',
         ]
+
+        # Inject ALL leveraged ETF tickers so they have screen_data entries
+        # (needed by the 8 EMA / 21 EMA structure screeners)
+        try:
+            from api.routers.lev_etf import LEV_ETF_LIST
+            lev_tickers = [e['ticker'] for e in LEV_ETF_LIST]
+            # Only add tickers not already in sector_etf_tickers
+            existing_set = set(sector_etf_tickers)
+            new_lev = [t for t in lev_tickers if t not in existing_set]
+            sector_etf_tickers.extend(new_lev)
+            print(f"Injected {len(new_lev)} leveraged ETF tickers into download list.", flush=True)
+        except Exception as lev_err:
+            print(f"Warning: Could not inject lev ETF tickers: {lev_err}", flush=True)
     else:
         # India: no sector ETF OHLCV needed (saves DB space)
         sector_etf_tickers = []
@@ -920,6 +953,13 @@ def run_ingest(market='US'):
                                 _safe_bool(last_etf['EMA_Crossback']),
                                 _nan_to_none(last_etf['Consolidation_High_5']),
                                 _nan_to_none(last_etf['Consolidation_Low_5']),
+                                # EMA Structure columns (8 EMA & 21 EMA screener)
+                                _nan_to_none(last_etf['EMA_8_High']),
+                                _nan_to_none(last_etf['EMA_8_Close']),
+                                _nan_to_none(last_etf['EMA_8_Low']),
+                                _nan_to_none(last_etf['EMA_21_High']),
+                                _nan_to_none(last_etf['EMA_21_Low']),
+                                _nan_to_none(last_etf['ATR_14']),
                             )
                             all_data.append(etf_record)
                             
@@ -1020,7 +1060,13 @@ def run_ingest(market='US'):
             Bull_Flag {sql_types["BOOLEAN"]},
             EMA_Crossback {sql_types["BOOLEAN"]},
             Consolidation_High_5 {sql_types["REAL"]},
-            Consolidation_Low_5 {sql_types["REAL"]}
+            Consolidation_Low_5 {sql_types["REAL"]},
+            EMA_8_High {sql_types["REAL"]},
+            EMA_8_Close {sql_types["REAL"]},
+            EMA_8_Low {sql_types["REAL"]},
+            EMA_21_High {sql_types["REAL"]},
+            EMA_21_Low {sql_types["REAL"]},
+            ATR_14 {sql_types["REAL"]}
         )
     ''')
     
@@ -1074,6 +1120,25 @@ def run_ingest(market='US'):
             ("Consolidation_High_5", "DOUBLE PRECISION"), ("Consolidation_Low_5", "DOUBLE PRECISION"),
         ]
         for new_col, col_type in kz_cols:
+            try:
+                cursor.execute(f"SELECT {new_col} FROM screen_data LIMIT 1")
+            except Exception:
+                conn.rollback()
+                try:
+                    cursor.execute(f"ALTER TABLE screen_data ADD COLUMN {new_col} {col_type}")
+                    conn.commit()
+                    print(f"Migrated screen_data: added {new_col} column.", flush=True)
+                except Exception:
+                    conn.rollback()
+
+    # Defensive schema migration: EMA Structure columns (8 EMA & 21 EMA screener)
+    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+        ema_struct_cols = [
+            ("EMA_8_High", "DOUBLE PRECISION"), ("EMA_8_Close", "DOUBLE PRECISION"), ("EMA_8_Low", "DOUBLE PRECISION"),
+            ("EMA_21_High", "DOUBLE PRECISION"), ("EMA_21_Low", "DOUBLE PRECISION"),
+            ("ATR_14", "DOUBLE PRECISION"),
+        ]
+        for new_col, col_type in ema_struct_cols:
             try:
                 cursor.execute(f"SELECT {new_col} FROM screen_data LIMIT 1")
             except Exception:
@@ -1211,6 +1276,8 @@ def run_ingest(market='US'):
         # Kell-Zanger Range Breakout columns
         "EMA_10", "EMA_20", "EMA_21", "Range_Tightness_Score",
         "Bull_Flag", "EMA_Crossback", "Consolidation_High_5", "Consolidation_Low_5",
+        # EMA Structure columns (8 EMA & 21 EMA screener)
+        "EMA_8_High", "EMA_8_Close", "EMA_8_Low", "EMA_21_High", "EMA_21_Low", "ATR_14",
     ]
     col_str = ", ".join(SCREEN_DATA_COLS)
     placeholders = ", ".join(['%s'] * len(SCREEN_DATA_COLS)) if (DATABASE_URL and DATABASE_URL.startswith("postgres")) else ", ".join(['?'] * len(SCREEN_DATA_COLS))
