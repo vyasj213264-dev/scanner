@@ -1,0 +1,22 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # Ping every 14 minutes to prevent Render free-tier spin-down (15 min idle timeout)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          echo "Pinging Render to keep instance warm..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://scanner-ub2v.onrender.com/api/v1/health)
+          echo "Health endpoint returned: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+            echo "✅ Server is alive"
+          else
+            echo "⚠️ Server may be starting up (status: $HTTP_STATUS)"
+          fi
