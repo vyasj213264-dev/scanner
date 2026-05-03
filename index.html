@@ -4836,6 +4836,8 @@
             activeWatchlist = null;
             themesCategory = null;
             themesLevel = 'top';
+            // Default to live TradingView charts for lev ETFs
+            setWatchlistChartMode('live');
 
             if (!force) pushScannerToHistory('lev-etf');
 
@@ -5014,6 +5016,8 @@
             activeWatchlist = null;
             themesCategory = null;
             themesLevel = 'top';
+            // Default to live TradingView charts for lev ETFs
+            setWatchlistChartMode('live');
 
             if (!force) pushScannerToHistory(`lev-${period}ema`);
 
@@ -7241,11 +7245,9 @@
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
                 let useLWC = false;
                 
-                const isLevScanner = activeScanner === 'lev-etf' || activeScanner === 'lev-8ema' || activeScanner === 'lev-21ema';
                 if (isChartModeView && currentMarket === 'US') {
-                    // Lev ETFs don't have OHLCV in our DB → always use TradingView widget
-                    // Watchlists use LWC only for custom 8DMA/21DMA structure overlays
-                    useLWC = !isLevScanner && (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
+                    // Use LWC for custom 8DMA/21DMA structure overlays (needs OHLCV in DB)
+                    useLWC = (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
                 } else {
                     useLWC = (isFormula && currentMarket !== 'IN');
                 }
