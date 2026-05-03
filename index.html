@@ -4248,10 +4248,14 @@
         }
 
         // ── Scanner View Mode Toggle ──────────────────────────────
+        function isChartModeScanner() {
+            return activeScanner && (activeScanner.startsWith('wl-') || activeScanner === 'lev-etf' || activeScanner === 'lev-8ema' || activeScanner === 'lev-21ema');
+        }
+        
         function updateWatchlistToggleVisibility() {
             const wlToggle = document.getElementById('wl-chart-mode-toggle');
             if (wlToggle) {
-                if (activeScanner && activeScanner.startsWith('wl-') && scannerViewMode === 'chart') {
+                if (isChartModeScanner() && scannerViewMode === 'chart') {
                     wlToggle.style.display = 'flex';
                 } else {
                     wlToggle.style.display = 'none';
@@ -4266,8 +4270,16 @@
             document.getElementById('wcm-21dma').classList.toggle('active', mode === '21dma');
             
             // Re-render the grid with the new mode
-            if (scannerViewMode === 'chart' && activeScanner && activeScanner.startsWith('wl-')) {
-                renderGrid(sortResults(lastResults));
+            if (scannerViewMode === 'chart' && isChartModeScanner()) {
+                if (activeScanner && activeScanner.startsWith('wl-')) {
+                    renderGrid(sortResults(lastResults));
+                } else if (activeScanner === 'lev-etf' && levEtfData.length) {
+                    renderLevEtfCharts(levEtfData);
+                } else if (activeScanner === 'lev-8ema' && levEmaData8.length) {
+                    renderLevEmaCharts(levEmaData8);
+                } else if (activeScanner === 'lev-21ema' && levEmaData21.length) {
+                    renderLevEmaCharts(levEmaData21);
+                }
             }
         }
 
@@ -4854,6 +4866,8 @@
                     <span style="color:var(--text-muted)">· Signals from underlying ticker data</span>
                 `;
 
+                updateWatchlistToggleVisibility();
+
                 if (scannerViewMode === 'table') {
                     renderLevEtfTable(levEtfData);
                 } else {
@@ -5036,6 +5050,8 @@
                     <span style="margin-left:4px;color:#f87171;font-weight:600;">${falling} Falling</span>
                     <span style="margin-left:4px;color:var(--text-muted);font-weight:600;">${neutral} Neutral</span>
                 `;
+
+                updateWatchlistToggleVisibility();
 
                 if (scannerViewMode === 'table') {
                     renderLevEmaTable(json.data, period);
@@ -7171,11 +7187,11 @@
 
             let tvSymbol = formatTVSymbol(ticker, currentMarket);
 
-            // Determine if we are currently viewing a watchlist
-            const isWatchlist = activeWatchlist != null || (typeof activeScanner !== 'undefined' && activeScanner && activeScanner.startsWith('wl-'));
+            // Determine if we are currently viewing a watchlist or lev ETF scanner
+            const isChartModeView = activeWatchlist != null || (typeof activeScanner !== 'undefined' && activeScanner && (activeScanner.startsWith('wl-') || activeScanner === 'lev-etf' || activeScanner === 'lev-8ema' || activeScanner === 'lev-21ema'));
             
             let chartStudies;
-            if (isWatchlist) {
+            if (isChartModeView) {
                 if (isSmallGrid) {
                     if (watchlistChartMode === 'live' || watchlistChartMode === '8dma') {
                         // For Indian grids or non-US formula fallbacks (if using 8DMA or live)
