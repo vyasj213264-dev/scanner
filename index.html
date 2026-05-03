@@ -7077,16 +7077,12 @@
                                     const highEmaData = [];
                                     const closeEmaData = [];
                                     const lowEmaData = [];
-                                    const styledCandles = [];
                                     
-                                    const trendUpColor = '#c5c5c5';
+                                    // Using yellow/orange for rising to match TradingView screenshot
+                                    const trendUpColor = '#f59e0b';
                                     const trendDownColor = '#ff00ff';
-                                    const bullishColor = isDark ? '#ffffff' : '#000000';
-                                    const bearishColor = '#ff00ff';
-                                    const neutralColor = '#888888';
                                     
                                     let maCloseColor = trendUpColor;
-                                    let lastBarColor = neutralColor;
                                     
                                     for (let i = 0; i < ohlcData.length; i++) {
                                         const pt = ohlcData[i];
@@ -7103,30 +7099,11 @@
                                         else if (isFalling) maCloseColor = trendDownColor;
                                         // else stays the same as previous
                                         
-                                        const bearishCondition = pt.high < eL;
-                                        
-                                        let barColor;
-                                        if (pt.close > eH && pt.close > eC && pt.close > eL) {
-                                            barColor = bullishColor;
-                                        } else if (bearishCondition) {
-                                            barColor = bearishColor;
-                                        } else {
-                                            barColor = lastBarColor;
-                                        }
-                                        lastBarColor = barColor;
-                                        
                                         if (i >= 7) {
                                             highEmaData.push({ time: pt.time, value: eH });
-                                            // LWC supports per-point line coloring if version is new enough, else fallback
+                                            // Dynamic line coloring for the close EMA
                                             closeEmaData.push({ time: pt.time, value: eC, color: maCloseColor });
                                             lowEmaData.push({ time: pt.time, value: eL });
-                                            
-                                            styledCandles.push({
-                                                ...pt,
-                                                color: barColor,
-                                                wickColor: barColor,
-                                                borderColor: barColor
-                                            });
                                         }
                                     }
                                     
@@ -7137,9 +7114,6 @@
                                     highSeries.setData(highEmaData.slice(-sliced.length));
                                     closeSeries.setData(closeEmaData.slice(-sliced.length));
                                     lowSeries.setData(lowEmaData.slice(-sliced.length));
-                                    
-                                    // Overwrite the default candles with our dynamically colored ones
-                                    candleSeries.setData(styledCandles.slice(-sliced.length));
                                 }
                             } else {
                                 if (ohlcData.length >= 21) {
