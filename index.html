@@ -6956,18 +6956,26 @@
             // Determine if we are currently viewing a watchlist
             const isWatchlist = activeWatchlist != null || (typeof activeScanner !== 'undefined' && activeScanner && activeScanner.startsWith('wl-'));
             
-            // For watchlists, use 8 EMA High, Close, Low. Otherwise 21 EMA Close.
-            // Note: the embedded TV widget might ignore source inputs for basic studies depending on its version,
-            // but we provide both length/in_0 and source/in_1 to maximize compatibility.
-            const chartStudies = isWatchlist 
-                ? [
-                    { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "high", in_0: 8, in_1: "high" } },
-                    { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "close", in_0: 8, in_1: "close" } },
-                    { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "low", in_0: 8, in_1: "low" } }
-                  ]
-                : [
+            let chartStudies;
+            if (isWatchlist) {
+                if (isSmallGrid) {
+                    // For Indian grids or non-US formula fallbacks
+                    chartStudies = [
+                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "high", in_0: 8, in_1: "high" } },
+                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "close", in_0: 8, in_1: "close" } },
+                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "low", in_0: 8, in_1: "low" } }
+                    ];
+                } else {
+                    // For the Detail View, use a single 8 EMA so it doesn't clutter the chart
+                    chartStudies = [
+                        { id: 'MAExp@tv-basicstudies', inputs: { in_0: 8 } }
+                    ];
+                }
+            } else {
+                chartStudies = [
                     { id: 'MAExp@tv-basicstudies', inputs: { in_0: 21 } }
-                  ];
+                ];
+            }
 
             // Skip chart rendering for Indian sectoral indices (^CNX*) —
             // these don't exist in TradingView's embedded widget under any prefix.
