@@ -2498,6 +2498,43 @@
         // Watchlist State
         let watchlists = [];
         let activeWatchlist = null; // ID of currently viewed watchlist
+        let liveQuotes = {}; // cache for /api/v1/quotes/live
+        
+        // ── XIRR Calculation ──────────────────────────────────────
+        function calculateXIRR(cashFlows, guess = 0.1) {
+            if (!cashFlows || cashFlows.length < 2) return null;
+            
+            // Need at least one negative and one positive cash flow
+            let hasPositive = false, hasNegative = false;
+            for (let cf of cashFlows) {
+                if (cf.amount > 0) hasPositive = true;
+                if (cf.amount < 0) hasNegative = true;
+            }
+            if (!hasPositive || !hasNegative) return null;
+
+            const xnpv = (rate) => cashFlows.reduce((sum, cf) => {
+                const days = (cf.date - cashFlows[0].date) / (1000 * 60 * 60 * 24);
+                return sum + cf.amount / Math.pow(1 + rate, days / 365);
+            }, 0);
+
+            const xnpvPrime = (rate) => cashFlows.reduce((sum, cf) => {
+                const days = (cf.date - cashFlows[0].date) / (1000 * 60 * 60 * 24);
+                return sum - (days / 365) * cf.amount / Math.pow(1 + rate, days / 365 + 1);
+            }, 0);
+
+            let rate = guess;
+            const maxIterations = 100;
+            const tolerance = 1e-6;
+
+            for (let i = 0; i < maxIterations; i++) {
+                const fValue = xnpv(rate);
+                if (Math.abs(fValue) < tolerance) return rate;
+                const fPrimeValue = xnpvPrime(rate);
+                if (fPrimeValue === 0) return null;
+                rate = rate - fValue / fPrimeValue;
+            }
+            return null; // Did not converge
+        }
 
         // Themes Engine State
         let themesData = [];
@@ -3294,6 +3331,11 @@
                 activeScanner = `wl-${id}`;
                 activeWatchlist = id;
                 themesCategory = null; // Clear themes context
+                
+                updateWatchlistToggleVisibility();
+                
+                // Start async fetch for live quotes (non-blocking)
+                fetchLiveQuotes(lastResults.map(r => r.Ticker));
 
                 if (scannerViewMode === 'table') {
                     renderScannerTable(sortResults(lastResults));
@@ -3860,8 +3902,100 @@
         function updateResultsMeta(data, ms) {
             document.getElementById('results-meta').innerHTML = `
         <span class="results-count-pill">${data.count} results</span>
-        
       `;
+        }
+        
+        async function fetchLiveQuotes(tickersArray) {
+            if (!tickersArray || tickersArray.length === 0) {
+                updateWatchlistAggregateStats();
+                return;
+            }
+            const uniqueTickers = [...new Set(tickersArray)].join(',');
+            try {
+                const res = await fetchApi(`/quotes/live?tickers=${uniqueTickers}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    liveQuotes = data.data || {};
+                    // Re-render to inject live data
+                    if (scannerViewMode === 'table') {
+                        renderScannerTable(sortResults(lastResults));
+                    } else {
+                        renderGrid(sortResults(lastResults));
+                    }
+                    updateWatchlistAggregateStats();
+                }
+            } catch (err) {
+                console.error('Failed to fetch live quotes:', err);
+            }
+        }
+        
+        function updateWatchlistAggregateStats() {
+            if (!activeScanner || !activeScanner.startsWith('wl-')) return;
+            
+            const metaDiv = document.getElementById('results-meta');
+            let html = `<span class="results-count-pill">${lastResults.length} stocks</span>`;
+            
+            if (lastResults.length > 0) {
+                // Calculate average equal-weighted daily return
+                let totalDailyPct = 0;
+                let validCount = 0;
+                
+                // Calculate XIRR cash flows
+                const cashFlows = [];
+                
+                lastResults.forEach(r => {
+                    const live = liveQuotes[r.Ticker];
+                    const currentPrice = live ? live.price : r.Close;
+                    
+                    if (live && live.change_pct !== undefined) {
+                        totalDailyPct += live.change_pct;
+                        validCount++;
+                    }
+                    
+                    // Add XIRR cash flows
+                    if (r.entry_date && r.entry_price) {
+                        cashFlows.push({ date: new Date(r.entry_date), amount: -r.entry_price }); // Entry (buy)
+                        cashFlows.push({ date: new Date(), amount: currentPrice }); // Current value (sell)
+                    }
+                });
+                
+                if (validCount > 0) {
+                    const avgDaily = (totalDailyPct / validCount).toFixed(2);
+                    const colorClass = avgDaily >= 0 ? 'pct-pos' : 'pct-neg';
+                    const sign = avgDaily > 0 ? '+' : '';
+                    html += ` <span style="margin-left: 12px; font-weight: 600;">Today: <span class="${colorClass}">${sign}${avgDaily}%</span></span>`;
+                }
+                
+                if (cashFlows.length >= 2) {
+                    const xirr = calculateXIRR(cashFlows);
+                    if (xirr !== null) {
+                        const xirrPct = (xirr * 100).toFixed(2);
+                        const colorClass = xirrPct >= 0 ? 'pct-pos' : 'pct-neg';
+                        const sign = xirrPct > 0 ? '+' : '';
+                        html += ` <span style="margin-left: 12px; font-weight: 600;">XIRR: <span class="${colorClass}">${sign}${xirrPct}%</span></span>`;
+                    }
+                }
+                
+                // Total Return
+                let totalCost = 0;
+                let totalValue = 0;
+                lastResults.forEach(r => {
+                    if (r.entry_price) {
+                        totalCost += r.entry_price;
+                        const live = liveQuotes[r.Ticker];
+                        totalValue += live ? live.price : r.Close;
+                    }
+                });
+                
+                if (totalCost > 0) {
+                    const totalRet = (((totalValue - totalCost) / totalCost) * 100).toFixed(2);
+                    const colorClass = totalRet >= 0 ? 'pct-pos' : 'pct-neg';
+                    const sign = totalRet > 0 ? '+' : '';
+                    html += ` <span style="margin-left: 12px; font-weight: 600;">Total Ret: <span class="${colorClass}">${sign}${totalRet}%</span></span>`;
+                }
+            }
+            
+            metaDiv.innerHTML = html;
         }
 
         function getWatchlistDropdownHtml(ticker) {
@@ -4198,6 +4332,7 @@
                                     <th style="width: 40px;"></th>
                                     <th data-ksort="ticker" class="sortable">Ticker</th>
                                     <th data-ksort="close" class="sortable">Price</th>
+                                    ${activeScanner && activeScanner.startsWith('wl-') ? '<th title="Live Daily Return">Live Day%</th><th title="Total Return since Entry">Total Ret%</th>' : ''}
                                     ${currentMarket === 'US' ? `<th data-ksort="sector" class="sortable">Sector</th>
                                     <th data-ksort="sector_rank_1d" class="sortable" title="Sector Rank 1D">sec1D</th>
                                     <th data-ksort="sector_rank_1w" class="sortable" title="Sector Rank 1W">sec1W</th>
@@ -4237,7 +4372,27 @@
                 html += `<tr>
                                     <td style="padding-left: 8px;">${getWatchlistDropdownHtml(s.ticker)}</td>
                                     <td style="display:flex;align-items:center;">${getStageBadge(s.stage)}<a href="#" onclick="event.preventDefault(); fetchStockDetail('${s.ticker}')" style="color:var(--accent);text-decoration:none;font-weight:600;">${s.ticker}</a> <span style="margin-left:6px">${stagePill}</span></td>
-                                    <td>${fmtPrice(s.close)}</td>
+                                    <td>${fmtPrice(s.close)}</td>`;
+                                    
+                if (activeScanner && activeScanner.startsWith('wl-')) {
+                    const live = liveQuotes[s.ticker];
+                    let dailyHtml = '—';
+                    let totalHtml = '—';
+                    
+                    if (live && live.change_pct !== undefined) {
+                        dailyHtml = fmtPct(live.change_pct / 100);
+                    }
+                    
+                    if (s.entry_price) {
+                        const currentPrice = live ? live.price : s.close;
+                        const totalRet = (currentPrice - s.entry_price) / s.entry_price;
+                        totalHtml = fmtPct(totalRet);
+                    }
+                    
+                    html += `<td>${dailyHtml}</td><td>${totalHtml}</td>`;
+                }
+                
+                html += `
                                     ${currentMarket === 'US' ? `<td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1d || '—'}</td>
                                     <td style="color:var(--text-secondary);font-size:0.8rem;">${s.sector_rank_1w || '—'}</td>
@@ -5036,6 +5191,26 @@
                     : stock.gap_down
                         ? '<span class="card-stage-pill pill-gap-dn">Gap Dn</span>'
                         : '';
+                        
+            let liveReturnHtml = '';
+            if (activeScanner && activeScanner.startsWith('wl-')) {
+                const live = liveQuotes[stock.ticker];
+                
+                if (live && live.change_pct !== undefined) {
+                    const dailyPct = live.change_pct.toFixed(2);
+                    const dClass = live.change_pct >= 0 ? 'positive' : 'negative';
+                    const sign = live.change_pct > 0 ? '+' : '';
+                    liveReturnHtml += `<span class="metric-chip ${dClass}" title="Live Daily Return" style="font-weight:bold;">Day ${sign}${dailyPct}%</span>`;
+                }
+                
+                if (stock.entry_price) {
+                    const currentPrice = live ? live.price : stock.close;
+                    const totalRet = (((currentPrice - stock.entry_price) / stock.entry_price) * 100).toFixed(2);
+                    const tClass = totalRet >= 0 ? 'positive' : 'negative';
+                    const sign = totalRet > 0 ? '+' : '';
+                    liveReturnHtml += `<span class="metric-chip ${tClass}" title="Total Return since Entry" style="font-weight:bold;">Total ${sign}${totalRet}%</span>`;
+                }
+            }
 
             const card = document.createElement('div');
             card.className = 'chart-card';
@@ -5057,6 +5232,7 @@
               </div>
           </div>
           <div class="card-metrics">
+            ${liveReturnHtml}
             <span class="metric-chip ${rsClass}" title="RS 1Y">RS&nbsp;${rs}</span>
             <span class="metric-chip ${rs6mClass}" title="RS 6M">6M&nbsp;${rs6m}</span>
             <span class="metric-chip ${rs3mClass}" title="RS 3M">3M&nbsp;${rs3m}</span>

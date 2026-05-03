@@ -17,6 +17,7 @@ from api.routers import watchlist_data
 from api.routers import lev_etf
 from api.routers import trade_portal
 from api.routers import portfolio
+from api.routers import quotes
 from api.services.auth_service import init_user_tables
 from api.routers.screener import init_screener_tables
 from api.routers.portfolio import init_portfolio_tables
@@ -65,6 +66,7 @@ app.include_router(watchlist_data.router)
 app.include_router(lev_etf.router)
 app.include_router(trade_portal.router)
 app.include_router(portfolio.router)
+app.include_router(quotes.router)
 
 
 @app.get("/", include_in_schema=False)

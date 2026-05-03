@@ -57,8 +57,8 @@ def delete_watchlist(watchlist_id: int, user_id: int) -> bool:
         if cursor.fetchone() is None:
             return False
 
-        # Delete child rows first (watchlist_stocks has FK → watchlists)
-        child_sql = "DELETE FROM watchlist_stocks WHERE watchlist_id = ?"
+        # Delete child rows first (watchlist_portfolio has FK → watchlists)
+        child_sql = "DELETE FROM watchlist_portfolio WHERE watchlist_id = ?"
         if is_pg: child_sql = child_sql.replace('?', '%s')
         cursor.execute(child_sql, (watchlist_id,))
 
@@ -143,17 +143,17 @@ def get_watchlist_stocks(
     # Join with screen_data for live metrics using fetch_all so it hits the live database
     latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
     sql = f"""
-        SELECT ws.ticker AS "Ticker", s.*,
+        SELECT wp.ticker AS "Ticker", wp.entry_price, wp.entry_date, s.*,
         sr.Rank_1D AS Sector_Rank_1D, sr.Rank_1W AS Sector_Rank_1W,
         sr.Rank_1M AS Sector_Rank_1M, sr.Rank_3M AS Sector_Rank_3M, sr.Rank_6M AS Sector_Rank_6M,
         ir.Rank_1D AS Industry_Rank_1D, ir.Rank_1W AS Industry_Rank_1W,
         ir.Rank_1M AS Industry_Rank_1M, ir.Rank_3M AS Industry_Rank_3M, ir.Rank_6M AS Industry_Rank_6M
-        FROM watchlist_stocks ws
-        LEFT JOIN screen_data s ON s.Ticker = ws.ticker
+        FROM watchlist_portfolio wp
+        LEFT JOIN screen_data s ON s.Ticker = wp.ticker
         LEFT JOIN industry_ranks sr ON s.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query}
         LEFT JOIN industry_ranks ir ON s.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query}
-        WHERE ws.watchlist_id = ?{extra_where}
-        ORDER BY ws.added_at DESC
+        WHERE wp.watchlist_id = ? AND wp.status = 'ACTIVE'{extra_where}
+        ORDER BY wp.entry_date DESC
     """
     return fetch_all(sql, tuple(params))
 
@@ -172,17 +172,30 @@ def add_stock_to_watchlist(watchlist_id: int, user_id: int, ticker: str) -> bool
         
     with get_user_db() as conn:
         cursor = conn.cursor()
-        sql = "INSERT INTO watchlist_stocks (watchlist_id, ticker) VALUES (?, ?)"
         from api.config import DATABASE_URL
-        # Postgres ON CONFLICT DO NOTHING vs SQLite INSERT OR IGNORE
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            sql = "INSERT INTO watchlist_stocks (watchlist_id, ticker) VALUES (%s, %s) ON CONFLICT DO NOTHING"
-        else:
-            sql = "INSERT OR IGNORE INTO watchlist_stocks (watchlist_id, ticker) VALUES (?, ?)"
+        is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+        
+        # Check if already active
+        check_sql = "SELECT id FROM watchlist_portfolio WHERE watchlist_id=? AND ticker=? AND status='ACTIVE'"
+        if is_pg: check_sql = check_sql.replace('?', '%s')
+        cursor.execute(check_sql, (watchlist_id, ticker))
+        if cursor.fetchone():
+            return False # Already in watchlist
             
-        cursor.execute(sql, (watchlist_id, ticker))
+        if is_pg:
+            sql = """
+                INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_price, status) 
+                VALUES (%s, %s, (SELECT Close FROM screen_data WHERE Ticker = %s LIMIT 1), 'ACTIVE')
+            """
+            cursor.execute(sql, (watchlist_id, ticker, ticker))
+        else:
+            sql = """
+                INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_price, status) 
+                VALUES (?, ?, (SELECT Close FROM screen_data WHERE Ticker = ? LIMIT 1), 'ACTIVE')
+            """
+            cursor.execute(sql, (watchlist_id, ticker, ticker))
+            
         conn.commit()
-        # rowcount represents inserted rows. If 0, it means conflict/ignored
         return cursor.rowcount > 0
 
 
@@ -196,12 +209,26 @@ def remove_stock_from_watchlist(watchlist_id: int, user_id: int, ticker: str) ->
         
     with get_user_db() as conn:
         cursor = conn.cursor()
-        sql = "DELETE FROM watchlist_stocks WHERE watchlist_id = ? AND ticker = ?"
         from api.config import DATABASE_URL
-        if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-            sql = sql.replace('?', '%s')
+        is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+        
+        if is_pg:
+            sql = """
+                UPDATE watchlist_portfolio 
+                SET status = 'REMOVED', exit_date = CURRENT_TIMESTAMP, 
+                    exit_price = (SELECT Close FROM screen_data WHERE Ticker = %s LIMIT 1)
+                WHERE watchlist_id = %s AND ticker = %s AND status = 'ACTIVE'
+            """
+            cursor.execute(sql, (ticker.upper(), watchlist_id, ticker.upper()))
+        else:
+            sql = """
+                UPDATE watchlist_portfolio 
+                SET status = 'REMOVED', exit_date = datetime('now'), 
+                    exit_price = (SELECT Close FROM screen_data WHERE Ticker = ? LIMIT 1)
+                WHERE watchlist_id = ? AND ticker = ? AND status = 'ACTIVE'
+            """
+            cursor.execute(sql, (ticker.upper(), watchlist_id, ticker.upper()))
             
-        cursor.execute(sql, (watchlist_id, ticker.upper()))
         conn.commit()
         return cursor.rowcount > 0
 
@@ -210,10 +237,10 @@ def ticker_in_watchlists(user_id: int, ticker: str) -> List[int]:
     """Return list of watchlist IDs that contain this ticker for the user."""
     rows = fetch_all(
         """
-        SELECT ws.watchlist_id 
-        FROM watchlist_stocks ws
-        INNER JOIN watchlists w ON w.id = ws.watchlist_id
-        WHERE w.user_id = ? AND ws.ticker = ?
+        SELECT wp.watchlist_id 
+        FROM watchlist_portfolio wp
+        INNER JOIN watchlists w ON w.id = wp.watchlist_id
+        WHERE w.user_id = ? AND wp.ticker = ? AND wp.status = 'ACTIVE'
         """,
         (user_id, ticker.upper())
     )

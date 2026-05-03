@@ -65,6 +65,39 @@ def init_user_tables() -> None:
             );
         """)
         
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS watchlist_portfolio (
+                id            {wls_id_type},
+                watchlist_id  INTEGER NOT NULL,
+                ticker        TEXT NOT NULL,
+                entry_date    TIMESTAMP {now_func},
+                entry_price   REAL,
+                exit_date     TIMESTAMP,
+                exit_price    REAL,
+                status        TEXT DEFAULT 'ACTIVE',
+                FOREIGN KEY (watchlist_id) REFERENCES watchlists(id)
+            );
+        """)
+        
+        # ── Safe Data Migration: watchlist_stocks -> watchlist_portfolio ──
+        # Check if watchlist_portfolio is empty but watchlist_stocks has data
+        cursor.execute("SELECT COUNT(*) FROM watchlist_portfolio")
+        port_count = cursor.fetchone()[0]
+        if port_count == 0:
+            cursor.execute("SELECT COUNT(*) FROM watchlist_stocks")
+            stock_count = cursor.fetchone()[0]
+            if stock_count > 0:
+                print(f"📦 Migrating {stock_count} watchlist stocks to new portfolio ledger...")
+                # We attempt to get the most recent closing price from screen_data as the entry_price
+                migration_sql = """
+                    INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status)
+                    SELECT ws.watchlist_id, ws.ticker, ws.added_at, s.Close, 'ACTIVE'
+                    FROM watchlist_stocks ws
+                    LEFT JOIN screen_data s ON ws.ticker = s.Ticker
+                """
+                cursor.execute(migration_sql)
+                print("✅ Migration complete.")
+        
         # Admin Analytics Tables
         session_id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
         event_id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
