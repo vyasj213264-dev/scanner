@@ -306,3 +306,67 @@ def debug_backfill_prices():
         logs.append(f"Error: {e}\n{traceback.format_exc()}")
     
     return {"status": "done", "logs": logs}
+
+@router.get("/debug/backfill-yf", summary="Backfill entry prices using yfinance April 30 close")
+def debug_backfill_yf():
+    """Use yfinance to get actual April 30 closing price for all portfolio entries and update entry_price."""
+    import traceback
+    import yfinance as yf
+    from api.database import get_user_db
+    from api.config import DATABASE_URL
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    logs = []
+    try:
+        # Get all active portfolio tickers
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, ticker, entry_price FROM watchlist_portfolio WHERE status = 'ACTIVE'")
+            all_rows = [dict(r) for r in cursor.fetchall()]
+            
+        unique_tickers = list(set(r['ticker'] for r in all_rows))
+        logs.append(f"Found {len(all_rows)} active entries, {len(unique_tickers)} unique tickers.")
+        
+        # Download April 28 - May 1 data to capture April 30 close
+        data = yf.download(unique_tickers, start="2026-04-28", end="2026-05-01", progress=False, group_by="ticker")
+        logs.append(f"yfinance returned shape: {data.shape}")
+        
+        prices = {}
+        if len(unique_tickers) == 1:
+            ticker = unique_tickers[0]
+            if not data.empty:
+                prices[ticker] = float(data['Close'].iloc[-1])
+        else:
+            for ticker in unique_tickers:
+                try:
+                    if ticker in data and not data[ticker].empty:
+                        prices[ticker] = float(data[ticker]['Close'].iloc[-1])
+                except:
+                    pass
+        
+        logs.append(f"Got April 30 close prices for {len(prices)} tickers.")
+        if len(prices) > 0:
+            sample = list(prices.items())[:5]
+            logs.append(f"Sample prices: {sample}")
+        
+        # Update entry_price
+        updated = 0
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            for row in all_rows:
+                pid = row['id']
+                tick = row['ticker']
+                price = prices.get(tick)
+                if price is not None:
+                    if is_postgres:
+                        cursor.execute("UPDATE watchlist_portfolio SET entry_price = %s WHERE id = %s", (price, pid))
+                    else:
+                        cursor.execute("UPDATE watchlist_portfolio SET entry_price = ? WHERE id = ?", (price, pid))
+                    updated += 1
+            conn.commit()
+        logs.append(f"Updated {updated} entries with April 30 close prices.")
+        
+    except Exception as e:
+        logs.append(f"Error: {e}\n{traceback.format_exc()}")
+    
+    return {"status": "done", "logs": logs}
