@@ -268,6 +268,29 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Watchlist Portfolios -->
+            <div class="card" style="grid-column: 1 / -1; margin-top: 24px;">
+                <h3 style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1rem;">📋 All Watchlist Portfolios</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Owner</th>
+                                <th>Email</th>
+                                <th>Watchlist</th>
+                                <th>Active</th>
+                                <th>Removed</th>
+                                <th>Created</th>
+                                <th>Stocks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watchlists-body">
+                            <!-- JS populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -338,6 +361,31 @@
                     </tr>
                 `).join('');
                 document.getElementById('users-body').innerHTML = usersHtml || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No registered users</td></tr>';
+
+                // Watchlist portfolios
+                const watchlistsHtml = (data.watchlists || []).map(wl => {
+                    const activeStocks = wl.stocks.filter(s => s.status === 'ACTIVE');
+                    const removedStocks = wl.stocks.filter(s => s.status === 'REMOVED');
+                    const tickerPills = activeStocks.map(s => {
+                        const priceTag = s.entry_price ? `@$${Number(s.entry_price).toFixed(2)}` : '';
+                        return `<span style="display:inline-block;padding:2px 8px;margin:2px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:0.78rem;"><span style="color:var(--accent);font-weight:600;">${s.ticker}</span> <span style="color:var(--text-muted);">${priceTag}</span></span>`;
+                    }).join('');
+                    const removedPills = removedStocks.map(s => {
+                        return `<span style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;font-size:0.78rem;text-decoration:line-through;"><span style="color:var(--red);">${s.ticker}</span></span>`;
+                    }).join('');
+                    return `
+                        <tr>
+                            <td style="font-weight:500;">${wl.user_name || '—'}</td>
+                            <td style="font-size:0.85rem;color:var(--text-muted);">${wl.email}</td>
+                            <td><span style="font-weight:600;color:var(--accent);">${wl.name}</span></td>
+                            <td style="font-weight:700;color:var(--green);text-align:center;">${wl.active_count}</td>
+                            <td style="font-weight:700;color:var(--red);text-align:center;">${wl.removed_count}</td>
+                            <td style="font-size:0.8rem;color:var(--text-muted);">${wl.created_at ? new Date(wl.created_at).toLocaleDateString() : '—'}</td>
+                            <td style="max-width:400px;">${tickerPills}${removedPills || ''}</td>
+                        </tr>
+                    `;
+                }).join('');
+                document.getElementById('watchlists-body').innerHTML = watchlistsHtml || '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No watchlists found</td></tr>';
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';

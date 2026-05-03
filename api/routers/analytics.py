@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from api.models.user import User, UserEvent
 from api.routers.auth import require_user
-from api.database import get_db, fetch_all, fetch_one
+from api.database import get_db, get_user_db, fetch_all, fetch_one
 from api.config import DATABASE_URL
 
 router = APIRouter(prefix="/api/v1", tags=["Analytics"])
@@ -147,10 +147,59 @@ def get_admin_stats():
         for k, v in ticker_time.items()
     ], key=lambda x: x['seconds'], reverse=True)[:50]
 
+    # 6. Watchlist portfolios across all users
+    watchlist_data = []
+    try:
+        with get_user_db() as uconn:
+            uc = uconn.cursor()
+            is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
+            
+            # Get all watchlists with owner info
+            uc.execute("""
+                SELECT w.id, w.name, w.created_at, u.name as user_name, u.email
+                FROM watchlists w
+                JOIN users u ON w.user_id = u.id
+                ORDER BY u.email, w.name
+            """)
+            wl_rows = uc.fetchall()
+            
+            for wl in wl_rows:
+                wl_dict = dict(wl)
+                wl_id = wl_dict['id']
+                
+                # Get active stocks in this watchlist
+                if is_pg:
+                    uc.execute("SELECT ticker, entry_price, entry_date, status FROM watchlist_portfolio WHERE watchlist_id = %s ORDER BY entry_date DESC", (wl_id,))
+                else:
+                    uc.execute("SELECT ticker, entry_price, entry_date, status FROM watchlist_portfolio WHERE watchlist_id = ? ORDER BY entry_date DESC", (wl_id,))
+                stocks = [dict(s) for s in uc.fetchall()]
+                
+                active_stocks = [s for s in stocks if s.get('status') == 'ACTIVE']
+                removed_stocks = [s for s in stocks if s.get('status') == 'REMOVED']
+                
+                watchlist_data.append({
+                    "id": wl_id,
+                    "name": wl_dict['name'],
+                    "created_at": str(wl_dict.get('created_at', '')),
+                    "user_name": wl_dict.get('user_name', ''),
+                    "email": wl_dict.get('email', ''),
+                    "active_count": len(active_stocks),
+                    "removed_count": len(removed_stocks),
+                    "stocks": [{
+                        "ticker": s['ticker'],
+                        "entry_price": s.get('entry_price'),
+                        "entry_date": str(s.get('entry_date', '')),
+                        "status": s.get('status', 'ACTIVE')
+                    } for s in stocks]
+                })
+    except Exception as e:
+        print(f"Admin stats watchlist error: {e}")
+
     return {
         "total_users": total_users,
         "recent_sessions": recent_sessions,
         "top_events": top_events,
         "all_users": all_users,
-        "top_ticker_time": top_ticker_time
+        "top_ticker_time": top_ticker_time,
+        "watchlists": watchlist_data
     }
