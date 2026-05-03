@@ -619,7 +619,7 @@ def run_ingest(market='US'):
     # during the long (20-30 min) yfinance download phase.
     all_data = []
     all_ohlcv = []
-    chunk_size = 100
+    chunk_size = 30
     OHLCV_RETENTION_DAYS = 252  # ~1 year of trading days (charts only; portfolio sim is disabled)
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
@@ -636,10 +636,10 @@ def run_ingest(market='US'):
         
         for attempt in range(max_retries):
             try:
-                # Add a baseline sleep to avoid hitting the API too fast
-                time.sleep(5)
-                # threads=False is CRITICAL for GitHub Actions otherwise Yahoo instantly rate-limits the concurrent connections
-                temp_data = yf.download(chunk, period=HISTORY_PERIOD, group_by='ticker', progress=False, threads=False)
+                # Use threads=True with yfinance==1.2.0 (pinned) to avoid dict parsing bug, 
+                # while small chunk_size prevents rate-limiting
+                time.sleep(1.5)
+                temp_data = yf.download(chunk, period=HISTORY_PERIOD, group_by='ticker', progress=False, threads=True)
                 
                 # yfinance sometimes returns an empty dataframe when silently rate limited
                 if temp_data.empty:
