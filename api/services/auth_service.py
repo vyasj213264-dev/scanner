@@ -94,15 +94,23 @@ def init_user_tables() -> None:
             if old_stocks and len(old_stocks) > 0:
                 print(f"📦 Migrating {len(old_stocks)} missing watchlist stocks to portfolio ledger...")
                 
-                # Fetch prices from scanner DB
+                # Fetch prices from scanner DB (case-safe column access)
                 prices = {}
                 try:
                     from api.database import get_db
                     with get_db() as scan_conn:
                         sc = scan_conn.cursor()
-                        sc.execute("SELECT Ticker, Close FROM screen_data")
-                        for r in sc.fetchall():
-                            prices[r[0] if isinstance(r, tuple) else dict(r)['Ticker']] = r[1] if isinstance(r, tuple) else dict(r)['Close']
+                        sc.execute("SELECT * FROM screen_data LIMIT 1")
+                        sample = sc.fetchone()
+                        if sample:
+                            cols = list(dict(sample).keys())
+                            ticker_col = next((c for c in cols if c.lower() == 'ticker'), None)
+                            close_col = next((c for c in cols if c.lower() == 'close'), None)
+                            if ticker_col and close_col:
+                                sc.execute(f'SELECT "{ticker_col}", "{close_col}" FROM screen_data')
+                                for r in sc.fetchall():
+                                    rd = dict(r)
+                                    prices[rd[ticker_col]] = rd[close_col]
                 except Exception as e:
                     print("Could not fetch prices for migration:", e)
                 
