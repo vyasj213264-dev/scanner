@@ -157,6 +157,16 @@ def _nan_to_none(val):
     except (TypeError, ValueError):
         return None
 
+def _clean_yf_df(df):
+    """Aggressively coerces OHLCV to numeric, destroying any nested dicts returned by yfinance."""
+    if df is None or df.empty:
+        return df
+    cols_to_clean = ['Open', 'High', 'Low', 'Close', 'Volume']
+    for c in cols_to_clean:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+    return df.dropna(subset=['Close'])
+
 def _safe_bool(val):
     """Convert a pandas/numpy boolean to Python bool, treating NaN as False."""
     try:
@@ -625,6 +635,7 @@ def run_ingest(market='US'):
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
     benchmark_data = yf.download(benchmark_ticker, period=HISTORY_PERIOD, progress=False)
+    benchmark_data = _clean_yf_df(benchmark_data)
     
     for i in range(0, len(tickers), chunk_size):
         chunk = tickers[i:min(i + chunk_size, len(tickers))]
@@ -659,6 +670,11 @@ def run_ingest(market='US'):
             print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts. Continuing to next chunk...", flush=True)
             continue
             
+        # Clean chunks to strip out any dictionaries
+        for ticker in chunk:
+            if ticker in data and not data[ticker].empty:
+                data[ticker] = _clean_yf_df(data[ticker])
+
         success_count = 0
         skipped_count = 0
         for ticker in chunk:
@@ -667,7 +683,6 @@ def run_ingest(market='US'):
             else:
                 try:
                     df = data[ticker].copy()
-                    df.dropna(subset=['Close'], inplace=True)
                 except KeyError:
                     continue
             
@@ -869,6 +884,8 @@ def run_ingest(market='US'):
                     else:
                         df_etf = etf_data.dropna(subset=['Close'])
                     
+                    df_etf = _clean_yf_df(df_etf)
+                    
                     # Build sim DataFrame (full history for portfolio engine)
                     df_sim = df_etf[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
                     df_sim.index.name = 'Date'
@@ -992,11 +1009,13 @@ def run_ingest(market='US'):
                 for lev_ticker in lev_chunk:
                     try:
                         if len(lev_chunk) > 1:
-                            df_lev = lev_data[lev_ticker].dropna(subset=['Close'])
+                            df_lev = lev_data[lev_ticker].copy()
                         else:
-                            df_lev = lev_data.dropna(subset=['Close'])
+                            df_lev = lev_data.copy()
+                            
+                        df_lev = _clean_yf_df(df_lev)
                         
-                        if len(df_lev) < 5:
+                        if df_lev is None or df_lev.empty or len(df_lev) < 5:
                             continue
                         
                         # Store OHLCV for chart rendering
