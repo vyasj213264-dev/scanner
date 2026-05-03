@@ -219,3 +219,69 @@ def debug_migrate_watchlists():
         logs.append(f"Fatal error: {e}\n{traceback.format_exc()}")
         
     return {"status": "done", "logs": logs}
+
+@router.get("/debug/backfill-prices", summary="Backfill null entry prices")
+def debug_backfill_prices():
+    import traceback
+    from api.database import get_user_db, get_db
+    from api.config import DATABASE_URL
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    logs = []
+    try:
+        # Step 1: Get all portfolio entries with null entry_price
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, ticker FROM watchlist_portfolio WHERE entry_price IS NULL AND status = 'ACTIVE'")
+            null_rows = cursor.fetchall()
+            logs.append(f"Found {len(null_rows)} entries with null entry_price.")
+        
+        if len(null_rows) == 0:
+            return {"status": "done", "logs": logs}
+        
+        # Step 2: Fetch prices from screen_data (case-safe)
+        prices = {}
+        try:
+            with get_db() as scan_conn:
+                sc = scan_conn.cursor()
+                sc.execute("SELECT * FROM screen_data LIMIT 1")
+                sample = sc.fetchone()
+                if sample:
+                    cols = list(dict(sample).keys())
+                    logs.append(f"screen_data columns sample: {cols[:10]}")
+                    # Find the right column names
+                    ticker_col = next((c for c in cols if c.lower() == 'ticker'), None)
+                    close_col = next((c for c in cols if c.lower() == 'close'), None)
+                    logs.append(f"Using ticker_col={ticker_col}, close_col={close_col}")
+                    
+                    if ticker_col and close_col:
+                        sc.execute(f'SELECT "{ticker_col}", "{close_col}" FROM screen_data')
+                        for r in sc.fetchall():
+                            rd = dict(r)
+                            prices[rd[ticker_col]] = rd[close_col]
+                        logs.append(f"Fetched prices for {len(prices)} tickers.")
+        except Exception as e:
+            logs.append(f"Price fetch error: {e}")
+        
+        # Step 3: Update
+        updated = 0
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            for row in null_rows:
+                rd = dict(row)
+                pid = rd['id']
+                tick = rd['ticker']
+                price = prices.get(tick)
+                if price is not None:
+                    if is_postgres:
+                        cursor.execute("UPDATE watchlist_portfolio SET entry_price = %s WHERE id = %s", (price, pid))
+                    else:
+                        cursor.execute("UPDATE watchlist_portfolio SET entry_price = ? WHERE id = ?", (price, pid))
+                    updated += 1
+            conn.commit()
+        logs.append(f"Updated {updated} entries with prices.")
+        
+    except Exception as e:
+        logs.append(f"Error: {e}\n{traceback.format_exc()}")
+    
+    return {"status": "done", "logs": logs}
