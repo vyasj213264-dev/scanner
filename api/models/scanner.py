@@ -1,7 +1,7 @@
 """
 Pydantic response models for the TradersChart API.
 """
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
 from pydantic.alias_generators import to_pascal
@@ -79,7 +79,7 @@ class StockResult(BaseModel):
     consolidation_low_5: Optional[float] = Field(None, validation_alias="Consolidation_Low_5")
     # Portfolio ledger fields (only present for watchlist stocks)
     entry_price: Optional[float] = Field(None)
-    entry_date: Optional[str] = Field(None)
+    entry_date: Optional[Any] = Field(None)
 
     # Serialize with field names (lowercase snake_case), NOT validation aliases
     model_config = ConfigDict(populate_by_name=True)
