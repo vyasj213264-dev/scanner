@@ -120,3 +120,102 @@ def remove_stock(watchlist_id: int, ticker: str, user: User = Depends(require_us
     if not ok:
         raise HTTPException(status_code=404, detail="Stock or watchlist not found")
     return {"removed": ticker.upper()}
+@router.get("/debug/migrate", summary="Force migration and debug")
+def debug_migrate_watchlists():
+    import traceback
+    from api.database import get_user_db, get_db
+    from api.config import DATABASE_URL
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    logs = []
+    try:
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            
+            # Create table just in case it rolled back
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS watchlist_portfolio (
+                    id            SERIAL PRIMARY KEY,
+                    watchlist_id  INTEGER NOT NULL,
+                    ticker        TEXT NOT NULL,
+                    entry_date    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    entry_price   REAL,
+                    exit_date     TIMESTAMP,
+                    exit_price    REAL,
+                    status        TEXT DEFAULT 'ACTIVE'
+                );
+            """ if is_postgres else """
+                CREATE TABLE IF NOT EXISTS watchlist_portfolio (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    watchlist_id  INTEGER NOT NULL,
+                    ticker        TEXT NOT NULL,
+                    entry_date    TIMESTAMP DEFAULT (datetime('now')),
+                    entry_price   REAL,
+                    exit_date     TIMESTAMP,
+                    exit_price    REAL,
+                    status        TEXT DEFAULT 'ACTIVE',
+                    FOREIGN KEY (watchlist_id) REFERENCES watchlists(id)
+                );
+            """)
+            conn.commit()
+            logs.append("Table verified/created.")
+            
+            cursor.execute("""
+                SELECT ws.watchlist_id, ws.ticker, ws.added_at 
+                FROM watchlist_stocks ws
+                LEFT JOIN watchlist_portfolio wp 
+                  ON ws.watchlist_id = wp.watchlist_id AND ws.ticker = wp.ticker
+                WHERE wp.id IS NULL
+            """)
+            old_stocks = cursor.fetchall()
+            logs.append(f"Found {len(old_stocks)} missing stocks.")
+            
+            if len(old_stocks) > 0:
+                # Fetch prices
+                prices = {}
+                try:
+                    with get_db() as scan_conn:
+                        sc = scan_conn.cursor()
+                        sc.execute("SELECT Ticker, Close FROM screen_data")
+                        for r in sc.fetchall():
+                            if isinstance(r, dict):
+                                prices[r['Ticker']] = r['Close']
+                            elif hasattr(r, 'keys'): # DictRow
+                                prices[dict(r)['Ticker']] = dict(r)['Close']
+                            else:
+                                prices[r[0]] = r[1]
+                except Exception as e:
+                    logs.append(f"Could not fetch prices: {e}")
+                
+                success = 0
+                for row in old_stocks:
+                    try:
+                        if isinstance(row, dict):
+                            r_dict = row
+                        elif hasattr(row, 'keys'):
+                            r_dict = dict(row)
+                        else:
+                            # In sqlite, row factory makes it behave like dict, but if not:
+                            r_dict = {'watchlist_id': row[0], 'ticker': row[1]}
+                            
+                        wid = r_dict['watchlist_id']
+                        tick = r_dict['ticker']
+                        price = prices.get(tick)
+                        
+                        if is_postgres:
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (%s, %s, %s, %s, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                        else:
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (?, ?, ?, ?, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                        
+                        conn.commit() # Commit each one so a single failure doesn't rollback all
+                        success += 1
+                    except Exception as e:
+                        conn.rollback()
+                        logs.append(f"Failed to migrate {tick}: {e}")
+                
+                logs.append(f"Successfully migrated {success} stocks.")
+            
+    except Exception as e:
+        logs.append(f"Fatal error: {e}\n{traceback.format_exc()}")
+        
+    return {"status": "done", "logs": logs}
