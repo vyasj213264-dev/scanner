@@ -3975,7 +3975,8 @@
                 if (!res.ok) throw new Error('Failed to remove stock');
 
                 showToast(`Removed ${ticker} from watchlist`, 'success');
-                event.target.closest('.wl-dropdown-menu').classList.remove('show');
+                const menu = event.target.closest('.wl-dropdown-menu');
+                if (menu) menu.classList.remove('show');
 
                 // Immediately update local array and rerender to remove the card/row
                 lastResults = lastResults.filter(s => s.ticker !== ticker);
