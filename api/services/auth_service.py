@@ -80,18 +80,19 @@ def init_user_tables() -> None:
         """)
         
         # ── Safe Data Migration: watchlist_stocks -> watchlist_portfolio ──
-        # Check if watchlist_portfolio is empty but watchlist_stocks has data
-        cursor.execute("SELECT COUNT(*) FROM watchlist_portfolio")
-        port_count = cursor.fetchone()[0]
-        if port_count == 0:
-            cursor.execute("SELECT COUNT(*) FROM watchlist_stocks")
-            stock_count = cursor.fetchone()[0]
-            if stock_count > 0:
-                print(f"📦 Migrating {stock_count} watchlist stocks to new portfolio ledger...")
-                
-                # Fetch all watchlist stocks
-                cursor.execute("SELECT watchlist_id, ticker, added_at FROM watchlist_stocks")
-                old_stocks = cursor.fetchall()
+        # Find any stocks in watchlist_stocks that haven't been copied to watchlist_portfolio yet
+        try:
+            cursor.execute("""
+                SELECT ws.watchlist_id, ws.ticker, ws.added_at 
+                FROM watchlist_stocks ws
+                LEFT JOIN watchlist_portfolio wp 
+                  ON ws.watchlist_id = wp.watchlist_id AND ws.ticker = wp.ticker
+                WHERE wp.id IS NULL
+            """)
+            old_stocks = cursor.fetchall()
+            
+            if old_stocks and len(old_stocks) > 0:
+                print(f"📦 Migrating {len(old_stocks)} missing watchlist stocks to portfolio ledger...")
                 
                 # Fetch prices from scanner DB
                 prices = {}
@@ -119,8 +120,9 @@ def init_user_tables() -> None:
                             cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (?, ?, ?, ?, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
                     except Exception as e:
                         print(f"Failed to migrate {tick}: {e}")
-                
                 print("✅ Migration complete.")
+        except Exception as e:
+            print(f"❌ Migration error: {e}")
         
         # Admin Analytics Tables
         session_id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
