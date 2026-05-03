@@ -88,14 +88,38 @@ def init_user_tables() -> None:
             stock_count = cursor.fetchone()[0]
             if stock_count > 0:
                 print(f"📦 Migrating {stock_count} watchlist stocks to new portfolio ledger...")
-                # We attempt to get the most recent closing price from screen_data as the entry_price
-                migration_sql = """
-                    INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status)
-                    SELECT ws.watchlist_id, ws.ticker, ws.added_at, s.Close, 'ACTIVE'
-                    FROM watchlist_stocks ws
-                    LEFT JOIN screen_data s ON ws.ticker = s.Ticker
-                """
-                cursor.execute(migration_sql)
+                
+                # Fetch all watchlist stocks
+                cursor.execute("SELECT watchlist_id, ticker, added_at FROM watchlist_stocks")
+                old_stocks = cursor.fetchall()
+                
+                # Fetch prices from scanner DB
+                prices = {}
+                try:
+                    from api.database import get_db
+                    with get_db() as scan_conn:
+                        sc = scan_conn.cursor()
+                        sc.execute("SELECT Ticker, Close FROM screen_data")
+                        for r in sc.fetchall():
+                            prices[r[0] if isinstance(r, tuple) else dict(r)['Ticker']] = r[1] if isinstance(r, tuple) else dict(r)['Close']
+                except Exception as e:
+                    print("Could not fetch prices for migration:", e)
+                
+                # Insert them one by one
+                for row in old_stocks:
+                    r_dict = dict(row)
+                    wid = r_dict['watchlist_id']
+                    tick = r_dict['ticker']
+                    price = prices.get(tick)
+                    
+                    try:
+                        if is_postgres:
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (%s, %s, %s, %s, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                        else:
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (?, ?, ?, ?, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                    except Exception as e:
+                        print(f"Failed to migrate {tick}: {e}")
+                
                 print("✅ Migration complete.")
         
         # Admin Analytics Tables
