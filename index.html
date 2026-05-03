@@ -6987,8 +6987,9 @@
             if (isSmallGrid) {
                 // ── Grid Card Charts ──────────────────────────────────
                 // For custom indices / formulas use LightweightCharts (TV can't handle them)
-                // For all other tickers use TradingView tv.js for live data
+                // We also force LightweightCharts for US Watchlists so we can draw the custom 8DMA Structure
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
+                const useLWC = (isFormula && currentMarket !== 'IN') || (isWatchlist && currentMarket === 'US');
 
                 if (isFormula && currentMarket === 'IN') {
                     // ── Indian market: no OHLCV data in DB, use TradingView with first representative ticker ──
@@ -7031,7 +7032,7 @@
                         s.onload = instantiateINTV;
                         document.head.appendChild(s);
                     }
-                } else if (isFormula) {
+                } else if (useLWC) {
                     // ── US market: LightweightCharts with OHLCV data from our API ──
                     container.style.position = 'relative';
                     const chartDiv = document.createElement('div');
@@ -7068,21 +7069,45 @@
                             });
                             candleSeries.setData(sliced);
 
-                            if (ohlcData.length >= 21) {
-                                const emaData = [];
-                                const k = 2 / (21 + 1);
-                                let ema = ohlcData[0].close;
-                                for (let i = 0; i < ohlcData.length; i++) {
-                                    ema = ohlcData[i].close * k + ema * (1 - k);
-                                    if (i >= 20) emaData.push({ time: ohlcData[i].time, value: ema });
+                            if (isWatchlist) {
+                                if (ohlcData.length >= 8) {
+                                    const addEma = (source, color, lw) => {
+                                        const emaData = [];
+                                        const k = 2 / (8 + 1);
+                                        let ema = ohlcData[0][source];
+                                        for (let i = 0; i < ohlcData.length; i++) {
+                                            ema = ohlcData[i][source] * k + ema * (1 - k);
+                                            if (i >= 7) emaData.push({ time: ohlcData[i].time, value: ema });
+                                        }
+                                        const emaSliced = emaData.slice(-(sliced.length));
+                                        const emaSeries = chart.addLineSeries({
+                                            color: color, lineWidth: lw,
+                                            crosshairMarkerVisible: false,
+                                            priceLineVisible: false, lastValueVisible: false
+                                        });
+                                        emaSeries.setData(emaSliced);
+                                    };
+                                    addEma('high', '#9ca3af', 1);     // Gray High
+                                    addEma('close', '#3b82f6', 1.5);  // Blue Close
+                                    addEma('low', '#9ca3af', 1);      // Gray Low
                                 }
-                                const emaSliced = emaData.slice(-(sliced.length));
-                                const emaSeries = chart.addLineSeries({
-                                    color: '#f59e0b', lineWidth: 1.5,
-                                    crosshairMarkerVisible: false,
-                                    priceLineVisible: false, lastValueVisible: false
-                                });
-                                emaSeries.setData(emaSliced);
+                            } else {
+                                if (ohlcData.length >= 21) {
+                                    const emaData = [];
+                                    const k = 2 / (21 + 1);
+                                    let ema = ohlcData[0].close;
+                                    for (let i = 0; i < ohlcData.length; i++) {
+                                        ema = ohlcData[i].close * k + ema * (1 - k);
+                                        if (i >= 20) emaData.push({ time: ohlcData[i].time, value: ema });
+                                    }
+                                    const emaSliced = emaData.slice(-(sliced.length));
+                                    const emaSeries = chart.addLineSeries({
+                                        color: '#f59e0b', lineWidth: 1.5,
+                                        crosshairMarkerVisible: false,
+                                        priceLineVisible: false, lastValueVisible: false
+                                    });
+                                    emaSeries.setData(emaSliced);
+                                }
                             }
 
                             chart.timeScale().fitContent();
