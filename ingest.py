@@ -860,7 +860,7 @@ def run_ingest(market='US'):
     if etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs (period={HISTORY_PERIOD})...", flush=True)
         try:
-            etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=True)
+            etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=False)
             
             for etf_ticker in etfs_to_download:
                 try:
@@ -982,7 +982,7 @@ def run_ingest(market='US'):
             lev_chunk = lev_to_download[lev_i:lev_i + lev_chunk_size]
             try:
                 time.sleep(2)  # Brief pause between chunks
-                lev_data = yf.download(lev_chunk, period=LEV_DOWNLOAD_PERIOD, group_by='ticker', threads=True)
+                lev_data = yf.download(lev_chunk, period=LEV_DOWNLOAD_PERIOD, group_by='ticker', threads=False)
                 
                 if lev_data is None or lev_data.empty:
                     print(f"  Lev chunk {lev_i//lev_chunk_size + 1}: empty data, skipping", flush=True)
@@ -1082,7 +1082,8 @@ def run_ingest(market='US'):
                             all_data.append(lev_record)
                             lev_success += 1
                     except Exception as lev_err:
-                        pass  # Silently skip individual lev ETF failures
+                        if lev_success == 0:  # Log first failure per chunk for debugging
+                            print(f"  Warning: {lev_ticker} processing failed: {lev_err}", flush=True)
                 
                 print(f"  Lev chunk {lev_i//lev_chunk_size + 1}/{(len(lev_to_download)//lev_chunk_size)+1}: {lev_success}/{len(lev_chunk)} processed", flush=True)
             except Exception as lev_batch_err:
