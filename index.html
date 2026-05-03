@@ -2347,12 +2347,22 @@
                         <option value="sector">Sector</option>
                         <option value="industry">Industry</option>
                     </select>
-                    <div style="margin-left:auto; display:flex; gap:4px; align-items:center;">
-                        <span class="sort-label" style="margin-right:4px;">View:</span>
-                        <div class="sort-group" id="scanner-view-toggle">
-                            <button class="sort-btn active" id="scvw-chart"
-                                onclick="setScannerView('chart')">Chart</button>
-                            <button class="sort-btn" id="scvw-table" onclick="setScannerView('table')">Table</button>
+                    <div style="margin-left:auto; display:flex; gap:12px; align-items:center;">
+                        <div id="wl-chart-mode-toggle" style="display:none; align-items:center; gap:4px; border-right:1px solid var(--border-light); padding-right:12px;">
+                            <span class="sort-label">Chart Type:</span>
+                            <div class="sort-group">
+                                <button class="sort-btn" id="wcm-live" onclick="setWatchlistChartMode('live')">Live</button>
+                                <button class="sort-btn active" id="wcm-8dma" onclick="setWatchlistChartMode('8dma')">8DMA</button>
+                                <button class="sort-btn" id="wcm-21dma" onclick="setWatchlistChartMode('21dma')">21DMA</button>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center;">
+                            <span class="sort-label" style="margin-right:4px;">View:</span>
+                            <div class="sort-group" id="scanner-view-toggle">
+                                <button class="sort-btn active" id="scvw-chart"
+                                    onclick="setScannerView('chart')">Chart</button>
+                                <button class="sort-btn" id="scvw-table" onclick="setScannerView('table')">Table</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2443,6 +2453,7 @@
         let activeSortDir = -1; // -1 for desc, 1 for asc
         let lastResults = [];
         let globalScannerCatalog = [];
+        let watchlistChartMode = '8dma'; // 'live', '8dma', '21dma'
 
         // Filter state for Sector/Industry
         let filterSectors = {}; // { "Tech": "include", "Finance": "exclude" }
@@ -3768,6 +3779,7 @@
             if (!force && activeScanner === scannerId) return;
             activeScanner = scannerId;
             activeWatchlist = null; // Clear watchlist context
+            updateWatchlistToggleVisibility();
             themesCategory = null;
             themesLevel = 'top';
             // Only reset sector/industry filters when switching to a NEW scanner,
@@ -4097,11 +4109,36 @@
         }
 
         // ── Scanner View Mode Toggle ──────────────────────────────
+        function updateWatchlistToggleVisibility() {
+            const wlToggle = document.getElementById('wl-chart-mode-toggle');
+            if (wlToggle) {
+                if (activeScanner && activeScanner.startsWith('wl-') && scannerViewMode === 'chart') {
+                    wlToggle.style.display = 'flex';
+                } else {
+                    wlToggle.style.display = 'none';
+                }
+            }
+        }
+
+        function setWatchlistChartMode(mode) {
+            watchlistChartMode = mode;
+            document.getElementById('wcm-live').classList.toggle('active', mode === 'live');
+            document.getElementById('wcm-8dma').classList.toggle('active', mode === '8dma');
+            document.getElementById('wcm-21dma').classList.toggle('active', mode === '21dma');
+            
+            // Re-render the grid with the new mode
+            if (scannerViewMode === 'chart' && activeScanner && activeScanner.startsWith('wl-')) {
+                renderGrid(sortResults(lastResults));
+            }
+        }
+
         function setScannerView(mode) {
             scannerViewMode = mode;
             themesViewMode = mode;
             document.getElementById('scvw-chart').classList.toggle('active', mode === 'chart');
             document.getElementById('scvw-table').classList.toggle('active', mode === 'table');
+            
+            updateWatchlistToggleVisibility();
 
             if (activeScanner === 'lev-etf' && levEtfData.length) {
                 if (mode === 'table') renderLevEtfTable(levEtfData);
@@ -6959,16 +6996,25 @@
             let chartStudies;
             if (isWatchlist) {
                 if (isSmallGrid) {
-                    // For Indian grids or non-US formula fallbacks
-                    chartStudies = [
-                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "high", in_0: 8, in_1: "high" } },
-                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "close", in_0: 8, in_1: "close" } },
-                        { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "low", in_0: 8, in_1: "low" } }
-                    ];
+                    if (watchlistChartMode === 'live' || watchlistChartMode === '8dma') {
+                        // For Indian grids or non-US formula fallbacks (if using 8DMA or live)
+                        chartStudies = [
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "high", in_0: 8, in_1: "high" } },
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "close", in_0: 8, in_1: "close" } },
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 8, source: "low", in_0: 8, in_1: "low" } }
+                        ];
+                    } else if (watchlistChartMode === '21dma') {
+                        chartStudies = [
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 21, source: "high", in_0: 21, in_1: "high" } },
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 21, source: "close", in_0: 21, in_1: "close" } },
+                            { id: 'MAExp@tv-basicstudies', inputs: { length: 21, source: "low", in_0: 21, in_1: "low" } }
+                        ];
+                    }
                 } else {
-                    // For the Detail View, use a single 8 EMA so it doesn't clutter the chart
+                    // For the Detail View, use a single EMA so it doesn't clutter the chart
+                    const detailEmaLength = watchlistChartMode === '21dma' ? 21 : 8;
                     chartStudies = [
-                        { id: 'MAExp@tv-basicstudies', inputs: { in_0: 8 } }
+                        { id: 'MAExp@tv-basicstudies', inputs: { in_0: detailEmaLength } }
                     ];
                 }
             } else {
@@ -6995,9 +7041,15 @@
             if (isSmallGrid) {
                 // ── Grid Card Charts ──────────────────────────────────
                 // For custom indices / formulas use LightweightCharts (TV can't handle them)
-                // We also force LightweightCharts for US Watchlists so we can draw the custom 8DMA Structure
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
-                const useLWC = (isFormula && currentMarket !== 'IN') || (isWatchlist && currentMarket === 'US');
+                let useLWC = false;
+                
+                if (isWatchlist && currentMarket === 'US') {
+                    // If viewing a US watchlist, force LightweightCharts ONLY if we want the custom 8DMA/21DMA structure
+                    useLWC = (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
+                } else {
+                    useLWC = (isFormula && currentMarket !== 'IN');
+                }
 
                 if (isFormula && currentMarket === 'IN') {
                     // ── Indian market: no OHLCV data in DB, use TradingView with first representative ticker ──
@@ -7078,8 +7130,10 @@
                             candleSeries.setData(sliced);
 
                             if (isWatchlist) {
-                                if (ohlcData.length >= 8) {
-                                    const k = 2 / (8 + 1);
+                                const maLength = watchlistChartMode === '21dma' ? 21 : 8;
+                                
+                                if (ohlcData.length >= maLength) {
+                                    const k = 2 / (maLength + 1);
                                     let eH = ohlcData[0].high, eC = ohlcData[0].close, eL = ohlcData[0].low;
                                     
                                     const highEmaData = [];
@@ -7107,7 +7161,7 @@
                                         else if (isFalling) maCloseColor = trendDownColor;
                                         // else stays the same as previous
                                         
-                                        if (i >= 7) {
+                                        if (i >= maLength - 1) {
                                             highEmaData.push({ time: pt.time, value: eH });
                                             // Dynamic line coloring for the close EMA
                                             closeEmaData.push({ time: pt.time, value: eC, color: maCloseColor });
