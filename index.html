@@ -3911,22 +3911,27 @@
                 return;
             }
             const uniqueTickers = [...new Set(tickersArray)].join(',');
+            console.log(`[LiveQuotes] Fetching ${tickersArray.length} tickers...`);
             try {
                 const res = await fetchApi(`/quotes/live?tickers=${uniqueTickers}`);
                 if (res.ok) {
                     const data = await res.json();
                     liveQuotes = data.data || {};
+                    console.log(`[LiveQuotes] Got ${Object.keys(liveQuotes).length} quotes`, liveQuotes);
                     // Re-render to inject live data
                     if (scannerViewMode === 'table') {
                         renderScannerTable(sortResults(lastResults));
                     } else {
                         renderGrid(sortResults(lastResults));
                     }
-                    updateWatchlistAggregateStats();
+                } else {
+                    console.error('[LiveQuotes] API error:', res.status, await res.text());
                 }
             } catch (err) {
-                console.error('Failed to fetch live quotes:', err);
+                console.error('[LiveQuotes] Failed to fetch:', err);
             }
+            // Always update aggregate stats (total return works even without live quotes)
+            updateWatchlistAggregateStats();
         }
         
         function updateWatchlistAggregateStats() {
