@@ -7241,9 +7241,11 @@
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
                 let useLWC = false;
                 
-                if (isWatchlist && currentMarket === 'US') {
-                    // If viewing a US watchlist, force LightweightCharts ONLY if we want the custom 8DMA/21DMA structure
-                    useLWC = (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
+                const isLevScanner = activeScanner === 'lev-etf' || activeScanner === 'lev-8ema' || activeScanner === 'lev-21ema';
+                if (isChartModeView && currentMarket === 'US') {
+                    // Lev ETFs don't have OHLCV in our DB → always use TradingView widget
+                    // Watchlists use LWC only for custom 8DMA/21DMA structure overlays
+                    useLWC = !isLevScanner && (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
                 } else {
                     useLWC = (isFormula && currentMarket !== 'IN');
                 }
@@ -7326,7 +7328,7 @@
                             });
                             candleSeries.setData(sliced);
 
-                            if (isWatchlist) {
+                            if (isChartModeView) {
                                 const maLength = watchlistChartMode === '21dma' ? 21 : 8;
                                 
                                 if (ohlcData.length >= maLength) {
