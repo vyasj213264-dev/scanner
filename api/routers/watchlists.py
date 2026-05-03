@@ -220,6 +220,27 @@ def debug_migrate_watchlists():
         
     return {"status": "done", "logs": logs}
 
+@router.get("/debug/fix-dates", summary="Fix entry dates to April 30")
+def debug_fix_dates():
+    from api.database import get_user_db
+    from api.config import DATABASE_URL
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    
+    logs = []
+    try:
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            if is_postgres:
+                cursor.execute("UPDATE watchlist_portfolio SET entry_date = %s WHERE entry_date = %s", ('2026-04-30 00:00:00', '2026-05-01 00:00:00'))
+            else:
+                cursor.execute("UPDATE watchlist_portfolio SET entry_date = ? WHERE entry_date = ?", ('2026-04-30 00:00:00', '2026-05-01 00:00:00'))
+            conn.commit()
+            logs.append(f"Updated {cursor.rowcount} entries from May 1 to April 30.")
+    except Exception as e:
+        logs.append(f"Error: {e}")
+    
+    return {"status": "done", "logs": logs}
+
 @router.get("/debug/backfill-prices", summary="Backfill null entry prices")
 def debug_backfill_prices():
     import traceback

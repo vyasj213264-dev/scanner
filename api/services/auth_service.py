@@ -123,9 +123,9 @@ def init_user_tables() -> None:
                     
                     try:
                         if is_postgres:
-                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (%s, %s, %s, %s, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (%s, %s, %s, %s, 'ACTIVE')", (wid, tick, '2026-04-30 00:00:00', price))
                         else:
-                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (?, ?, ?, ?, 'ACTIVE')", (wid, tick, '2026-05-01 00:00:00', price))
+                            cursor.execute("INSERT INTO watchlist_portfolio (watchlist_id, ticker, entry_date, entry_price, status) VALUES (?, ?, ?, ?, 'ACTIVE')", (wid, tick, '2026-04-30 00:00:00', price))
                     except Exception as e:
                         print(f"Failed to migrate {tick}: {e}")
                 print("✅ Migration complete.")

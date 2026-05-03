@@ -3335,7 +3335,7 @@
                 updateWatchlistToggleVisibility();
                 
                 // Start async fetch for live quotes (non-blocking)
-                fetchLiveQuotes(lastResults.map(r => r.Ticker));
+                fetchLiveQuotes(lastResults.map(r => r.ticker));
 
                 if (scannerViewMode === 'table') {
                     renderScannerTable(sortResults(lastResults));
@@ -3949,8 +3949,8 @@
                 const cashFlows = [];
                 
                 lastResults.forEach(r => {
-                    const live = liveQuotes[r.Ticker];
-                    const currentPrice = live ? live.price : r.Close;
+                    const live = liveQuotes[r.ticker];
+                    const currentPrice = live ? live.price : r.close;
                     
                     if (live && live.change_pct !== undefined) {
                         totalDailyPct += live.change_pct;
@@ -3985,10 +3985,10 @@
                 let totalCost = 0;
                 let totalValue = 0;
                 lastResults.forEach(r => {
-                    if (r.entry_price) {
+                    if (r.entry_price && r.close) {
                         totalCost += r.entry_price;
-                        const live = liveQuotes[r.Ticker];
-                        totalValue += live ? live.price : r.Close;
+                        const live = liveQuotes[r.ticker];
+                        totalValue += live ? live.price : r.close;
                     }
                 });
                 
