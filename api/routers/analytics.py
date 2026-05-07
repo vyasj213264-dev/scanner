@@ -208,7 +208,7 @@ def get_admin_stats():
         print(f"Admin stats watchlist error: {e}")
 
     try:
-        return {
+        raw_res = {
             "total_users": total_users,
             "recent_sessions": recent_sessions,
             "top_events": top_events,
@@ -216,11 +216,11 @@ def get_admin_stats():
             "top_ticker_time": top_ticker_time,
             "watchlists": watchlist_data
         }
+        import json
+        return json.loads(json.dumps(raw_res, default=str))
     except Exception as inner_e:
-        pass
+        return {"error": "Failed during final serialization", "details": str(inner_e)}
         
-    return {"error": "unknown error"}
-
 @router.get("/admin/stats/debug", summary="Debug admin stats")
 def debug_admin_stats():
     import traceback
