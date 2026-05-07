@@ -207,11 +207,26 @@ def get_admin_stats():
     except Exception as e:
         print(f"Admin stats watchlist error: {e}")
 
-    return {
-        "total_users": total_users,
-        "recent_sessions": recent_sessions,
-        "top_events": top_events,
-        "all_users": all_users,
-        "top_ticker_time": top_ticker_time,
-        "watchlists": watchlist_data
-    }
+    try:
+        return {
+            "total_users": total_users,
+            "recent_sessions": recent_sessions,
+            "top_events": top_events,
+            "all_users": all_users,
+            "top_ticker_time": top_ticker_time,
+            "watchlists": watchlist_data
+        }
+    except Exception as inner_e:
+        pass
+        
+    return {"error": "unknown error"}
+
+@router.get("/admin/stats/debug", summary="Debug admin stats")
+def debug_admin_stats():
+    import traceback
+    try:
+        return get_admin_stats()
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
