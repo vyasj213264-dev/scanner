@@ -230,3 +230,7 @@ def debug_admin_stats():
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
+
+@router.get("/admin/stats/ping", summary="Ping")
+def ping_admin_stats():
+    return {"ping": "pong"}
