@@ -158,14 +158,37 @@ def _nan_to_none(val):
         return None
 
 def _clean_yf_df(df):
-    """Aggressively coerces OHLCV to numeric, destroying any nested dicts returned by yfinance."""
+    """Aggressively coerces OHLCV to numeric, flattening MultiIndex columns and resolving duplicate columns."""
     if df is None or df.empty:
         return df
+    
+    df = df.copy()
+    
+    # Flatten MultiIndex columns if present
+    if isinstance(df.columns, pd.MultiIndex):
+        level_0 = df.columns.get_level_values(0)
+        level_1 = df.columns.get_level_values(1) if df.columns.nlevels > 1 else []
+        if 'Close' in level_0:
+            df.columns = level_0
+        elif 'Close' in level_1:
+            df.columns = level_1
+        else:
+            df.columns = level_0
+            
+    # Remove duplicate columns if any (taking the first occurrence)
+    df = df.loc[:, ~df.columns.duplicated()]
+
     cols_to_clean = ['Open', 'High', 'Low', 'Close', 'Volume']
     for c in cols_to_clean:
         if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors='coerce')
-    return df.dropna(subset=['Close'])
+            val = df[c]
+            if isinstance(val, pd.DataFrame):
+                val = val.iloc[:, 0]
+            df[c] = pd.to_numeric(val, errors='coerce')
+            
+    if 'Close' in df.columns:
+        return df.dropna(subset=['Close'])
+    return df
 
 def _safe_bool(val):
     """Convert a pandas/numpy boolean to Python bool, treating NaN as False."""
@@ -670,23 +693,31 @@ def run_ingest(market='US'):
             print(f"  Skipping chunk {i//chunk_size + 1} after {max_retries} failed attempts. Continuing to next chunk...", flush=True)
             continue
             
-        # Clean chunks to strip out any dictionaries
-        for ticker in chunk:
-            if ticker in data and not data[ticker].empty:
-                data[ticker] = _clean_yf_df(data[ticker])
-
         success_count = 0
         skipped_count = 0
         for ticker in chunk:
             if len(chunk) == 1:
-                df = data
+                df = data.copy()
             else:
                 try:
-                    df = data[ticker].copy()
-                except KeyError:
+                    if isinstance(data.columns, pd.MultiIndex):
+                        if ticker in data.columns.get_level_values(0):
+                            df = data[ticker].copy()
+                        elif ticker in data.columns.get_level_values(1):
+                            df = data.xs(ticker, level=1, axis=1).copy()
+                        else:
+                            skipped_count += 1
+                            continue
+                    else:
+                        df = data[ticker].copy()
+                except (KeyError, ValueError, AttributeError):
+                    skipped_count += 1
                     continue
             
-            if len(df) < 5:
+            df = _clean_yf_df(df)
+            
+            if df is None or df.empty or len(df) < 5:
+                skipped_count += 1
                 continue
             
             last = calculate_indicators(df)
