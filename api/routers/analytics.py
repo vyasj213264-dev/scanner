@@ -74,6 +74,9 @@ def get_admin_stats():
             else:
                 active_dt = active
                 
+            if login_dt and login_dt.tzinfo: login_dt = login_dt.replace(tzinfo=None)
+            if active_dt and active_dt.tzinfo: active_dt = active_dt.replace(tzinfo=None)
+                
             duration = int((active_dt - login_dt).total_seconds())
         except:
             pass
@@ -113,34 +116,43 @@ def get_admin_stats():
         try:
             # event_data can be double-stringified depending on some client libs
             data = ev['event_data']
-            if data and data.startswith('{'):
+            if isinstance(data, str) and data.startswith('{'):
                 data = json.loads(data)
+            
+            if isinstance(data, dict):
                 ticker = data.get('ticker')
             else:
-                ticker = data
+                ticker = str(data) if data else None
         except:
-            ticker = ev['event_data']
+            ticker = str(ev.get('event_data', ''))
             
-        if not ticker: continue
+        if not ticker or not isinstance(ticker, str): continue
         
-        start_time = ev['created_at']
-        start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00')) if isinstance(start_time, str) else start_time
-        
-        end_dt = None
-        if i + 1 < len(all_events) and all_events[i+1]['session_id'] == ev['session_id']:
-            next_time = all_events[i+1]['created_at']
-            end_dt = datetime.fromisoformat(next_time.replace('Z', '+00:00')) if isinstance(next_time, str) else next_time
-        else:
-            last_active = ev['last_active_time']
-            end_dt = datetime.fromisoformat(last_active.replace('Z', '+00:00')) if isinstance(last_active, str) else last_active
+        try:
+            start_time = ev['created_at']
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00')) if isinstance(start_time, str) else start_time
+            if start_dt and start_dt.tzinfo: start_dt = start_dt.replace(tzinfo=None)
             
-        if start_dt and end_dt:
-            duration = int((end_dt - start_dt).total_seconds())
-            duration = max(5, min(duration, 1800)) # Cap at 30 mins
-            
-            day = start_dt.strftime('%Y-%m-%d')
-            key = (day, ev['email'], ticker)
-            ticker_time[key] = ticker_time.get(key, 0) + duration
+            end_dt = None
+            if i + 1 < len(all_events) and all_events[i+1]['session_id'] == ev['session_id']:
+                next_time = all_events[i+1]['created_at']
+                end_dt = datetime.fromisoformat(next_time.replace('Z', '+00:00')) if isinstance(next_time, str) else next_time
+            else:
+                last_active = ev['last_active_time']
+                if last_active:
+                    end_dt = datetime.fromisoformat(last_active.replace('Z', '+00:00')) if isinstance(last_active, str) else last_active
+                
+            if end_dt and end_dt.tzinfo: end_dt = end_dt.replace(tzinfo=None)
+                
+            if start_dt and end_dt:
+                duration = int((end_dt - start_dt).total_seconds())
+                duration = max(5, min(duration, 1800)) # Cap at 30 mins
+                
+                day = start_dt.strftime('%Y-%m-%d')
+                key = (day, ev.get('email', 'Unknown'), ticker)
+                ticker_time[key] = ticker_time.get(key, 0) + duration
+        except Exception as e:
+            print(f"Error calculating ticker duration: {e}", flush=True)
             
     top_ticker_time = sorted([
         {"day": k[0], "user": k[1], "ticker": k[2], "seconds": v}
