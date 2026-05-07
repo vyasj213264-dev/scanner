@@ -250,3 +250,11 @@ def test_events_size():
         return {"events_count": events_row["count"] if events_row else 0}
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/admin/stats/debug2", summary="Debug admin stats")
+def debug_admin_stats_2():
+    try:
+        res = get_admin_stats()
+        return "SUCCESS: type=" + str(type(res))
+    except Exception as e:
+        return "ERROR: " + str(e)
