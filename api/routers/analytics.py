@@ -258,3 +258,15 @@ def debug_admin_stats_2():
         return "SUCCESS: type=" + str(type(res))
     except Exception as e:
         return "ERROR: " + str(e)
+
+@router.get("/admin/stats/debug3", summary="Debug NaN")
+def debug_admin_stats_3():
+    import math
+    res = get_admin_stats()
+    nans = []
+    for wl in res['watchlists']:
+        for s in wl['stocks']:
+            ep = s.get('entry_price')
+            if isinstance(ep, float) and math.isnan(ep):
+                nans.append(s['ticker'])
+    return {"nan_tickers": nans}
