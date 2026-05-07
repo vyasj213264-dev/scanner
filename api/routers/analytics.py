@@ -242,3 +242,11 @@ def test_db_admin_stats():
         return {"total_users": total_users_row["count"] if total_users_row else 0}
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/admin/stats/test-events", summary="Test events size")
+def test_events_size():
+    try:
+        events_row = fetch_one("SELECT COUNT(*) as count FROM user_events")
+        return {"events_count": events_row["count"] if events_row else 0}
+    except Exception as e:
+        return {"error": str(e)}
