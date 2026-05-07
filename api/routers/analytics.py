@@ -216,8 +216,20 @@ def get_admin_stats():
             "top_ticker_time": top_ticker_time,
             "watchlists": watchlist_data
         }
+        
+        import math
+        def clean_nans(obj):
+            if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+                return None
+            elif isinstance(obj, dict):
+                return {k: clean_nans(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_nans(v) for v in obj]
+            return obj
+            
         import json
-        return json.loads(json.dumps(raw_res, default=str))
+        clean_res = clean_nans(raw_res)
+        return json.loads(json.dumps(clean_res, default=str))
     except Exception as inner_e:
         return {"error": "Failed during final serialization", "details": str(inner_e)}
         
