@@ -234,3 +234,11 @@ def debug_admin_stats():
 @router.get("/admin/stats/ping", summary="Ping")
 def ping_admin_stats():
     return {"ping": "pong"}
+
+@router.get("/admin/stats/testdb", summary="Test DB")
+def test_db_admin_stats():
+    try:
+        total_users_row = fetch_one("SELECT COUNT(*) as count FROM users")
+        return {"total_users": total_users_row["count"] if total_users_row else 0}
+    except Exception as e:
+        return {"error": str(e)}
