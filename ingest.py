@@ -182,9 +182,11 @@ def _clean_yf_df(df):
     for c in cols_to_clean:
         if c in df.columns:
             val = df[c]
-            if isinstance(val, pd.DataFrame):
-                val = val.iloc[:, 0]
-            df[c] = pd.to_numeric(val, errors='coerce')
+            try:
+                df[c] = pd.to_numeric(val, errors='coerce')
+            except TypeError:
+                # Fallback if yfinance bug returned a dict which pd.to_numeric chokes on
+                df[c] = pd.to_numeric(val.astype(str), errors='coerce')
             
     if 'Close' in df.columns:
         return df.dropna(subset=['Close'])
@@ -906,7 +908,8 @@ def run_ingest(market='US'):
     if etfs_to_download:
         print(f"Downloading OHLCV for {len(etfs_to_download)} sector ETFs (period={HISTORY_PERIOD})...", flush=True)
         try:
-            etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=False)
+            # Use threads=True to avoid yfinance dictionary parsing bug
+            etf_data = yf.download(etfs_to_download, period=HISTORY_PERIOD, group_by='ticker', threads=True)
             
             for etf_ticker in etfs_to_download:
                 try:
@@ -1030,7 +1033,8 @@ def run_ingest(market='US'):
             lev_chunk = lev_to_download[lev_i:lev_i + lev_chunk_size]
             try:
                 time.sleep(2)  # Brief pause between chunks
-                lev_data = yf.download(lev_chunk, period=LEV_DOWNLOAD_PERIOD, group_by='ticker', threads=False)
+                # Use threads=True to avoid yfinance dictionary parsing bug
+                lev_data = yf.download(lev_chunk, period=LEV_DOWNLOAD_PERIOD, group_by='ticker', threads=True)
                 
                 if lev_data is None or lev_data.empty:
                     print(f"  Lev chunk {lev_i//lev_chunk_size + 1}: empty data, skipping", flush=True)
@@ -1039,10 +1043,19 @@ def run_ingest(market='US'):
                 lev_success = 0
                 for lev_ticker in lev_chunk:
                     try:
-                        if len(lev_chunk) > 1:
-                            df_lev = lev_data[lev_ticker].copy()
+                        if isinstance(lev_data.columns, pd.MultiIndex):
+                            if lev_ticker in lev_data.columns.get_level_values(0):
+                                df_lev = lev_data[lev_ticker].copy()
+                            elif lev_ticker in lev_data.columns.get_level_values(1):
+                                df_lev = lev_data.xs(lev_ticker, level=1, axis=1).copy()
+                            else:
+                                continue
                         else:
-                            df_lev = lev_data.copy()
+                            # If flat dataframe but no multiindex, it could be a single ticker return
+                            if len(lev_chunk) == 1:
+                                df_lev = lev_data.copy()
+                            else:
+                                df_lev = lev_data[lev_ticker].copy()
                             
                         df_lev = _clean_yf_df(df_lev)
                         
