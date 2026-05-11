@@ -361,6 +361,38 @@ def get_lev_etf_list():
     return {"count": len(LEV_ETF_LIST), "data": LEV_ETF_LIST}
 
 
+@router.get("/underlying-map", summary="Get best long leveraged ETF per underlying ticker")
+def get_underlying_map():
+    """
+    Returns a lightweight map: underlying_ticker → best matching long leveraged ETF.
+    For each underlying, picks the long ETF with highest objective (prefer 2x > 1.25x),
+    then by largest net_assets as tiebreaker.
+    Used by the frontend to show leveraged ETF info on watchlist views.
+    """
+    def _parse_objective(obj_str: str) -> float:
+        """Parse '2x', '3x', '-2x', '1.25x' → numeric float."""
+        try:
+            return float(obj_str.replace("x", ""))
+        except (ValueError, TypeError):
+            return 0.0
+
+    result: Dict[str, Dict[str, Any]] = {}
+    for und_ticker, etfs in _UNDERLYING_TO_LEV.items():
+        # Filter to long-only ETFs (positive objective)
+        long_etfs = [e for e in etfs if _parse_objective(e["objective"]) > 0]
+        if not long_etfs:
+            continue
+        # Sort: highest objective first, then largest net_assets
+        long_etfs.sort(key=lambda e: (-_parse_objective(e["objective"]), -(e.get("net_assets") or 0)))
+        best = long_etfs[0]
+        result[und_ticker] = {
+            "ticker": best["ticker"],
+            "fund_name": best["fund_name"],
+            "objective": best["objective"],
+        }
+    return result
+
+
 @router.get("/scan", summary="Get leveraged ETFs with scanner signals from underlying data")
 def scan_lev_etfs():
     """

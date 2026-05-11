@@ -77,6 +77,8 @@ class StockResult(BaseModel):
     ema_crossback: Optional[bool] = Field(None, validation_alias="EMA_Crossback")
     consolidation_high_5: Optional[float] = Field(None, validation_alias="Consolidation_High_5")
     consolidation_low_5: Optional[float] = Field(None, validation_alias="Consolidation_Low_5")
+    # ATR (14-period Average True Range) — dollar value for position sizing
+    atr_14: Optional[float] = Field(None, validation_alias="ATR_14")
     # Portfolio ledger fields (only present for watchlist stocks)
     entry_price: Optional[float] = Field(None)
     entry_date: Optional[Any] = Field(None)
