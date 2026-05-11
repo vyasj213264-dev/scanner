@@ -5245,14 +5245,6 @@
                     const sign = live.change_pct > 0 ? '+' : '';
                     liveReturnHtml += `<span class="metric-chip ${dClass}" title="Live Daily Return" style="font-weight:bold;">Day ${sign}${dailyPct}%</span>`;
                 }
-                
-                if (stock.entry_price) {
-                    const currentPrice = live ? live.price : stock.close;
-                    const totalRet = (((currentPrice - stock.entry_price) / stock.entry_price) * 100).toFixed(2);
-                    const tClass = totalRet >= 0 ? 'positive' : 'negative';
-                    const sign = totalRet > 0 ? '+' : '';
-                    liveReturnHtml += `<span class="metric-chip ${tClass}" title="Total Return since Entry" style="font-weight:bold;">Total ${sign}${totalRet}%</span>`;
-                }
             }
 
             const card = document.createElement('div');
@@ -5276,6 +5268,7 @@
           </div>
           <div class="card-metrics">
             ${liveReturnHtml}
+            ${stock.industry ? `<span class="metric-chip" title="Industry" style="color:var(--text-secondary);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${stock.industry}</span>` : ''}
             ${stock.adr_20 != null ? `<span class="metric-chip" title="ATR % (20-day)">ATR&nbsp;${stock.adr_20.toFixed(1)}%</span>` : ''}
             ${currentMarket === 'US' && levEtfMap && levEtfMap[stock.ticker] ? `<a href="#" onclick="event.preventDefault(); fetchStockDetail('${levEtfMap[stock.ticker].ticker}')" class="metric-chip" style="text-decoration:none;color:var(--accent);font-weight:bold;" title="${levEtfMap[stock.ticker].fund_name}">📈 ${levEtfMap[stock.ticker].ticker} ${levEtfMap[stock.ticker].objective}x</a>` : ''}
             <span class="metric-chip ${rsClass}" title="RS 1Y">RS&nbsp;${rs}</span>
