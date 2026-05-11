@@ -4373,7 +4373,7 @@
                                     <th data-ksort="industry_rank_6m" class="sortable" title="Industry Rank 6M">ind6M</th>` : ''}
                                     <th data-ksort="market_cap" class="sortable">Mkt Cap</th>
                                     <th data-ksort="adr_20" class="sortable">ATR%</th>
-                                    ${currentMarket === 'US' ? '<th data-ksort="atr_14" class="sortable">ATR</th><th>Lev ETF</th>' : ''}
+                                    ${currentMarket === 'US' ? '<th>Lev ETF</th>' : ''}
                                     <th data-ksort="rs_rating_1m" class="sortable" title="Relative Strength 1 Month">RS1M</th>
                                     <th data-ksort="rs_rating_3m" class="sortable" title="Relative Strength 3 Months">RS3M</th>
                                     <th data-ksort="rs_rating_6m" class="sortable" title="Relative Strength 6 Months">RS6M</th>
@@ -4435,13 +4435,12 @@
                                     <td>${fmtMcap(s.market_cap)}</td>
                                     <td>${s.adr_20 != null ? s.adr_20.toFixed(1) + '%' : '—'}</td>
                                     ${currentMarket === 'US' ? (function(){
-                                        const atr = s.atr_14 != null ? '$' + s.atr_14.toFixed(2) : '—';
                                         let levHtml = '—';
                                         if (levEtfMap && levEtfMap[s.ticker]) {
                                             const lev = levEtfMap[s.ticker];
                                             levHtml = `<a href="#" onclick="event.preventDefault(); fetchStockDetail('${lev.ticker}')" class="metric-chip" style="text-decoration:none;font-weight:600;padding:2px 6px;color:var(--accent);" title="${lev.fund_name}">📈 ${lev.ticker} ${lev.objective}x</a>`;
                                         }
-                                        return `<td>${atr}</td><td>${levHtml}</td>`;
+                                        return `<td>${levHtml}</td>`;
                                     })() : ''}
                                     <td style="color:${s.rs_rating_1m >= 90 ? 'var(--pos)' : s.rs_rating_1m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_1m != null ? s.rs_rating_1m.toFixed(0) : '—'}</td>
                                     <td style="color:${s.rs_rating_3m >= 90 ? 'var(--pos)' : s.rs_rating_3m >= 70 ? '#fbbf24' : 'inherit'}">${s.rs_rating_3m != null ? s.rs_rating_3m.toFixed(0) : '—'}</td>
@@ -5277,7 +5276,7 @@
           </div>
           <div class="card-metrics">
             ${liveReturnHtml}
-            ${currentMarket === 'US' && stock.atr_14 != null ? `<span class="metric-chip" title="ATR (14-day)">ATR&nbsp;$${stock.atr_14.toFixed(2)}</span>` : ''}
+            ${stock.adr_20 != null ? `<span class="metric-chip" title="ATR % (20-day)">ATR&nbsp;${stock.adr_20.toFixed(1)}%</span>` : ''}
             ${currentMarket === 'US' && levEtfMap && levEtfMap[stock.ticker] ? `<a href="#" onclick="event.preventDefault(); fetchStockDetail('${levEtfMap[stock.ticker].ticker}')" class="metric-chip" style="text-decoration:none;color:var(--accent);font-weight:bold;" title="${levEtfMap[stock.ticker].fund_name}">📈 ${levEtfMap[stock.ticker].ticker} ${levEtfMap[stock.ticker].objective}x</a>` : ''}
             <span class="metric-chip ${rsClass}" title="RS 1Y">RS&nbsp;${rs}</span>
             <span class="metric-chip ${rs6mClass}" title="RS 6M">6M&nbsp;${rs6m}</span>
