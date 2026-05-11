@@ -10,6 +10,7 @@ from api.config import APP_VERSION
 router = APIRouter(prefix="/api/v1", tags=["System"])
 
 
+@router.head("/health", include_in_schema=False)
 @router.get("/health", response_model=HealthResponse, summary="Service health check")
 def health_check(market: str = Query("US", description="US or IN context")):
     """Returns DB connectivity, universe size, last data update timestamp, and macro health."""
