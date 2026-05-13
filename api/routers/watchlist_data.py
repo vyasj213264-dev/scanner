@@ -30,7 +30,7 @@ WATCHLIST_GROUPS = [
 
 TV_COLUMNS = [
     "Perf.W", "Perf.1M", "Perf.3M", "Perf.YTD", "Perf.Y",
-    "Volatility.W", "RSI", "Mom", "Recommend.All"
+    "Volatility.W", "RSI", "Mom", "Recommend.All", "industry"
 ]
 
 TV_HEADERS = {
@@ -104,12 +104,15 @@ async def get_watchlist_data() -> Dict[str, Any]:
         row: Dict[str, Any] = {"symbol": symbol}
         for i, col in enumerate(TV_COLUMNS):
             val = values[i] if i < len(values) else None
-            # Normalise to float or None
+            # Normalise to float or None, except for string columns
             if val is not None:
-                try:
-                    val = round(float(val), 2)
-                except (TypeError, ValueError):
-                    val = None
+                if col in ["industry", "sector"]:
+                    val = str(val) if val else None
+                else:
+                    try:
+                        val = round(float(val), 2)
+                    except (TypeError, ValueError):
+                        val = None
             row[col] = val
         # Add human-readable recommend label
         row["recommend_label"] = _recommend_label(row.get("Recommend.All"))

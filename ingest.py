@@ -943,7 +943,7 @@ def run_ingest(market='US'):
                         last_etf = calculate_indicators(df_etf)
                         if last_etf is not None:
                             rs_raw_etf = calculate_rs_rating(df_etf, benchmark_data)
-                            rs_raw_clean_etf = None if (rs_raw_etf is None or pd.isna(rs_raw_etf)) else float(rs_raw_etf)
+                            rs_raw_clean_etf = None if (rs_raw_etf is None or pd.isna(rs_raw_etf.get('1Y'))) else float(rs_raw_etf['1Y'])
                             
                             etf_record = (
                                 etf_ticker,
@@ -1075,7 +1075,7 @@ def run_ingest(market='US'):
                         last_lev = calculate_indicators(df_lev)
                         if last_lev is not None:
                             rs_raw_lev = calculate_rs_rating(df_lev, benchmark_data)
-                            rs_raw_clean_lev = None if (rs_raw_lev is None or pd.isna(rs_raw_lev)) else float(rs_raw_lev)
+                            rs_raw_clean_lev = None if (rs_raw_lev is None or pd.isna(rs_raw_lev.get('1Y'))) else float(rs_raw_lev['1Y'])
                             
                             lev_record = (
                                 lev_ticker,
