@@ -3326,7 +3326,7 @@
 
             try {
                 const filterParams = buildFilterParams();
-                const res = await fetchApi(`/watchlists/${id}/stocks?${filterParams.substring(1)}`);
+                const res = await fetchApi(`/watchlists/${id}/stocks?sort_by=${activeSortBy}&order=${activeSortOrder}${filterParams}`);
                 if (!res.ok) throw new Error('API Error');
                 const json = await res.json();
 
@@ -3481,18 +3481,21 @@
                 return;
             }
             if (activeScanner === 'lev-etf' && levEtfData.length) {
-                if (scannerViewMode === 'table') renderLevEtfTable(levEtfData);
-                else renderLevEtfCharts(levEtfData);
+                const sorted = sortResults(levEtfData);
+                if (scannerViewMode === 'table') renderLevEtfTable(sorted);
+                else renderLevEtfCharts(sorted);
                 return;
             }
             if (activeScanner === 'lev-8ema' && levEmaData8.length) {
-                if (scannerViewMode === 'table') renderLevEmaTable(levEmaData8, 8);
-                else renderLevEmaCharts(levEmaData8);
+                const sorted = sortResults(levEmaData8);
+                if (scannerViewMode === 'table') renderLevEmaTable(sorted, 8);
+                else renderLevEmaCharts(sorted);
                 return;
             }
             if (activeScanner === 'lev-21ema' && levEmaData21.length) {
-                if (scannerViewMode === 'table') renderLevEmaTable(levEmaData21, 21);
-                else renderLevEmaCharts(levEmaData21);
+                const sorted = sortResults(levEmaData21);
+                if (scannerViewMode === 'table') renderLevEmaTable(sorted, 21);
+                else renderLevEmaCharts(sorted);
                 return;
             }
             if (themesLevel === 'stocks' && themeStockData.length) {
@@ -3589,6 +3592,12 @@
                 } else if (activeScanner.startsWith('wl-')) {
                     const wlId = activeScanner.replace('wl-', '');
                     runWatchlist(wlId, true);
+                } else if (activeScanner === 'lev-etf') {
+                    runLevEtf(true);
+                } else if (activeScanner === 'lev-8ema') {
+                    runLevEma(8, true);
+                } else if (activeScanner === 'lev-21ema') {
+                    runLevEma(21, true);
                 } else {
                     const btn = document.querySelector(`.scanner-btn[data-id="${activeScanner}"]`);
                     const label = btn?.querySelector('.btn-label')?.textContent || activeScanner;
@@ -3863,8 +3872,8 @@
                 toggleMobileMenu();
             }
             document.getElementById('results-meta').innerHTML = '';
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             // Show skeleton
             showSkeletons(6);
@@ -4525,8 +4534,8 @@
 
             setResultsTitle('🤖 AI Trade Portal');
             document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">Daily deterministic swing trade analysis</span>';
-            document.getElementById('sort-controls').style.display = 'none'; // No standard sorting needed here
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex'; // No standard sorting needed here
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();
@@ -4867,7 +4876,7 @@
             setResultsTitle('⚡ Leveraged ETFs');
             document.getElementById('results-meta').innerHTML = '';
             document.getElementById('sort-controls').style.display = 'flex';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();
@@ -4966,20 +4975,20 @@
                 <table class="universe-table">
                     <thead>
                         <tr>
-                            <th style="min-width:70px;">Ticker</th>
-                            <th style="min-width:190px;">Fund Name</th>
-                            <th style="min-width:80px;">Underlying</th>
-                            <th style="min-width:60px;" title="Daily Leverage Objective">Obj</th>
-                            <th style="min-width:80px;">Net Assets</th>
-                            <th style="min-width:50px;" title="Stage 1-4 based on 50 DMA slope">Stage</th>
-                            <th style="min-width:44px;" title="Pullback to 5 DMA">Pb5</th>
-                            <th style="min-width:44px;" title="Pullback to 10 DMA">Pb10</th>
-                            <th style="min-width:44px;" title="Pullback to 21 DMA">Pb21</th>
-                            <th style="min-width:44px;" title="Pullback to 50 DMA">Pb50</th>
-                            <th style="min-width:44px;" title="High Tight Flag">HTF</th>
-                            <th style="min-width:54px;" title="Tight Setup (price range < 2% over 4 days)">Tight</th>
-                            <th style="min-width:56px;" title="Near Horizontal Resistance">Horiz</th>
-                            <th style="min-width:80px;" title="Minervini Low Cheat Entry (VCP near 10/20 DMA, low volume)">Low Cheat</th>
+                            <th data-ksort="ticker" class="sortable" style="min-width:70px;">Ticker</th>
+                            <th data-ksort="fund_name" class="sortable" style="min-width:190px;">Fund Name</th>
+                            <th data-ksort="underlying" class="sortable" style="min-width:80px;">Underlying</th>
+                            <th data-ksort="objective" class="sortable" style="min-width:60px;" title="Daily Leverage Objective">Obj</th>
+                            <th data-ksort="net_assets" class="sortable" style="min-width:80px;">Net Assets</th>
+                            <th data-ksort="stage" class="sortable" style="min-width:50px;" title="Stage 1-4 based on 50 DMA slope">Stage</th>
+                            <th data-ksort="pullback_5" class="sortable" style="min-width:44px;" title="Pullback to 5 DMA">Pb5</th>
+                            <th data-ksort="pullback_10" class="sortable" style="min-width:44px;" title="Pullback to 10 DMA">Pb10</th>
+                            <th data-ksort="pullback_21" class="sortable" style="min-width:44px;" title="Pullback to 21 DMA">Pb21</th>
+                            <th data-ksort="pullback_50" class="sortable" style="min-width:44px;" title="Pullback to 50 DMA">Pb50</th>
+                            <th data-ksort="htf" class="sortable" style="min-width:44px;" title="High Tight Flag">HTF</th>
+                            <th data-ksort="tight_setup" class="sortable" style="min-width:54px;" title="Tight Setup (price range < 2% over 4 days)">Tight</th>
+                            <th data-ksort="horizontal_resistance" class="sortable" style="min-width:56px;" title="Near Horizontal Resistance">Horiz</th>
+                            <th data-ksort="minervini_cheat" class="sortable" style="min-width:80px;" title="Minervini Low Cheat Entry (VCP near 10/20 DMA, low volume)">Low Cheat</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -5046,7 +5055,7 @@
             setResultsTitle(`📐 Lev ETFs — ${period} EMA Structure`);
             document.getElementById('results-meta').innerHTML = '';
             document.getElementById('sort-controls').style.display = 'flex';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();
@@ -5322,7 +5331,7 @@
 
             setResultsTitle("Stock Universe Explorer");
             document.getElementById('results-meta').innerHTML = "Full market performance across all timeframes. Click headers to sort.";
-            document.getElementById('sort-controls').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
             document.getElementById('filter-bar').style.display = 'flex';
 
             // Auto-close mobile menu
@@ -5713,8 +5722,8 @@
             activeScanner = 'watchlist';
             history.pushState({ scanner: 'watchlist' }, '', buildCleanUrl({ scanner: 'watchlist' }));
 
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
             _wlSetHeader();
 
             // View toggle bar
@@ -5750,8 +5759,8 @@
 
             setResultsTitle('Market Breadth Dashboard');
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">High-level view of ${currentMarket === 'IN' ? 'Indian' : 'US'} Equities health</span>`;
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const area = document.getElementById('grid-area');
             area.innerHTML = `
@@ -6234,8 +6243,8 @@
 
             setResultsTitle('Custom Screener Builder');
             document.getElementById('results-meta').innerHTML = `<span style="color:var(--text-muted)">Build your own dynamic scans</span>`;
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             if (window.innerWidth <= 768) toggleMobileMenu();
             renderScreenerBuilder();
@@ -6490,8 +6499,8 @@
                 
             setResultsTitle(label);
             document.getElementById('results-meta').innerHTML = subLabel;
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();
@@ -7532,8 +7541,8 @@
 
             setResultsTitle('🏆 Portfolio Simulator');
             document.getElementById('results-meta').innerHTML = '<span style="color:var(--text-muted)">16-variant rules-based backtest engine</span>';
-            document.getElementById('sort-controls').style.display = 'none';
-            document.getElementById('filter-bar').style.display = 'none';
+            document.getElementById('sort-controls').style.display = 'flex';
+            document.getElementById('filter-bar').style.display = 'flex';
 
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('open')) toggleMobileMenu();

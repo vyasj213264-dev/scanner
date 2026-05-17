@@ -84,6 +84,8 @@ def get_watchlist_stocks(
     exclude_sectors: Optional[List[str]] = Query(None),
     include_industries: Optional[List[str]] = Query(None),
     exclude_industries: Optional[List[str]] = Query(None),
+    sort_by: str = Query("entry_date"),
+    order: str = Query("desc"),
     user: User = Depends(require_user)
 ):
     rows = watchlist_service.get_watchlist_stocks(
@@ -97,6 +99,8 @@ def get_watchlist_stocks(
         exclude_sectors=exclude_sectors,
         include_industries=include_industries,
         exclude_industries=exclude_industries,
+        sort_by=sort_by,
+        order=order
     )
     if rows is None:
         raise HTTPException(status_code=404, detail="Watchlist not found")

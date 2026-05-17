@@ -5,8 +5,8 @@ Leveraged ETF router — GET /api/v1/lev-etf/scan
 For scanner signals, uses the underlying ETF/stock data from screen_data.
 The leveraged ETF ticker itself is only used for chart display.
 """
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter
+from typing import List, Optional, Dict, Any, Literal
+from fastapi import APIRouter, Query
 from api.database import fetch_all
 
 from api.routers.auth import require_user
@@ -394,7 +394,18 @@ def get_underlying_map():
 
 
 @router.get("/scan", summary="Get leveraged ETFs with scanner signals from underlying data")
-def scan_lev_etfs():
+def scan_lev_etfs(
+    min_market_cap: Optional[float] = Query(None),
+    min_adr: Optional[float] = Query(None),
+    max_adr: Optional[float] = Query(None),
+    min_price: Optional[float] = Query(None),
+    include_sectors: Optional[List[str]] = Query(None),
+    exclude_sectors: Optional[List[str]] = Query(None),
+    include_industries: Optional[List[str]] = Query(None),
+    exclude_industries: Optional[List[str]] = Query(None),
+    sort_by: str = Query("setup_count"),
+    order: str = Query("desc")
+):
     """
     Returns all leveraged ETFs enriched with scanner signals.
     Scanner signals (Stage, pullbacks, HTF, etc.) are computed from the
@@ -406,17 +417,51 @@ def scan_lev_etfs():
     if not underlying_tickers:
         return {"count": 0, "data": []}
 
+    
     # Batch fetch all underlying rows in one SQL query
     placeholders = ", ".join(["?" for _ in underlying_tickers])
+    params = list(underlying_tickers)
+    extra_where = ""
+    if min_market_cap is not None:
+        extra_where += " AND Market_Cap >= ?"
+        params.append(min_market_cap)
+    if min_adr is not None:
+        extra_where += " AND ADR_20 >= ?"
+        params.append(min_adr)
+    if max_adr is not None:
+        extra_where += " AND ADR_20 <= ?"
+        params.append(max_adr)
+    if min_price is not None:
+        extra_where += " AND Close >= ?"
+        params.append(min_price)
+
+    if include_sectors:
+        ph = ",".join(["?" for _ in include_sectors])
+        extra_where += f" AND Sector IN ({ph})"
+        params.extend(include_sectors)
+    if exclude_sectors:
+        ph = ",".join(["?" for _ in exclude_sectors])
+        extra_where += f" AND Sector NOT IN ({ph})"
+        params.extend(exclude_sectors)
+    if include_industries:
+        ph = ",".join(["?" for _ in include_industries])
+        extra_where += f" AND Industry IN ({ph})"
+        params.extend(include_industries)
+    if exclude_industries:
+        ph = ",".join(["?" for _ in exclude_industries])
+        extra_where += f" AND Industry NOT IN ({ph})"
+        params.extend(exclude_industries)
+
     sql = f"""
         SELECT Ticker, Close, Stage, SMA_5, SMA_9, SMA_10, SMA_20, SMA_21, SMA_50,
                RVOL, ADR_20, Momentum_3M, Pct_From_52W_High, In_Stage_2,
                Tight_Setup, Near_Horizontal_Resistance, VCP_Approximation,
                RS_Rating, Momentum_1D, Momentum_1M
         FROM screen_data
-        WHERE Ticker IN ({placeholders})
+        WHERE Ticker IN ({placeholders}) {extra_where}
     """
-    rows = fetch_all(sql, tuple(underlying_tickers))
+    rows = fetch_all(sql, tuple(params))
+
     underlying_data: Dict[str, Dict] = {r["Ticker"]: dict(r) for r in rows}
 
     # Build enriched results
@@ -455,7 +500,21 @@ def scan_lev_etfs():
         })
 
     # Sort by setup_count desc, then by net_assets desc
-    results.sort(key=lambda x: (-x["setup_count"], -(x["net_assets"] or 0)))
+    
+    reverse_sort = order == "desc"
+    # Ensure default sorting fallback
+    def sort_key(x):
+        val = x.get(sort_by)
+        if val is None:
+            return float('-inf') if reverse_sort else float('inf')
+        return val
+
+    try:
+        results.sort(key=sort_key, reverse=reverse_sort)
+    except TypeError:
+        # Fallback if mixed types
+        results.sort(key=lambda x: str(x.get(sort_by, "")), reverse=reverse_sort)
+    
 
     return {"count": len(results), "data": results}
 
@@ -467,7 +526,19 @@ _LEV_TICKERS = [etf["ticker"] for etf in LEV_ETF_LIST]
 _LEV_META = {etf["ticker"]: etf for etf in LEV_ETF_LIST}
 
 
-def _scan_ema_structure(period: int) -> Dict[str, Any]:
+def _scan_ema_structure(
+    period: int,
+    min_market_cap: Optional[float] = None,
+    min_adr: Optional[float] = None,
+    max_adr: Optional[float] = None,
+    min_price: Optional[float] = None,
+    include_sectors: Optional[List[str]] = None,
+    exclude_sectors: Optional[List[str]] = None,
+    include_industries: Optional[List[str]] = None,
+    exclude_industries: Optional[List[str]] = None,
+    sort_by: str = "atr_distance",
+    order: str = "asc"
+) -> Dict[str, Any]:
     """
     Shared logic for 8 EMA and 21 EMA structure screeners.
 
@@ -490,9 +561,42 @@ def _scan_ema_structure(period: int) -> Dict[str, Any]:
     if not _LEV_TICKERS:
         return {"count": 0, "data": []}
 
+
     placeholders = ", ".join(["?" for _ in _LEV_TICKERS])
+    params = list(_LEV_TICKERS)
+    extra_where = ""
+    if min_market_cap is not None:
+        extra_where += " AND Market_Cap >= ?"
+        params.append(min_market_cap)
+    if min_adr is not None:
+        extra_where += " AND ADR_20 >= ?"
+        params.append(min_adr)
+    if max_adr is not None:
+        extra_where += " AND ADR_20 <= ?"
+        params.append(max_adr)
+    if min_price is not None:
+        extra_where += " AND Close >= ?"
+        params.append(min_price)
+
+    if include_sectors:
+        ph = ",".join(["?" for _ in include_sectors])
+        extra_where += f" AND Sector IN ({ph})"
+        params.extend(include_sectors)
+    if exclude_sectors:
+        ph = ",".join(["?" for _ in exclude_sectors])
+        extra_where += f" AND Sector NOT IN ({ph})"
+        params.extend(exclude_sectors)
+    if include_industries:
+        ph = ",".join(["?" for _ in include_industries])
+        extra_where += f" AND Industry IN ({ph})"
+        params.extend(include_industries)
+    if exclude_industries:
+        ph = ",".join(["?" for _ in exclude_industries])
+        extra_where += f" AND Industry NOT IN ({ph})"
+        params.extend(exclude_industries)
 
     if period == 8:
+
         ema_high_col = "EMA_8_High"
         ema_close_col = "EMA_8_Close"
         ema_low_col = "EMA_8_Low"
@@ -515,8 +619,9 @@ def _scan_ema_structure(period: int) -> Dict[str, Any]:
           AND ATR_14 IS NOT NULL
           AND ATR_14 > 0
           AND Close IS NOT NULL
+          {extra_where}
     """
-    rows = fetch_all(sql, tuple(_LEV_TICKERS))
+    rows = fetch_all(sql, tuple(params))
 
     results = []
     for r in rows:
@@ -574,26 +679,62 @@ def _scan_ema_structure(period: int) -> Dict[str, Any]:
         })
 
     # Sort by absolute ATR distance (closest to MA first)
-    results.sort(key=lambda x: abs(x["atr_distance"]))
+    
+    reverse_sort = order == "desc"
+    def sort_key(x):
+        val = x.get(sort_by)
+        if val is None:
+            return float('-inf') if reverse_sort else float('inf')
+        if sort_by == "atr_distance" and order == "asc":
+            return abs(val) # Default absolute proximity sort
+        return val
+
+    try:
+        results.sort(key=sort_key, reverse=reverse_sort)
+    except TypeError:
+        results.sort(key=lambda x: str(x.get(sort_by, "")), reverse=reverse_sort)
+    
 
     return {"count": len(results), "data": results}
 
 
 @router.get("/scan-8ema", summary="Lev ETFs near 8 EMA structure (±1 ATR)")
-def scan_8ema():
+def scan_8ema(
+    min_market_cap: Optional[float] = Query(None),
+    min_adr: Optional[float] = Query(None),
+    max_adr: Optional[float] = Query(None),
+    min_price: Optional[float] = Query(None),
+    include_sectors: Optional[List[str]] = Query(None),
+    exclude_sectors: Optional[List[str]] = Query(None),
+    include_industries: Optional[List[str]] = Query(None),
+    exclude_industries: Optional[List[str]] = Query(None),
+    sort_by: str = Query("atr_distance"),
+    order: str = Query("asc")
+):
     """
     Returns leveraged ETFs whose close is within the 8 EMA structure band.
     Band = [EMA(Low, 8) - ATR(14), EMA(High, 8) + ATR(14)]
     Uses the leveraged ETF's own price data (not underlying).
     """
-    return _scan_ema_structure(8)
+    return _scan_ema_structure(8, min_market_cap, min_adr, max_adr, min_price, include_sectors, exclude_sectors, include_industries, exclude_industries, sort_by, order)
 
 
 @router.get("/scan-21ema", summary="Lev ETFs near 21 EMA structure (±1 ATR)")
-def scan_21ema():
+def scan_21ema(
+    min_market_cap: Optional[float] = Query(None),
+    min_adr: Optional[float] = Query(None),
+    max_adr: Optional[float] = Query(None),
+    min_price: Optional[float] = Query(None),
+    include_sectors: Optional[List[str]] = Query(None),
+    exclude_sectors: Optional[List[str]] = Query(None),
+    include_industries: Optional[List[str]] = Query(None),
+    exclude_industries: Optional[List[str]] = Query(None),
+    sort_by: str = Query("atr_distance"),
+    order: str = Query("asc")
+):
     """
     Returns leveraged ETFs whose close is within the 21 EMA structure band.
     Band = [EMA(Low, 21) - ATR(14), EMA(High, 21) + ATR(14)]
     Uses the leveraged ETF's own price data (not underlying).
     """
-    return _scan_ema_structure(21)
+    return _scan_ema_structure(21, min_market_cap, min_adr, max_adr, min_price, include_sectors, exclude_sectors, include_industries, exclude_industries, sort_by, order)

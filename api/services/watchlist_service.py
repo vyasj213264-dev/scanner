@@ -97,6 +97,8 @@ def get_watchlist_stocks(
     exclude_sectors: Optional[List[str]] = None,
     include_industries: Optional[List[str]] = None,
     exclude_industries: Optional[List[str]] = None,
+    sort_by: str = "entry_date",
+    order: str = "desc"
 ) -> Optional[List[dict]]:
     """Returns tickers with live screen_data. Returns None if watchlist not owned."""
     # Verify ownership
@@ -140,7 +142,33 @@ def get_watchlist_stocks(
         extra_where += f" AND s.Industry NOT IN ({placeholders})"
         params.extend(exclude_industries)
 
+
+    sort_col_map = {
+        "ticker": "wp.ticker",
+        "entry_date": "wp.entry_date",
+        "close": "s.Close",
+        "rs_rating": "s.RS_Rating",
+        "rvol": "s.RVOL",
+        "pct_from_52w_high": "s.Pct_From_52W_High",
+        "momentum_1m": "s.Momentum_1M",
+        "sector": "s.Sector",
+        "industry": "s.Industry",
+        "sector_rank_1d": "sr.Rank_1D",
+        "sector_rank_1w": "sr.Rank_1W",
+        "sector_rank_1m": "sr.Rank_1M",
+        "sector_rank_3m": "sr.Rank_3M",
+        "sector_rank_6m": "sr.Rank_6M",
+        "industry_rank_1d": "ir.Rank_1D",
+        "industry_rank_1w": "ir.Rank_1W",
+        "industry_rank_1m": "ir.Rank_1M",
+        "industry_rank_3m": "ir.Rank_3M",
+        "industry_rank_6m": "ir.Rank_6M"
+    }
+    sort_col = sort_col_map.get(sort_by.lower(), "wp.entry_date")
+    sort_dir = "ASC" if order.lower() == "asc" else "DESC"
+
     # Join with screen_data for live metrics using fetch_all so it hits the live database
+
     latest_date_query = "(SELECT MAX(Date) FROM industry_ranks)"
     sql = f"""
         SELECT wp.ticker AS "Ticker", wp.entry_price, wp.entry_date, s.*,
@@ -153,7 +181,7 @@ def get_watchlist_stocks(
         LEFT JOIN industry_ranks sr ON s.Sector = sr.Name AND sr.Category = 'Sector' AND sr.Date = {latest_date_query}
         LEFT JOIN industry_ranks ir ON s.Industry = ir.Name AND ir.Category = 'Industry' AND ir.Date = {latest_date_query}
         WHERE wp.watchlist_id = ? AND wp.status = 'ACTIVE'{extra_where}
-        ORDER BY wp.entry_date DESC
+        ORDER BY {sort_col} {sort_dir}
     """
     return fetch_all(sql, tuple(params))
 
