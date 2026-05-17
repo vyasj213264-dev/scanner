@@ -3554,7 +3554,10 @@
 
                 // Default sort: Ticker is ASC, others are DIR (DESC usually)
                 let dir = (activeSortBy === 'ticker') ? 1 : activeSortDir;
-                if (activeSortBy === 'pct_from_52w_high') dir = -dir; // Near high is naturally ASC (closer to 0)
+
+                if (activeSortBy === 'atr_distance' && dir === 1) {
+                    return Math.abs(aVal) - Math.abs(bVal);
+                }
 
                 return (aVal - bVal) * dir;
             });
