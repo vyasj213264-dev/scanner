@@ -3326,7 +3326,7 @@
 
             try {
                 const filterParams = buildFilterParams();
-                const res = await fetchApi(`/watchlists/${id}/stocks?sort_by=${activeSortBy}&order=${activeSortOrder}${filterParams}`);
+                const res = await fetchApi(`/watchlists/${id}/stocks?sort_by=${activeSortBy}&order=${activeSortDir === 1 ? 'asc' : 'desc'}${filterParams}`);
                 if (!res.ok) throw new Error('API Error');
                 const json = await res.json();
 
@@ -4885,7 +4885,8 @@
             logEvent('run_scanner', { scanner: 'lev-etf' });
 
             try {
-                const res = await fetchApi('/lev-etf/scan');
+                const filterParams = buildFilterParams();
+                const res = await fetchApi(`/lev-etf/scan?sort_by=${activeSortBy}&order=${activeSortDir === 1 ? 'asc' : 'desc'}${filterParams}`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
                 const json = await res.json();
                 levEtfData = json.data;
@@ -5064,7 +5065,8 @@
             logEvent('run_scanner', { scanner: `lev-${period}ema` });
 
             try {
-                const res = await fetchApi(`/lev-etf/scan-${period}ema`);
+                const filterParams = buildFilterParams();
+                const res = await fetchApi(`/lev-etf/scan-${period}ema?sort_by=${activeSortBy}&order=${activeSortDir === 1 ? 'asc' : 'desc'}${filterParams}`);
                 if (!res.ok) throw new Error(`API ${res.status}`);
                 const json = await res.json();
                 if (period === 8) levEmaData8 = json.data;
