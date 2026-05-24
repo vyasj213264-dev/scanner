@@ -104,10 +104,23 @@ def get_watchlist_stocks(
     )
     if rows is None:
         raise HTTPException(status_code=404, detail="Watchlist not found")
-    results = [StockResult.model_validate(r) for r in rows if r.get("Ticker")]
+    results = [StockResult.model_validate(r).model_dump(by_alias=True) for r in rows if r.get("Ticker")]
+    
+    import math
+    def clean_nans(obj):
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return None
+        elif isinstance(obj, dict):
+            return {k: clean_nans(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [clean_nans(v) for v in obj]
+        return obj
+        
+    cleaned_data = clean_nans(results)
+
     lists = watchlist_service.get_watchlists(user.id)
     wl_name = next((w["name"] for w in lists if w["id"] == watchlist_id), "Watchlist")
-    return {"watchlist_id": watchlist_id, "watchlist_name": wl_name, "count": len(results), "data": results}
+    return {"watchlist_id": watchlist_id, "watchlist_name": wl_name, "count": len(cleaned_data), "data": cleaned_data}
 
 
 @router.post("/{watchlist_id}/stocks", summary="Add a ticker to a watchlist")
