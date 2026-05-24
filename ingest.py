@@ -612,24 +612,40 @@ def run_ingest(market='US'):
         tickers.extend(in_tickers)
         ticker_meta.update(in_meta)
         
-        # Concurrently fetch Market Cap for Indian stocks using yfinance fast_info
+        # Concurrently fetch Market Cap and Industry for Indian stocks
         import concurrent.futures
-        print("Fetching Indian Market Caps concurrently via yfinance fast_info...", flush=True)
+        print("Fetching Indian Meta Data concurrently via yfinance...", flush=True)
         actual_stocks = [t for t in in_tickers if '^' not in t and 'NIFTY' not in t]
         
-        def _fetch_mc(t):
+        def _fetch_meta(t):
             try:
                 import yfinance as yf
-                return t, yf.Ticker(t).fast_info.get('marketCap')
+                tk = yf.Ticker(t)
+                mc = tk.fast_info.get('marketCap')
+                
+                # We need info for sector/industry (slower but necessary for IN market)
+                try:
+                    info = tk.info
+                    sec = info.get('sector', 'Unknown')
+                    ind = info.get('industry', 'Unknown')
+                except:
+                    sec = 'Unknown'
+                    ind = 'Unknown'
+                    
+                return t, mc, sec, ind
             except:
-                return t, None
+                return t, None, 'Unknown', 'Unknown'
     
         with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-            for t, mc in executor.map(_fetch_mc, actual_stocks):
+            for t, mc, sec, ind in executor.map(_fetch_meta, actual_stocks):
                 if mc:
                     ticker_meta[t]['market_cap'] = mc
+                if sec and sec != 'Unknown':
+                    ticker_meta[t]['sector'] = sec
+                if ind and ind != 'Unknown':
+                    ticker_meta[t]['industry'] = ind
                     
-        print("Indian Market Cap fetch complete.", flush=True)
+        print("Indian Meta Data fetch complete.", flush=True)
 
     # Remove duplicates
     tickers = list(dict.fromkeys(tickers))
