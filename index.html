@@ -7272,18 +7272,55 @@
                 const isFormula = tvSymbol.startsWith('(') || tvSymbol.includes('+') || tvSymbol.includes('*');
                 let useLWC = false;
                 
-                if (currentMarket === 'IN') {
-                    // ── Indian market: TradingView widget BSE fallback gives stale 'open' prices.
-                    // ALWAYS use LWC to fetch OHLCV from DB for accurate closing price!
-                    useLWC = true;
-                } else if (isChartModeView && currentMarket === 'US') {
+                if (isChartModeView && currentMarket === 'US') {
                     // Use LWC for custom 8DMA/21DMA structure overlays (needs OHLCV in DB)
                     useLWC = (watchlistChartMode === '8dma' || watchlistChartMode === '21dma');
                 } else {
-                    useLWC = isFormula;
+                    useLWC = (isFormula && currentMarket !== 'IN');
                 }
 
-                if (useLWC) {
+                if (currentMarket === 'IN' && !useLWC) {
+                    // ── Indian market: use TradingView with representative ticker (BSE fallback) ──
+                    const firstTickerMatch = ticker.match(/\(([A-Za-z0-9.^]+)/);
+                    const representativeTicker = firstTickerMatch ? firstTickerMatch[1] : ticker;
+                    const repTVSymbol = formatTVSymbol(representativeTicker, 'IN');
+
+                    const chartDiv = document.createElement('div');
+                    const tvId = 'tv_grid_in_' + repTVSymbol.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now();
+                    chartDiv.id = tvId;
+                    chartDiv.style.cssText = 'height:100%;width:100%;';
+                    container.appendChild(chartDiv);
+
+                    const instantiateINTV = () => {
+                        new TradingView.widget({
+                            autosize: true,
+                            symbol: repTVSymbol,
+                            interval: 'D',
+                            timezone: 'Asia/Kolkata',
+                            theme: theme,
+                            style: '3', // Area chart forces the line to plot at the exact CLOSE price (fixing BSE Open price bug)
+                            locale: 'en',
+                            enable_publishing: false,
+                            hide_top_toolbar: true,
+                            hide_legend: true,
+                            hide_side_toolbar: true,
+                            allow_symbol_change: false,
+                            save_image: false,
+                            calendar: false,
+                            studies: chartStudies,
+                            container_id: tvId
+                        });
+                    };
+
+                    if (window.TradingView && window.TradingView.widget) {
+                        instantiateINTV();
+                    } else {
+                        const s = document.createElement('script');
+                        s.src = 'https://s3.tradingview.com/tv.js';
+                        s.onload = instantiateINTV;
+                        document.head.appendChild(s);
+                    }
+                } else if (useLWC) {
                     // ── LightweightCharts with OHLCV data from our API ──
                     container.style.position = 'relative';
                     const chartDiv = document.createElement('div');
