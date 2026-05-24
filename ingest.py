@@ -671,7 +671,7 @@ def run_ingest(market='US'):
     all_data = []
     all_ohlcv = []
     chunk_size = 30
-    OHLCV_RETENTION_DAYS = 252  # ~1 year of trading days (charts only; portfolio sim is disabled)
+    OHLCV_RETENTION_DAYS = 252 if market == 'US' else 65  # IN uses 65 days to aggressively save DB space while allowing LightweightCharts to render
     
     benchmark_ticker = 'SPY' if market == 'US' else '^NSEI'
     print(f"Downloading benchmark ({benchmark_ticker}) for RS calculation...", flush=True)
@@ -825,16 +825,15 @@ def run_ingest(market='US'):
                     sim_data_dict[ticker] = df_sim
                     
                     # Vectorized OHLCV tuple creation (replaces slow iterrows loop)
-                    # Trim to last OHLCV_RETENTION_DAYS for DB persistence only (US only to save space)
-                    if market == 'US':
-                        ohlcv_df = df[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
-                        ohlcv_df.index.name = 'Date'
-                        ohlcv_df = ohlcv_df.reset_index()
-                        ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
-                        ohlcv_df.insert(0, 'Ticker', ticker)
-                        # Convert NaN to None and build tuples in bulk
-                        ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
-                        all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
+                    # Trim to last OHLCV_RETENTION_DAYS for DB persistence
+                    ohlcv_df = df[['Open', 'High', 'Low', 'Close', 'Volume']].tail(OHLCV_RETENTION_DAYS).copy()
+                    ohlcv_df.index.name = 'Date'
+                    ohlcv_df = ohlcv_df.reset_index()
+                    ohlcv_df['Date'] = ohlcv_df['Date'].dt.strftime('%Y-%m-%d')
+                    ohlcv_df.insert(0, 'Ticker', ticker)
+                    # Convert NaN to None and build tuples in bulk
+                    ohlcv_df = ohlcv_df.where(pd.notnull(ohlcv_df), None)
+                    all_ohlcv.extend(list(ohlcv_df.itertuples(index=False, name=None)))
                         
                 except Exception as parse_e:
                     skipped_count += 1
@@ -1558,7 +1557,7 @@ def run_ingest(market='US'):
         conn.commit()
         print(f"Successfully inserted {len(history_records)} historical breadth records.", flush=True)
     
-    if market == 'US':
+    if True:
         print(f"Inserting {len(all_ohlcv)} historical quotes into daily_ohlcv...", flush=True)
         
         is_pg = DATABASE_URL and DATABASE_URL.startswith("postgres")
@@ -1597,8 +1596,6 @@ def run_ingest(market='US'):
             conn.commit()  # final commit
             
         print(f"Successfully inserted {len(all_ohlcv):,} historical OHLCV records.", flush=True)
-    else:
-        print(f"Skipping daily_ohlcv insertion for {market} market to save project size limit (512MB).", flush=True)
     
     
     print("Calculating multi-timeframe RS Ratings from RS_Raw percentile ranks...", flush=True)
