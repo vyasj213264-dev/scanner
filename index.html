@@ -7298,11 +7298,11 @@
                             interval: 'D',
                             timezone: 'Asia/Kolkata',
                             theme: theme,
-                            style: '3', // Area chart forces the line to plot at the exact CLOSE price (fixing BSE Open price bug)
+                            style: '1', // Restored to Candlesticks as requested
                             locale: 'en',
                             enable_publishing: false,
                             hide_top_toolbar: true,
-                            hide_legend: true,
+                            hide_legend: false, // Show legend so user can explicitly see the OHLC values including Close
                             hide_side_toolbar: true,
                             allow_symbol_change: false,
                             save_image: false,
