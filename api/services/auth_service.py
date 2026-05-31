@@ -190,19 +190,31 @@ def init_user_tables() -> None:
 # User CRUD
 # ---------------------------------------------------------------------------
 
+def _fetch_user_row(cursor, sql: str, params: tuple):
+    is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
+    if is_postgres:
+        sql = sql.replace('?', '%s')
+    cursor.execute(sql, params)
+    row = cursor.fetchone()
+    if row:
+        from api.database import _map_row
+        return _map_row(row)
+    return None
+
 def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> User:
     """Upsert a user from Google profile data. Returns the user dict."""
     is_postgres = DATABASE_URL and DATABASE_URL.startswith("postgres")
     
-    # Try to find by google_id
-    row = fetch_one("SELECT * FROM users WHERE google_id = ?", (google_id,))
-    
-    if row is None:
-        # Try by email (account existed before OAuth)
-        row = fetch_one("SELECT * FROM users WHERE email = ?", (email,))
-        
     with get_user_db() as conn:
         cursor = conn.cursor()
+        
+        # Try to find by google_id
+        row = _fetch_user_row(cursor, "SELECT * FROM users WHERE google_id = ?", (google_id,))
+        
+        if row is None:
+            # Try by email (account existed before OAuth)
+            row = _fetch_user_row(cursor, "SELECT * FROM users WHERE email = ?", (email,))
+            
         if row is None:
             # Create new user
             sql = "INSERT INTO users (email, name, picture, google_id) VALUES (?,?,?,?) RETURNING id, email, name, picture, google_id, plan, is_admin, created_at"
@@ -215,12 +227,11 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
             if inserted_row is None:
                 # Fallback for old SQLite
                 last_id = cursor.lastrowid
-                sql_fetch = "SELECT * FROM users WHERE id = ?"
-                if is_postgres: sql_fetch = sql_fetch.replace('?', '%s')
-                cursor.execute(sql_fetch, (last_id,))
-                inserted_row = cursor.fetchone()
-                
-            user = User(**dict(inserted_row))
+                inserted_row = _fetch_user_row(cursor, "SELECT * FROM users WHERE id = ?", (last_id,))
+                user = User(**inserted_row)
+            else:
+                from api.database import _map_row
+                user = User(**_map_row(inserted_row))
         else:
             # Update name/picture/google_id in case they changed
             sql = "UPDATE users SET name=?, picture=?, google_id=? WHERE id=?"
@@ -229,8 +240,8 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
             conn.commit()
             
             # Re-fetch mutated row
-            updated_row = fetch_one("SELECT * FROM users WHERE id = ?", (row["id"],))
-            user = User(**dict(updated_row))
+            updated_row = _fetch_user_row(cursor, "SELECT * FROM users WHERE id = ?", (row["id"],))
+            user = User(**updated_row)
             
         # ── ALWAYS create a new session record on EVERY login ──
         session_sql = "INSERT INTO user_sessions (user_id) VALUES (?) RETURNING id"
@@ -250,8 +261,10 @@ def get_or_create_user(google_id: str, email: str, name: str, picture: str) -> U
 
 
 def get_user_by_id(user_id: int) -> Optional[User]:
-    row = fetch_one("SELECT * FROM users WHERE id = ?", (user_id,))
-    return User(**dict(row)) if row else None
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        row = _fetch_user_row(cursor, "SELECT * FROM users WHERE id = ?", (user_id,))
+        return User(**row) if row else None
 
 
 # ---------------------------------------------------------------------------

@@ -12,8 +12,8 @@ class User(BaseModel):
     name: Optional[str] = None
     picture: Optional[str] = None
     google_id: Optional[str] = None
-    plan: str = "free"
-    is_admin: bool = False
+    plan: Optional[str] = "free"
+    is_admin: Optional[bool] = False
     session_id: Optional[int] = None
     created_at: Optional[Union[str, datetime]] = None
 
